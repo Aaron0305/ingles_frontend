@@ -64,7 +64,11 @@ export default function DashboardPage() {
     
     // Inicializar Socket.io
     useEffect(() => {
-        const newSocket = io("http://localhost:3001", {
+        const SOCKET_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+            ? 'https://ingles-backend.vercel.app'
+            : 'http://localhost:3001';
+            
+        const newSocket = io(SOCKET_URL, {
             path: "/api/socket",
             transports: ["websocket", "polling"],
         });

@@ -28,6 +28,14 @@ const MONTHS = [
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ];
 
+// URLs dinámicas para producción y desarrollo
+const getApiUrl = () => {
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+        return 'https://ingles-backend.vercel.app';
+    }
+    return 'http://localhost:3001';
+};
+
 export default function PayScanPage() {
     const params = useParams();
     const router = useRouter();
@@ -42,15 +50,16 @@ export default function PayScanPage() {
 
     // Obtener información del estudiante y mes pendiente
     const fetchStudentAndPending = useCallback(async () => {
+        const API_URL = getApiUrl();
         try {
             // Obtener info del estudiante
-            const studentRes = await fetch(`http://localhost:3001/api/students/${studentId}`);
+            const studentRes = await fetch(`${API_URL}/api/students/${studentId}`);
             if (!studentRes.ok) throw new Error("Estudiante no encontrado");
             const studentData = await studentRes.json();
             setStudent(studentData);
 
             // Obtener pagos del estudiante
-            const paymentsRes = await fetch(`http://localhost:3001/api/payments?studentId=${studentId}`);
+            const paymentsRes = await fetch(`${API_URL}/api/payments?studentId=${studentId}`);
             const paymentsData = await paymentsRes.json();
             const payments = paymentsData.payments || [];
 
@@ -90,7 +99,8 @@ export default function PayScanPage() {
 
     // Conectar al socket
     useEffect(() => {
-        const newSocket = io("http://localhost:3001", {
+        const SOCKET_URL = getApiUrl();
+        const newSocket = io(SOCKET_URL, {
             path: "/api/socket",
             transports: ["websocket", "polling"],
         });

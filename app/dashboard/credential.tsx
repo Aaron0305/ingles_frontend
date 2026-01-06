@@ -34,7 +34,10 @@ interface CredentialModalProps {
 function generateQRData(student: Student): string {
     // Generar URL para el escaneo de pago
     // Esta URL abrirá la página de pago del estudiante
-    return `http://localhost:3000/pay/scan/${student.id}`;
+    const baseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+        ? 'https://ingles-frontend.vercel.app'
+        : 'http://localhost:3000';
+    return `${baseUrl}/pay/scan/${student.id}`;
 }
 
 function formatDate(dateString: string): string {
