@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import CredentialModal, { Student } from "../dashboard/credential";
 import PaymentsPanel, { PaymentRecord } from "../dashboard/payments";
 import { studentsApi, adminsApi, paymentsApi, authApi } from "@/lib/api";
+import { QRCodeSVG } from "qrcode.react";
 
 // ============================================
 // TIPOS
@@ -63,6 +64,7 @@ export default function SuperAdminDashboard() {
     const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showDeleteAdminModal, setShowDeleteAdminModal] = useState(false);
+    const [showQRModal, setShowQRModal] = useState(false);
     const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
     const [adminToDelete, setAdminToDelete] = useState<Admin | null>(null);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -959,6 +961,18 @@ export default function SuperAdminDashboard() {
                                                         </svg>
                                                     </button>
                                                     <button
+                                                        onClick={() => {
+                                                            setSelectedStudent(student);
+                                                            setShowQRModal(true);
+                                                        }}
+                                                        className="p-2 text-purple-500 hover:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 rounded-lg transition-colors"
+                                                        title="Ver QR de Pago"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                                                        </svg>
+                                                    </button>
+                                                    <button
                                                         onClick={() => handleToggleStudentStatus(student.id)}
                                                         className={`p-2 rounded-lg transition-colors ${
                                                             student.status === "active" 
@@ -1305,6 +1319,87 @@ export default function SuperAdminDashboard() {
                                 className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg transition-all"
                             >
                                 Sí, Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: QR de Pago */}
+            {showQRModal && selectedStudent && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                        {/* Header */}
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                                QR de Pago
+                            </h3>
+                            <button
+                                onClick={() => setShowQRModal(false)}
+                                className="p-2 rounded-lg hover:bg-gray-500/20 transition-colors"
+                                style={{ color: 'var(--text-secondary)' }}
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Info del estudiante */}
+                        <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
+                                    {selectedStudent.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{selectedStudent.name}</p>
+                                    <p className="text-sm font-mono text-cyan-500">#{selectedStudent.studentNumber}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* QR Code */}
+                        <div className="flex flex-col items-center p-6 bg-white rounded-xl mb-6">
+                            <QRCodeSVG
+                                value={`${typeof window !== 'undefined' ? window.location.origin : ''}/pay/scan/${selectedStudent.id}`}
+                                size={200}
+                                level="H"
+                                includeMargin={true}
+                            />
+                            <p className="text-xs text-gray-500 mt-3 text-center">
+                                Escanea este código para registrar el pago
+                            </p>
+                        </div>
+
+                        {/* URL de pago */}
+                        <div className="p-3 rounded-lg mb-6 overflow-hidden" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
+                            <p className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>URL de pago:</p>
+                            <p className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
+                                {typeof window !== 'undefined' ? `${window.location.origin}/pay/scan/${selectedStudent.id}` : ''}
+                            </p>
+                        </div>
+
+                        {/* Botones */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    const url = `${window.location.origin}/pay/scan/${selectedStudent.id}`;
+                                    navigator.clipboard.writeText(url);
+                                    alert('URL copiada al portapapeles');
+                                }}
+                                className="flex-1 px-4 py-3 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                                style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                Copiar URL
+                            </button>
+                            <button
+                                onClick={() => setShowQRModal(false)}
+                                className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium rounded-lg transition-all"
+                            >
+                                Cerrar
                             </button>
                         </div>
                     </div>
