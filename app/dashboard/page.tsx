@@ -65,7 +65,7 @@ export default function DashboardPage() {
     // Inicializar Socket.io
     useEffect(() => {
         const SOCKET_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-            ? 'https://ingles-backend.vercel.app'
+            ? 'https://ingles-backend-bk4n.onrender.com'
             : 'http://localhost:3001';
             
         const newSocket = io(SOCKET_URL, {

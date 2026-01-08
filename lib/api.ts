@@ -6,7 +6,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ||
     (typeof window !== 'undefined' && 
      window.location.hostname !== 'localhost' && 
      window.location.hostname !== '127.0.0.1'
-        ? 'https://ingles-backend.vercel.app' 
+        ? 'https://ingles-backend-bk4n.onrender.com' 
         : 'http://127.0.0.1:3001');
 
 // ============================================

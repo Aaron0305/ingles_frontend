@@ -8,11 +8,12 @@ import { Suspense, useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
 
+// IMPORTANTE: Usar Render para WebSockets (Vercel no soporta WebSockets persistentes)
 const getApiUrl = () => {
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname;
     if (hostname !== "localhost" && hostname !== "127.0.0.1") {
-      return "https://ingles-backend.vercel.app";
+      return "https://ingles-backend-bk4n.onrender.com";
     }
   }
   return "http://127.0.0.1:3001";
