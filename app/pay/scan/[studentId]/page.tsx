@@ -61,7 +61,7 @@ export default function PayScanPage() {
             // Obtener pagos del estudiante
             const paymentsRes = await fetch(`${API_URL}/api/payments?studentId=${studentId}`);
             const paymentsData = await paymentsRes.json();
-            const payments = paymentsData.payments || [];
+            const payments = Array.isArray(paymentsData) ? paymentsData : [];
 
             // Encontrar el primer mes pendiente del año actual
             const currentYear = new Date().getFullYear();
