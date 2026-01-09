@@ -66,7 +66,7 @@ export default function DashboardPage() {
     // EFECTOS
     // ============================================
     
-    // Inicializar Socket.io con autenticación
+    // Inicializar Socket.io con autenticación y reconexión
     useEffect(() => {
         const SOCKET_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
             ? 'https://ingles-backend-bk4n.onrender.com'
@@ -75,36 +75,55 @@ export default function DashboardPage() {
         const newSocket = io(SOCKET_URL, {
             path: "/api/socket",
             transports: ["websocket", "polling"],
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
         });
 
-        newSocket.on("connect", () => {
-            console.log("✅ Socket conectado");
-            
-            // Primero autenticarse con el token JWT
+        // Función para autenticar y registrar
+        const authenticateAndRegister = () => {
             const token = localStorage.getItem("token");
             if (token) {
+                console.log("🔄 Enviando autenticación...");
                 newSocket.emit("authenticate", { token });
             } else {
                 console.error("❌ No hay token para autenticar socket");
             }
+        };
+
+        newSocket.on("connect", () => {
+            console.log("✅ Socket conectado - ID:", newSocket.id);
+            authenticateAndRegister();
+        });
+
+        // Cuando se reconecta, volver a autenticar
+        newSocket.on("reconnect", () => {
+            console.log("🔄 Socket reconectado - re-autenticando...");
+            authenticateAndRegister();
         });
 
         // Cuando la autenticación es exitosa, registrarse como admin
         newSocket.on("auth-success", (data) => {
             console.log("🔐 Socket autenticado:", data.user?.name);
             newSocket.emit("register-admin");
+            console.log("📝 Solicitando registro como admin...");
+        });
+
+        newSocket.on("registered", (data) => {
+            console.log("✅ Registrado como admin correctamente:", data);
         });
 
         newSocket.on("auth-failed", (data) => {
             console.error("❌ Autenticación de socket fallida:", data.message);
         });
 
-        newSocket.on("disconnect", () => {
-            console.log("❌ Socket desconectado");
+        newSocket.on("disconnect", (reason) => {
+            console.log("❌ Socket desconectado. Razón:", reason);
         });
 
         newSocket.on("connect_error", (error) => {
-            console.error("Error de conexión socket:", error);
+            console.error("Error de conexión socket:", error.message);
         });
 
         setSocket(newSocket);
