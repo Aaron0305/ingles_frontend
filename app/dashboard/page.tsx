@@ -61,6 +61,16 @@ export default function DashboardPage() {
     
     // Socket para comunicación en tiempo real
     const [socket, setSocket] = useState<Socket | null>(null);
+    
+    // Estados para notificación de pago desde escaneo QR
+    const [pendingPaymentRequest, setPendingPaymentRequest] = useState<{
+        studentId: string;
+        studentName: string;
+        studentNumber: string;
+        pendingMonth: number;
+        pendingYear: number;
+        monthlyFee: number;
+    } | null>(null);
 
     // ============================================
     // EFECTOS
@@ -124,6 +134,22 @@ export default function DashboardPage() {
 
         newSocket.on("connect_error", (error) => {
             console.error("Error de conexión socket:", error.message);
+        });
+
+        // 🔔 Escuchar solicitudes de pago desde escaneo QR
+        newSocket.on("payment-request", (data) => {
+            console.log("📱 Solicitud de pago recibida:", data);
+            setPendingPaymentRequest(data);
+            
+            // Cambiar a la pestaña de pagos automáticamente
+            setActiveTab("payments");
+            
+            // Reproducir sonido de notificación
+            try {
+                const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleAEUA6KW+vB6JQ0AzePU/DjM+f/t7OT0VO8/9fnn8u8r9Fz35e/w7wrxMfXt6/LrIu8R8wHu7+v16CLuFPIC7u/s8eot7xHxB+3x7fXnL+4S8Anx8O336S3vDvD/7/Ht9+kx7g/v/+/x7ffqL+4O8P/w8e746i/tDfD+8fHu+Oov7Qzw/vHx7vjrL+wM8P7x8e746y/sDPD+8fHu+Osv7Azw/vHx7vjrL+wM8P7x");
+                audio.volume = 0.5;
+                audio.play().catch(() => {});
+            } catch (e) {}
         });
 
         setSocket(newSocket);
@@ -504,6 +530,8 @@ export default function DashboardPage() {
                         onPaymentConfirm={handlePaymentConfirm}
                         onPaymentRevoke={handlePaymentRevoke}
                         socket={socket}
+                        pendingPaymentRequest={pendingPaymentRequest}
+                        onPaymentRequestHandled={() => setPendingPaymentRequest(null)}
                     />
                 ) : (
                     /* Content - Students/Credentials Tab */

@@ -49,6 +49,15 @@ interface PaymentsPanelProps {
     onPaymentConfirm: (studentId: string, month: number, year: number) => void;
     onPaymentRevoke?: (studentId: string, month: number, year: number) => void;
     socket?: Socket | null;
+    pendingPaymentRequest?: {
+        studentId: string;
+        studentName: string;
+        studentNumber: string;
+        pendingMonth: number;
+        pendingYear: number;
+        monthlyFee: number;
+    } | null;
+    onPaymentRequestHandled?: () => void;
 }
 
 interface QRScannerModalProps {
@@ -631,7 +640,15 @@ function StudentPaymentCard({
 // PANEL PRINCIPAL DE PAGOS
 // ============================================
 
-export default function PaymentsPanel({ students, payments, onPaymentConfirm, onPaymentRevoke, socket }: PaymentsPanelProps) {
+export default function PaymentsPanel({ 
+    students, 
+    payments, 
+    onPaymentConfirm, 
+    onPaymentRevoke, 
+    socket,
+    pendingPaymentRequest,
+    onPaymentRequestHandled 
+}: PaymentsPanelProps) {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
     const [showScanner, setShowScanner] = useState(false);
@@ -647,6 +664,22 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
     const [scanRequest, setScanRequest] = useState<PaymentScanRequest | null>(null);
     const [showScanNotification, setShowScanNotification] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Procesar solicitud de pago pendiente del componente padre
+    useEffect(() => {
+        if (pendingPaymentRequest) {
+            console.log("📱 Procesando solicitud de pago pendiente:", pendingPaymentRequest);
+            setScanRequest(pendingPaymentRequest);
+            
+            const student = students.find(s => s.id === pendingPaymentRequest.studentId);
+            if (student) {
+                setSelectedStudent(student);
+                setSelectedMonth(pendingPaymentRequest.pendingMonth);
+                setSelectedYear(pendingPaymentRequest.pendingYear);
+                setShowConfirmModal(true);
+            }
+        }
+    }, [pendingPaymentRequest, students]);
 
     // Escuchar eventos de escaneo QR
     useEffect(() => {
@@ -736,6 +769,11 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
                 });
                 setScanRequest(null);
             }
+            
+            // Limpiar la solicitud pendiente del componente padre
+            if (onPaymentRequestHandled) {
+                onPaymentRequestHandled();
+            }
         }
     };
 
@@ -749,6 +787,11 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
             setScanRequest(null);
         }
         setShowConfirmModal(false);
+        
+        // Limpiar la solicitud pendiente del componente padre
+        if (onPaymentRequestHandled) {
+            onPaymentRequestHandled();
+        }
     };
 
     // Filtrar estudiantes por búsqueda
