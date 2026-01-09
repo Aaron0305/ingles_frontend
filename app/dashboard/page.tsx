@@ -320,54 +320,46 @@ export default function DashboardPage() {
                     </div>
                 ) : (
                 <>
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div className="stats-card">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                                <Users className="w-6 h-6 text-blue-500" strokeWidth={2} />
+                {/* Header Stats - Diseño moderno */}
+                <div className="mb-8">
+                    <div className="rounded-2xl p-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)', border: '1px solid var(--border-color)' }}>
+                        {/* Decoración de fondo */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-500/10 to-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                        
+                        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                            {/* Estudiantes - Principal */}
+                            <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
+                                    <Users className="w-8 h-8 text-white" strokeWidth={2} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Total de Estudiantes</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <p className="text-4xl font-black" style={{ color: 'var(--text-primary)' }}>{students.length}</p>
+                                        <span className="text-sm font-medium px-2 py-0.5 rounded-full bg-green-500/20 text-green-500">
+                                            {students.filter(s => s.status === "active").length} activos
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Total Estudiantes</p>
-                                <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{students.length}</p>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div className="stats-card">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
-                                <CheckCircle className="w-6 h-6 text-green-500" strokeWidth={2} />
-                            </div>
-                            <div>
-                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Activos</p>
-                                <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{students.filter((s) => s.status === "active").length}</p>
-                            </div>
-                        </div>
-                    </div>
+                            {/* Separador visual */}
+                            <div className="hidden md:block w-px h-16 bg-gradient-to-b from-transparent via-gray-500/30 to-transparent" />
 
-                    <div className="stats-card">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                                <IdCard className="w-6 h-6 text-purple-500" strokeWidth={2} />
-                            </div>
-                            <div>
-                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Credenciales</p>
-                                <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{students.length}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="stats-card">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                                <DollarSign className="w-6 h-6 text-cyan-500" strokeWidth={2} />
-                            </div>
-                            <div>
-                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Ingresos Mes</p>
-                                <p className="text-2xl font-bold text-green-500">
-                                    ${students.reduce((acc, s) => acc + (s.status === "active" ? s.monthlyFee : 0), 0).toLocaleString()}
-                                </p>
+                            {/* Distribución por nivel */}
+                            <div className="flex gap-3">
+                                <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
+                                    <p className="text-2xl font-bold text-blue-500">{students.filter(s => s.level === "Beginner").length}</p>
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Beginner</p>
+                                </div>
+                                <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
+                                    <p className="text-2xl font-bold text-amber-500">{students.filter(s => s.level === "Intermediate").length}</p>
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Intermediate</p>
+                                </div>
+                                <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
+                                    <p className="text-2xl font-bold text-emerald-500">{students.filter(s => s.level === "Advanced").length}</p>
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Advanced</p>
+                                </div>
                             </div>
                         </div>
                     </div>

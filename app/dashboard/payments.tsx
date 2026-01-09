@@ -448,14 +448,33 @@ function StudentPaymentCard({
         ? new Date(student.createdAt).getFullYear() 
         : currentYear;
     
-    // Generar array de años disponibles (desde inscripción hasta año actual)
+    // Función para verificar si un año tiene los 12 meses pagados
+    const isYearFullyPaid = (year: number) => {
+        const yearPayments = payments.filter(p => p.year === year && p.status === "paid");
+        return yearPayments.length >= 12;
+    };
+    
+    // Calcular el último año disponible
+    // Si el año actual tiene 12 meses pagados, habilitar el siguiente año
+    let maxYear = currentYear;
+    while (isYearFullyPaid(maxYear)) {
+        maxYear++;
+    }
+    
+    // Generar array de años disponibles (desde inscripción hasta maxYear)
     const availableYears = Array.from(
-        { length: currentYear - enrollmentYear + 1 }, 
+        { length: maxYear - enrollmentYear + 1 }, 
         (_, i) => enrollmentYear + i
     );
     
     // Estado para el año seleccionado en el carrusel
-    const [selectedYear, setSelectedYear] = useState(currentYear);
+    // Si el año actual está completamente pagado, seleccionar el siguiente por defecto
+    const [selectedYear, setSelectedYear] = useState(() => {
+        if (isYearFullyPaid(currentYear)) {
+            return currentYear + 1;
+        }
+        return currentYear;
+    });
     
     // Pagos del año seleccionado
     const yearPayments = payments.filter(p => p.year === selectedYear);
@@ -466,7 +485,7 @@ function StudentPaymentCard({
 
     // Navegación del carrusel
     const canGoPrev = selectedYear > enrollmentYear;
-    const canGoNext = selectedYear < currentYear;
+    const canGoNext = selectedYear < maxYear;
 
     return (
         <div className="rounded-2xl overflow-hidden transition-shadow hover:shadow-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
@@ -543,22 +562,34 @@ function StudentPaymentCard({
                     </button>
                     
                     <div className="flex items-center gap-1">
-                        {availableYears.map((year) => (
-                            <button
-                                key={year}
-                                onClick={() => setSelectedYear(year)}
-                                className={`
-                                    px-2.5 py-1 rounded-md text-xs font-semibold transition-all
-                                    ${year === selectedYear 
-                                        ? 'bg-blue-500 text-white shadow-sm' 
-                                        : 'hover:bg-blue-500/10'
-                                    }
-                                `}
-                                style={year !== selectedYear ? { color: 'var(--text-tertiary)' } : {}}
-                            >
-                                {year}
-                            </button>
-                        ))}
+                        {availableYears.map((year) => {
+                            const yearFullyPaid = isYearFullyPaid(year);
+                            const isFutureYear = year > currentYear;
+                            
+                            return (
+                                <button
+                                    key={year}
+                                    onClick={() => setSelectedYear(year)}
+                                    className={`
+                                        px-2.5 py-1 rounded-md text-xs font-semibold transition-all relative
+                                        ${year === selectedYear 
+                                            ? 'bg-blue-500 text-white shadow-sm' 
+                                            : yearFullyPaid 
+                                                ? 'bg-green-500/20 text-green-500 hover:bg-green-500/30'
+                                                : 'hover:bg-blue-500/10'
+                                        }
+                                    `}
+                                    style={year !== selectedYear && !yearFullyPaid ? { color: 'var(--text-tertiary)' } : {}}
+                                >
+                                    {year}
+                                    {yearFullyPaid && year !== selectedYear && (
+                                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                     
                     <button
