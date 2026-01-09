@@ -66,7 +66,7 @@ export default function DashboardPage() {
     // EFECTOS
     // ============================================
     
-    // Inicializar Socket.io
+    // Inicializar Socket.io con autenticación
     useEffect(() => {
         const SOCKET_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
             ? 'https://ingles-backend-bk4n.onrender.com'
@@ -78,9 +78,25 @@ export default function DashboardPage() {
         });
 
         newSocket.on("connect", () => {
-            console.log("✅ Socket conectado - Admin registrado");
-            // Registrar como admin
+            console.log("✅ Socket conectado");
+            
+            // Primero autenticarse con el token JWT
+            const token = localStorage.getItem("token");
+            if (token) {
+                newSocket.emit("authenticate", { token });
+            } else {
+                console.error("❌ No hay token para autenticar socket");
+            }
+        });
+
+        // Cuando la autenticación es exitosa, registrarse como admin
+        newSocket.on("auth-success", (data) => {
+            console.log("🔐 Socket autenticado:", data.user?.name);
             newSocket.emit("register-admin");
+        });
+
+        newSocket.on("auth-failed", (data) => {
+            console.error("❌ Autenticación de socket fallida:", data.message);
         });
 
         newSocket.on("disconnect", () => {

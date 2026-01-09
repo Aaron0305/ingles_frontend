@@ -6,7 +6,8 @@ export const fetchCache = "force-no-store";
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
-import { Check, X, AlertTriangle } from "lucide-react";
+import { Check, X, AlertTriangle, Lock, LogIn, Shield, Eye, EyeOff, Loader2 } from "lucide-react";
+import { authApi } from "@/lib/api";
 
 interface StudentInfo {
     id: string;
@@ -25,7 +26,7 @@ interface PaymentResult {
     year?: number;
 }
 
-type ScanStatus = "connecting" | "loading" | "processing" | "confirmed" | "rejected" | "error";
+type ScanStatus = "auth-required" | "authenticating" | "connecting" | "loading" | "processing" | "confirmed" | "rejected" | "error";
 
 const MONTHS = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -49,13 +50,62 @@ export default function PayScanPage() {
     const router = useRouter();
     const studentId = params.studentId as string;
 
-    const [status, setStatus] = useState<ScanStatus>("connecting");
+    // Auth state
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+    const [loginEmail, setLoginEmail] = useState("");
+    const [loginPassword, setLoginPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [loginError, setLoginError] = useState("");
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+    const [status, setStatus] = useState<ScanStatus>("auth-required");
     const [student, setStudent] = useState<StudentInfo | null>(null);
     const [pendingMonth, setPendingMonth] = useState<number>(0);
     const [pendingYear, setPendingYear] = useState<number>(0);
     const [message, setMessage] = useState<string>("");
     const [socket, setSocket] = useState<Socket | null>(null);
     const [progress, setProgress] = useState<number>(0);
+
+    // Verificar autenticación al cargar
+    useEffect(() => {
+        const token = localStorage.getItem("token");
+        const userType = localStorage.getItem("userType");
+        
+        if (token && (userType === "admin" || userType === "superadmin")) {
+            setIsAuthenticated(true);
+            setStatus("connecting");
+        } else {
+            setIsAuthenticated(false);
+            setStatus("auth-required");
+        }
+    }, []);
+
+    // Handler para login
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoginError("");
+        setIsLoggingIn(true);
+        setStatus("authenticating");
+
+        try {
+            const response = await authApi.login(loginEmail, loginPassword);
+
+            if (response.success) {
+                localStorage.setItem("token", response.token);
+                localStorage.setItem("userType", response.user.role);
+                localStorage.setItem("userName", response.user.name);
+                
+                setIsAuthenticated(true);
+                setStatus("connecting");
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Error al iniciar sesión";
+            setLoginError(message);
+            setStatus("auth-required");
+        } finally {
+            setIsLoggingIn(false);
+        }
+    };
 
     // Formatear moneda
     const formatCurrency = (amount: number) => {
@@ -86,7 +136,6 @@ export default function PayScanPage() {
 
             // Encontrar el primer mes pendiente del año actual
             const currentYear = new Date().getFullYear();
-            const currentMonth = new Date().getMonth() + 1;
 
             // Buscar primer mes no pagado (desde enero hasta diciembre)
             let foundPending = false;
@@ -118,8 +167,10 @@ export default function PayScanPage() {
         }
     }, [studentId]);
 
-    // Conectar al socket
+    // Conectar al socket SOLO si está autenticado
     useEffect(() => {
+        if (!isAuthenticated) return;
+        
         const SOCKET_URL = getApiUrl();
         setProgress(10);
         
@@ -130,8 +181,26 @@ export default function PayScanPage() {
 
         newSocket.on("connect", () => {
             console.log("✅ Conectado al servidor");
+            setProgress(15);
+            
+            // Enviar token para autenticación del socket
+            const token = localStorage.getItem("token");
+            if (token) {
+                newSocket.emit("authenticate", { token });
+            }
+        });
+
+        // Cuando la autenticación es exitosa, continuar
+        newSocket.on("auth-success", () => {
+            console.log("🔐 Socket autenticado correctamente");
             setProgress(20);
             setStatus("loading");
+        });
+
+        newSocket.on("auth-failed", (data) => {
+            console.error("❌ Autenticación de socket fallida:", data.message);
+            setStatus("error");
+            setMessage("Error de autenticación. Tu sesión puede haber expirado.");
         });
 
         newSocket.on("connect_error", (error) => {
@@ -142,7 +211,7 @@ export default function PayScanPage() {
 
         newSocket.on("scan-received", () => {
             setStatus("processing");
-            setMessage("Registrando pago...");
+            setMessage("Esperando confirmación del administrador...");
             setProgress(85);
         });
 
@@ -165,7 +234,7 @@ export default function PayScanPage() {
         return () => {
             newSocket.disconnect();
         };
-    }, []);
+    }, [isAuthenticated]);
 
     // Obtener datos del estudiante cuando el socket conecta
     useEffect(() => {
@@ -211,6 +280,99 @@ export default function PayScanPage() {
                 {/* Content */}
                 <div className="p-6">
                     
+                    {/* Status: Auth Required - LOGIN FORM */}
+                    {(status === "auth-required" || status === "authenticating") && (
+                        <div className="py-4">
+                            {/* Security Icon */}
+                            <div className="text-center mb-6">
+                                <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-200">
+                                    <Lock className="w-10 h-10 text-white" strokeWidth={2} />
+                                </div>
+                                <h2 className="text-xl font-bold text-gray-800 mb-2">Autenticación Requerida</h2>
+                                <p className="text-gray-500 text-sm">
+                                    Para procesar pagos necesitas iniciar sesión como administrador
+                                </p>
+                            </div>
+
+                            {/* Security Badge */}
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                                <div className="flex items-center gap-3">
+                                    <Shield className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                                    <p className="text-sm text-amber-700">
+                                        <span className="font-semibold">Ruta protegida:</span> Los pagos requieren verificación de identidad por seguridad.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Login Form */}
+                            <form onSubmit={handleLogin} className="space-y-4">
+                                {loginError && (
+                                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
+                                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                                        {loginError}
+                                    </div>
+                                )}
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Correo electrónico
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={loginEmail}
+                                        onChange={(e) => setLoginEmail(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-gray-800"
+                                        placeholder="admin@ejemplo.com"
+                                        required
+                                        disabled={isLoggingIn}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Contraseña
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            value={loginPassword}
+                                            onChange={(e) => setLoginPassword(e.target.value)}
+                                            className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-gray-800"
+                                            placeholder="••••••••"
+                                            required
+                                            disabled={isLoggingIn}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                        >
+                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={isLoggingIn}
+                                    className="w-full px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-purple-200 hover:shadow-xl flex items-center justify-center gap-2"
+                                >
+                                    {isLoggingIn ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            Verificando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <LogIn className="w-5 h-5" />
+                                            Iniciar Sesión
+                                        </>
+                                    )}
+                                </button>
+                            </form>
+                        </div>
+                    )}
+
                     {/* Status: Connecting */}
                     {status === "connecting" && (
                         <div className="text-center py-12">

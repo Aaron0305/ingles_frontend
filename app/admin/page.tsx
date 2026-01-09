@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { io, Socket } from "socket.io-client";
 import CredentialModal, { Student } from "../dashboard/credential";
 import PaymentsPanel, { PaymentRecord } from "../dashboard/payments";
 import { studentsApi, adminsApi, paymentsApi, authApi } from "@/lib/api";
 import { QRCodeSVG } from "qrcode.react";
 import { 
-    ShieldCheck, Users, CheckCircle, UserCircle, IdCard, CircleDollarSign, 
+    ShieldCheck, Users, CheckCircle, IdCard, CircleDollarSign, 
     BarChart3, Plus, UserPlus, Search, X, Trash2, Ban, QrCode, 
     TrendingDown, FileText, Copy, AlertTriangle
 } from "lucide-react";
@@ -94,10 +95,61 @@ export default function SuperAdminDashboard() {
     const [formErrors, setFormErrors] = useState<Partial<NewStudentForm>>({});
     const [adminFormErrors, setAdminFormErrors] = useState<Partial<NewAdminForm & { confirmPassword?: string }>>({});
     const [isCreating, setIsCreating] = useState(false);
+    
+    // Socket para comunicación en tiempo real
+    const [socket, setSocket] = useState<Socket | null>(null);
 
     // ============================================
     // EFECTOS
     // ============================================
+
+    // Inicializar Socket.io con autenticación
+    useEffect(() => {
+        const SOCKET_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+            ? 'https://ingles-backend-bk4n.onrender.com'
+            : 'http://localhost:3001';
+            
+        const newSocket = io(SOCKET_URL, {
+            path: "/api/socket",
+            transports: ["websocket", "polling"],
+        });
+
+        newSocket.on("connect", () => {
+            console.log("✅ Socket conectado (Super Admin)");
+            
+            // Primero autenticarse con el token JWT
+            const token = localStorage.getItem("token");
+            if (token) {
+                newSocket.emit("authenticate", { token });
+            } else {
+                console.error("❌ No hay token para autenticar socket");
+            }
+        });
+
+        // Cuando la autenticación es exitosa, registrarse como admin
+        newSocket.on("auth-success", (data) => {
+            console.log("🔐 Socket autenticado:", data.user?.name);
+            newSocket.emit("register-admin");
+        });
+
+        newSocket.on("auth-failed", (data) => {
+            console.error("❌ Autenticación de socket fallida:", data.message);
+        });
+
+        newSocket.on("disconnect", () => {
+            console.log("❌ Socket desconectado");
+        });
+
+        newSocket.on("connect_error", (error) => {
+            console.error("Error de conexión socket:", error);
+        });
+
+        setSocket(newSocket);
+
+        return () => {
+            newSocket.disconnect();
+        };
+    }, []);
 
     useEffect(() => {
         // Verificar autenticación de super admin
@@ -451,66 +503,60 @@ export default function SuperAdminDashboard() {
                     </div>
                 ) : (
                 <>
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-                    <div className="stats-card">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                                <Users className="w-6 h-6 text-blue-500" strokeWidth={2} />
+                {/* Header Stats - Diseño moderno Super Admin */}
+                <div className="mb-8">
+                    <div className="rounded-2xl p-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)', border: '1px solid var(--border-color)' }}>
+                        {/* Decoración de fondo */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                        
+                        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                            {/* Estudiantes - Principal */}
+                            <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/25">
+                                    <Users className="w-8 h-8 text-white" strokeWidth={2} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Total de Estudiantes</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <p className="text-4xl font-black" style={{ color: 'var(--text-primary)' }}>{students.length}</p>
+                                        <span className="text-sm font-medium px-2 py-0.5 rounded-full bg-green-500/20 text-green-500">
+                                            {students.filter(s => s.status === "active").length} activos
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Estudiantes</p>
-                                <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{students.length}</p>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div className="stats-card">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
-                                <CheckCircle className="w-6 h-6 text-green-500" strokeWidth={2} />
-                            </div>
-                            <div>
-                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Activos</p>
-                                <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{students.filter((s) => s.status === "active").length}</p>
-                            </div>
-                        </div>
-                    </div>
+                            {/* Separador visual */}
+                            <div className="hidden lg:block w-px h-16 bg-gradient-to-b from-transparent via-gray-500/30 to-transparent" />
 
-                    <div className="stats-card">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                                <UserCircle className="w-6 h-6 text-purple-500" strokeWidth={2} />
+                            {/* Administradores */}
+                            <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                                    <ShieldCheck className="w-7 h-7 text-white" strokeWidth={2} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Administradores</p>
+                                    <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{admins.length}</p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Admins</p>
-                                <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{admins.length}</p>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div className="stats-card">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                                <IdCard className="w-6 h-6 text-cyan-500" strokeWidth={2} />
-                            </div>
-                            <div>
-                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Credenciales</p>
-                                <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{students.length}</p>
-                            </div>
-                        </div>
-                    </div>
+                            {/* Separador visual */}
+                            <div className="hidden lg:block w-px h-16 bg-gradient-to-b from-transparent via-gray-500/30 to-transparent" />
 
-                    <div className="stats-card">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                                <CircleDollarSign className="w-6 h-6 text-emerald-500" strokeWidth={2} />
-                            </div>
-                            <div>
-                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Ingresos</p>
-                                <p className="text-2xl font-bold text-green-500">
-                                    ${payments.filter(p => p.status === "paid").reduce((acc, p) => acc + p.amount, 0).toLocaleString()}
-                                </p>
+                            {/* Distribución por nivel */}
+                            <div className="flex gap-3">
+                                <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
+                                    <p className="text-2xl font-bold text-blue-500">{students.filter(s => s.level === "Beginner").length}</p>
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Beginner</p>
+                                </div>
+                                <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
+                                    <p className="text-2xl font-bold text-amber-500">{students.filter(s => s.level === "Intermediate").length}</p>
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Intermediate</p>
+                                </div>
+                                <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
+                                    <p className="text-2xl font-bold text-emerald-500">{students.filter(s => s.level === "Advanced").length}</p>
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Advanced</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -748,6 +794,7 @@ export default function SuperAdminDashboard() {
                         payments={payments}
                         onPaymentConfirm={handlePaymentConfirm}
                         onPaymentRevoke={handlePaymentRevoke}
+                        socket={socket}
                     />
                 ) : activeTab === "admins" ? (
                     /* Content - Admins Tab */
