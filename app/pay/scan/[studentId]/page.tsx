@@ -6,7 +6,7 @@ export const fetchCache = "force-no-store";
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
-import { Check, X, AlertTriangle, Lock, LogIn, Shield, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Check, X, AlertTriangle, Lock, LogIn, Eye, EyeOff, Loader2, Monitor, Smartphone } from "lucide-react";
 import { authApi } from "@/lib/api";
 
 interface StudentInfo {
@@ -288,18 +288,27 @@ export default function PayScanPage() {
                                 <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-200">
                                     <Lock className="w-10 h-10 text-white" strokeWidth={2} />
                                 </div>
-                                <h2 className="text-xl font-bold text-gray-800 mb-2">Autenticación Requerida</h2>
+                                <h2 className="text-xl font-bold text-gray-800 mb-2">Acceso de Personal</h2>
                                 <p className="text-gray-500 text-sm">
-                                    Para procesar pagos necesitas iniciar sesión como administrador
+                                    Inicia sesión para registrar el pago de este estudiante
                                 </p>
                             </div>
 
-                            {/* Security Badge */}
-                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-                                <div className="flex items-center gap-3">
-                                    <Shield className="w-5 h-5 text-amber-600 flex-shrink-0" />
-                                    <p className="text-sm text-amber-700">
-                                        <span className="font-semibold">Ruta protegida:</span> Los pagos requieren verificación de identidad por seguridad.
+                            {/* Info Badge */}
+                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex-shrink-0 mt-0.5">
+                                        <div className="flex items-center gap-1">
+                                            <Smartphone className="w-4 h-4 text-blue-500" />
+                                            <span className="text-blue-400">→</span>
+                                            <Monitor className="w-4 h-4 text-blue-500" />
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-blue-700">
+                                        <span className="font-semibold">¿Cómo funciona?</span><br/>
+                                        <span className="text-blue-600 text-xs">
+                                            Escanea aquí y confirma el pago desde tu panel de administración (computadora u otro dispositivo).
+                                        </span>
                                     </p>
                                 </div>
                             </div>
@@ -419,7 +428,7 @@ export default function PayScanPage() {
                         </div>
                     )}
 
-                    {/* Status: Processing */}
+                    {/* Status: Processing - Esperando confirmación de otro dispositivo */}
                     {status === "processing" && student && (
                         <div className="text-center">
                             {/* Student Card */}
@@ -445,6 +454,31 @@ export default function PayScanPage() {
                                 </p>
                                 <p className="text-4xl font-black text-emerald-600">
                                     {formatCurrency(student.monthlyFee)}
+                                </p>
+                            </div>
+
+                            {/* Mensaje de espera - Dispositivos */}
+                            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6">
+                                <div className="flex items-center justify-center gap-3 mb-3">
+                                    <div className="flex items-center gap-1">
+                                        <Smartphone className="w-5 h-5 text-blue-500" />
+                                        <span className="text-xs text-blue-600">Este dispositivo</span>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: "150ms" }}></div>
+                                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: "300ms" }}></div>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <Monitor className="w-5 h-5 text-blue-500" />
+                                        <span className="text-xs text-blue-600">Panel Admin</span>
+                                    </div>
+                                </div>
+                                <p className="text-sm font-semibold text-blue-700">
+                                    Solicitud enviada al panel de administración
+                                </p>
+                                <p className="text-xs text-blue-600 mt-1">
+                                    Confirma el pago desde tu computadora o cualquier dispositivo con sesión activa
                                 </p>
                             </div>
 
