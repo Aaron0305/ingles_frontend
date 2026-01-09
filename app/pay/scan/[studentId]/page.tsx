@@ -6,6 +6,7 @@ export const fetchCache = "force-no-store";
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
+import { Check, X, AlertTriangle } from "lucide-react";
 
 interface StudentInfo {
     id: string;
@@ -312,9 +313,7 @@ export default function PayScanPage() {
                             <div className="relative w-24 h-24 mx-auto mb-6">
                                 <div className="absolute inset-0 bg-emerald-100 rounded-full animate-ping opacity-25"></div>
                                 <div className="relative w-24 h-24 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-200">
-                                    <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                    </svg>
+                                    <Check className="w-12 h-12 text-white" strokeWidth={3} />
                                 </div>
                             </div>
                             
@@ -358,9 +357,7 @@ export default function PayScanPage() {
                     {status === "rejected" && (
                         <div className="text-center py-6">
                             <div className="w-24 h-24 bg-gradient-to-br from-red-400 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-red-200">
-                                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                                <X className="w-12 h-12 text-white" strokeWidth={3} />
                             </div>
                             <h2 className="text-2xl font-bold text-red-600 mb-2">Pago No Procesado</h2>
                             <p className="text-gray-600 mb-6">{message}</p>
@@ -377,9 +374,7 @@ export default function PayScanPage() {
                     {status === "error" && (
                         <div className="text-center py-6">
                             <div className="w-24 h-24 bg-gradient-to-br from-red-400 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-red-200">
-                                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
+                                <AlertTriangle className="w-12 h-12 text-white" strokeWidth={2} />
                             </div>
                             <h2 className="text-2xl font-bold text-red-600 mb-2">Error de Conexión</h2>
                             <p className="text-gray-600 mb-6">{message}</p>

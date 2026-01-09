@@ -6,6 +6,11 @@ import CredentialModal, { Student } from "../dashboard/credential";
 import PaymentsPanel, { PaymentRecord } from "../dashboard/payments";
 import { studentsApi, adminsApi, paymentsApi, authApi } from "@/lib/api";
 import { QRCodeSVG } from "qrcode.react";
+import { 
+    ShieldCheck, Users, CheckCircle, UserCircle, IdCard, CircleDollarSign, 
+    BarChart3, Plus, UserPlus, Search, X, Trash2, Ban, QrCode, 
+    TrendingDown, FileText, Copy, AlertTriangle
+} from "lucide-react";
 
 // ============================================
 // TIPOS
@@ -414,9 +419,7 @@ export default function SuperAdminDashboard() {
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                </svg>
+                                <ShieldCheck className="w-6 h-6 text-white" strokeWidth={2} />
                             </div>
                             <div>
                                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Super Admin</h1>
@@ -453,9 +456,7 @@ export default function SuperAdminDashboard() {
                     <div className="stats-card">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                                </svg>
+                                <Users className="w-6 h-6 text-blue-500" strokeWidth={2} />
                             </div>
                             <div>
                                 <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Estudiantes</p>
@@ -467,9 +468,7 @@ export default function SuperAdminDashboard() {
                     <div className="stats-card">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
-                                <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
+                                <CheckCircle className="w-6 h-6 text-green-500" strokeWidth={2} />
                             </div>
                             <div>
                                 <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Activos</p>
@@ -481,9 +480,7 @@ export default function SuperAdminDashboard() {
                     <div className="stats-card">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                                <svg className="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
+                                <UserCircle className="w-6 h-6 text-purple-500" strokeWidth={2} />
                             </div>
                             <div>
                                 <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Admins</p>
@@ -495,9 +492,7 @@ export default function SuperAdminDashboard() {
                     <div className="stats-card">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                                <svg className="w-6 h-6 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
-                                </svg>
+                                <IdCard className="w-6 h-6 text-cyan-500" strokeWidth={2} />
                             </div>
                             <div>
                                 <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Credenciales</p>
@@ -509,9 +504,7 @@ export default function SuperAdminDashboard() {
                     <div className="stats-card">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                                <svg className="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
+                                <CircleDollarSign className="w-6 h-6 text-emerald-500" strokeWidth={2} />
                             </div>
                             <div>
                                 <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Ingresos</p>
@@ -538,9 +531,7 @@ export default function SuperAdminDashboard() {
                             className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "payments" ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white" : ""}`}
                             style={activeTab !== "payments" ? { background: 'var(--surface)', color: 'var(--text-secondary)' } : {}}
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                            <CircleDollarSign className="w-4 h-4" strokeWidth={2} />
                             Pagos
                         </button>
                         <button
@@ -548,9 +539,7 @@ export default function SuperAdminDashboard() {
                             className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "admins" ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white" : ""}`}
                             style={activeTab !== "admins" ? { background: 'var(--surface)', color: 'var(--text-secondary)' } : {}}
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
+                            <Users className="w-4 h-4" strokeWidth={2} />
                             Administradores
                         </button>
                         <button
@@ -558,9 +547,7 @@ export default function SuperAdminDashboard() {
                             className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "reports" ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white" : ""}`}
                             style={activeTab !== "reports" ? { background: 'var(--surface)', color: 'var(--text-secondary)' } : {}}
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
+                            <BarChart3 className="w-4 h-4" strokeWidth={2} />
                             Reportes
                         </button>
                     </div>
@@ -570,9 +557,7 @@ export default function SuperAdminDashboard() {
                             onClick={() => setShowCreateModal(true)}
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-medium hover:from-blue-700 hover:to-cyan-700 transition-all"
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
+                            <Plus className="w-5 h-5" strokeWidth={2} />
                             Nuevo Estudiante
                         </button>
                     )}
@@ -582,9 +567,7 @@ export default function SuperAdminDashboard() {
                             onClick={() => setShowCreateAdminModal(true)}
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                            </svg>
+                            <UserPlus className="w-5 h-5" strokeWidth={2} />
                             Nuevo Administrador
                         </button>
                     )}
@@ -596,9 +579,7 @@ export default function SuperAdminDashboard() {
                         {/* Búsqueda */}
                         <div className="flex-1 min-w-[200px]">
                             <div className="relative">
-                                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-tertiary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-tertiary)' }} strokeWidth={2} />
                                 <input
                                     type="text"
                                     placeholder="Buscar por número, nombre o email..."
@@ -658,9 +639,7 @@ export default function SuperAdminDashboard() {
                         <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                                    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
+                                    <CircleDollarSign className="w-5 h-5 text-green-500" strokeWidth={2} />
                                 </div>
                                 <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Ingresos del Mes</h3>
                             </div>
@@ -679,9 +658,7 @@ export default function SuperAdminDashboard() {
                         <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                                    <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                    </svg>
+                                    <Users className="w-5 h-5 text-blue-500" strokeWidth={2} />
                                 </div>
                                 <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Estudiantes por Nivel</h3>
                             </div>
@@ -720,9 +697,7 @@ export default function SuperAdminDashboard() {
                         <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-                                    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-                                    </svg>
+                                    <TrendingDown className="w-5 h-5 text-red-500" strokeWidth={2} />
                                 </div>
                                 <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Tasa de Deserción</h3>
                             </div>
@@ -743,9 +718,7 @@ export default function SuperAdminDashboard() {
                         <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                                    <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
+                                    <FileText className="w-5 h-5 text-purple-500" strokeWidth={2} />
                                 </div>
                                 <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Resumen General</h3>
                             </div>
@@ -829,12 +802,11 @@ export default function SuperAdminDashboard() {
                                             className="p-2 rounded-lg transition-colors hover:bg-amber-500/20"
                                             title={admin.status === "active" ? "Desactivar" : "Activar"}
                                         >
-                                            <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={admin.status === "active" 
-                                                    ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
-                                                    : "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                                } />
-                                            </svg>
+                                            {admin.status === "active" ? (
+                                                <Ban className="w-5 h-5 text-amber-500" strokeWidth={2} />
+                                            ) : (
+                                                <CheckCircle className="w-5 h-5 text-amber-500" strokeWidth={2} />
+                                            )}
                                         </button>
                                         
                                         <button
@@ -842,9 +814,7 @@ export default function SuperAdminDashboard() {
                                             className="p-2 rounded-lg transition-colors hover:bg-red-500/20"
                                             title="Eliminar"
                                         >
-                                            <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
+                                            <Trash2 className="w-5 h-5 text-red-500" strokeWidth={2} />
                                         </button>
                                     </div>
                                 </div>
@@ -852,9 +822,7 @@ export default function SuperAdminDashboard() {
                             
                             {admins.length === 0 && (
                                 <div className="text-center py-12">
-                                    <svg className="w-16 h-16 mx-auto mb-4 opacity-50" style={{ color: 'var(--text-tertiary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                    </svg>
+                                    <Users className="w-16 h-16 mx-auto mb-4 opacity-50" style={{ color: 'var(--text-tertiary)' }} strokeWidth={1.5} />
                                     <p style={{ color: 'var(--text-secondary)' }}>No hay administradores registrados</p>
                                     <button
                                         onClick={() => setShowCreateAdminModal(true)}
@@ -956,9 +924,7 @@ export default function SuperAdminDashboard() {
                                                         className="p-2 text-blue-500 hover:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-colors"
                                                         title="Ver Credencial"
                                                     >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
-                                                        </svg>
+                                                        <IdCard className="w-4 h-4" strokeWidth={2} />
                                                     </button>
                                                     <button
                                                         onClick={() => {
@@ -968,9 +934,7 @@ export default function SuperAdminDashboard() {
                                                         className="p-2 text-purple-500 hover:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 rounded-lg transition-colors"
                                                         title="Ver QR de Pago"
                                                     >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                                                        </svg>
+                                                        <QrCode className="w-4 h-4" strokeWidth={2} />
                                                     </button>
                                                     <button
                                                         onClick={() => handleToggleStudentStatus(student.id)}
@@ -982,13 +946,9 @@ export default function SuperAdminDashboard() {
                                                         title={student.status === "active" ? "Desactivar" : "Activar"}
                                                     >
                                                         {student.status === "active" ? (
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                                                            </svg>
+                                                            <Ban className="w-4 h-4" strokeWidth={2} />
                                                         ) : (
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                            </svg>
+                                                            <CheckCircle className="w-4 h-4" strokeWidth={2} />
                                                         )}
                                                     </button>
                                                     <button
@@ -996,9 +956,7 @@ export default function SuperAdminDashboard() {
                                                         className="p-2 text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors"
                                                         title="Eliminar"
                                                     >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
+                                                        <Trash2 className="w-4 h-4" strokeWidth={2} />
                                                     </button>
                                                 </div>
                                             </td>
@@ -1020,9 +978,7 @@ export default function SuperAdminDashboard() {
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Estudiante</h3>
                             <button onClick={() => setShowCreateModal(false)} style={{ color: 'var(--text-secondary)' }}>
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                                <X className="w-5 h-5" strokeWidth={2} />
                             </button>
                         </div>
 
@@ -1101,16 +1057,12 @@ export default function SuperAdminDashboard() {
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                                    </svg>
+                                    <UserPlus className="w-5 h-5 text-white" strokeWidth={2} />
                                 </div>
                                 <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Administrador</h3>
                             </div>
                             <button onClick={() => setShowCreateAdminModal(false)} style={{ color: 'var(--text-secondary)' }}>
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                                <X className="w-5 h-5" strokeWidth={2} />
                             </button>
                         </div>
 
@@ -1210,9 +1162,7 @@ export default function SuperAdminDashboard() {
                         {/* Header con icono de advertencia */}
                         <div className="flex flex-col items-center text-center mb-6">
                             <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
-                                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
+                                <AlertTriangle className="w-8 h-8 text-red-500" strokeWidth={2} />
                             </div>
                             <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
                                 Eliminar Estudiante
@@ -1268,9 +1218,7 @@ export default function SuperAdminDashboard() {
                         {/* Header con icono de advertencia */}
                         <div className="flex flex-col items-center text-center mb-6">
                             <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
-                                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
+                                <AlertTriangle className="w-8 h-8 text-red-500" strokeWidth={2} />
                             </div>
                             <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
                                 Eliminar Administrador
@@ -1293,9 +1241,7 @@ export default function SuperAdminDashboard() {
                                     <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{adminToDelete.name}</p>
                                     <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{adminToDelete.email}</p>
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-500/20 text-purple-500 mt-1">
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                        </svg>
+                                        <ShieldCheck className="w-3 h-3" strokeWidth={2} />
                                         {adminToDelete.role === "admin" ? "Administrador" : "Super Admin"}
                                     </span>
                                 </div>
@@ -1339,9 +1285,7 @@ export default function SuperAdminDashboard() {
                                 className="p-2 rounded-lg hover:bg-gray-500/20 transition-colors"
                                 style={{ color: 'var(--text-secondary)' }}
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                                <X className="w-5 h-5" strokeWidth={2} />
                             </button>
                         </div>
 
@@ -1390,9 +1334,7 @@ export default function SuperAdminDashboard() {
                                 className="flex-1 px-4 py-3 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
                                 style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
                             >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                </svg>
+                                <Copy className="w-4 h-4" strokeWidth={2} />
                                 Copiar URL
                             </button>
                             <button

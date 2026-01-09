@@ -3,6 +3,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Student } from "./credential";
 import { Socket } from "socket.io-client";
+import { 
+    CircleDollarSign, Check, QrCode, X, Loader2, ChevronDown, 
+    Calendar, Users, CheckCircle, XCircle, Search, Clock, DollarSign, AlertTriangle
+} from "lucide-react";
 
 // ============================================
 // TIPOS
@@ -90,9 +94,7 @@ function PaymentConfirmModal({ isOpen, student, month, year, onConfirm, onCancel
                 {/* Icono de éxito */}
                 <div className="flex justify-center mb-4">
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/30">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        <CircleDollarSign className="w-8 h-8 text-white" strokeWidth={2} />
                     </div>
                 </div>
 
@@ -134,9 +136,7 @@ function PaymentConfirmModal({ isOpen, student, month, year, onConfirm, onCancel
                 {/* Indicador de escaneo QR */}
                 {isFromScan && (
                     <div className="mb-4 px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-center gap-2 justify-center">
-                        <svg className="w-4 h-4 text-blue-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                        </svg>
+                        <QrCode className="w-4 h-4 text-blue-500 animate-pulse" strokeWidth={2} />
                         <span className="text-xs font-medium text-blue-500">Solicitud desde QR escaneado</span>
                     </div>
                 )}
@@ -150,17 +150,12 @@ function PaymentConfirmModal({ isOpen, student, month, year, onConfirm, onCancel
                     >
                         {isConfirming ? (
                             <>
-                                <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                </svg>
+                                <Loader2 className="animate-spin h-5 w-5" />
                                 Confirmando...
                             </>
                         ) : (
                             <>
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
+                                <Check className="w-5 h-5" strokeWidth={2} />
                                 Confirmar Pago
                             </>
                         )}
@@ -209,9 +204,7 @@ function PaymentSuccessModal({ isOpen, student, month, onClose }: { isOpen: bool
                 {/* Animación de éxito */}
                 <div className="relative flex justify-center mb-4">
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/30">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
+                        <Check className="w-8 h-8 text-white" strokeWidth={3} />
                     </div>
                 </div>
 
@@ -224,9 +217,7 @@ function PaymentSuccessModal({ isOpen, student, month, onClose }: { isOpen: bool
                 </p>
 
                 <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 rounded-full text-green-500 text-xs font-medium">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+                    <Check className="w-3.5 h-3.5" strokeWidth={2} />
                     Guardado correctamente
                 </div>
             </div>
@@ -276,9 +267,7 @@ function QRScannerModal({ isOpen, onClose, onStudentDetected, students }: QRScan
                         className="w-8 h-8 flex items-center justify-center rounded-full transition-colors"
                         style={{ background: 'var(--surface-alt)' }}
                     >
-                        <svg className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <X className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} strokeWidth={2} />
                     </button>
                 </div>
 
@@ -291,9 +280,7 @@ function QRScannerModal({ isOpen, onClose, onStudentDetected, students }: QRScan
                         </div>
                     ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                            <svg className="w-16 h-16 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                            </svg>
+                            <QrCode className="w-16 h-16 mb-2 opacity-50" strokeWidth={1.5} />
                             <p className="text-sm">Cámara no disponible</p>
                             <p className="text-xs mt-1">Usa la búsqueda manual</p>
                         </div>
@@ -348,9 +335,7 @@ function QRScannerModal({ isOpen, onClose, onStudentDetected, students }: QRScan
                                         #{student.studentNumber}
                                     </p>
                                 </div>
-                                <svg className="w-5 h-5" style={{ color: 'var(--text-tertiary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
+                                <ChevronDown className="w-5 h-5 -rotate-90" style={{ color: 'var(--text-tertiary)' }} strokeWidth={2} />
                             </button>
                         ))}
                     </div>
@@ -421,25 +406,15 @@ function MonthCell({
             
             {isPaid ? (
                 <div className="relative">
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 group-hover:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 hidden group-hover:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 group-hover:hidden" strokeWidth={2.5} />
+                    <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 hidden group-hover:block" strokeWidth={2.5} />
                 </div>
             ) : isOverdue ? (
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" strokeWidth={2} />
             ) : isPending ? (
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" strokeWidth={2} />
             ) : (
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
+                <CircleDollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-blue-400" strokeWidth={1.5} />
             )}
 
             {/* Tooltip */}
@@ -564,9 +539,7 @@ function StudentPaymentCard({
                         disabled={!canGoPrev}
                         className={`p-1 rounded transition-all ${canGoPrev ? 'hover:bg-blue-500/20 text-blue-500' : 'opacity-30'}`}
                     >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
+                        <ChevronDown className="w-4 h-4 rotate-90" strokeWidth={2} />
                     </button>
                     
                     <div className="flex items-center gap-1">
@@ -593,9 +566,7 @@ function StudentPaymentCard({
                         disabled={!canGoNext}
                         className={`p-1 rounded transition-all ${canGoNext ? 'hover:bg-blue-500/20 text-blue-500' : 'opacity-30'}`}
                     >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                        <ChevronDown className="w-4 h-4 -rotate-90" strokeWidth={2} />
                     </button>
                 </div>
             )}
@@ -742,10 +713,7 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
         if (socket && scanRequest && selectedStudent) {
             socket.emit("payment-rejected", {
                 studentId: selectedStudent.id,
-                month: selectedMonth,
-                year: selectedYear,
-                success: false,
-                message: "El pago fue rechazado por el administrador"
+                reason: "El pago fue rechazado por el administrador"
             });
             setScanRequest(null);
         }
@@ -786,9 +754,7 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
                     <div className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-2xl shadow-2xl p-4 max-w-sm">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center animate-pulse">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                                </svg>
+                                <QrCode className="w-6 h-6" strokeWidth={2} />
                             </div>
                             <div>
                                 <p className="font-bold text-sm">¡QR Escaneado!</p>
@@ -805,9 +771,7 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
                 <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                            <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                            <CheckCircle className="w-5 h-5 text-green-500" strokeWidth={2} />
                         </div>
                         <div>
                             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Pagados (Mes)</p>
@@ -819,9 +783,7 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
                 <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                            <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                            <Clock className="w-5 h-5 text-amber-500" strokeWidth={2} />
                         </div>
                         <div>
                             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Pendientes (Mes)</p>
@@ -833,9 +795,7 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
                 <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                            <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                            <DollarSign className="w-5 h-5 text-blue-500" strokeWidth={2} />
                         </div>
                         <div>
                             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Recaudado {currentYear}</p>
@@ -847,9 +807,7 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
                 <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                            <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
+                            <Users className="w-5 h-5 text-purple-500" strokeWidth={2} />
                         </div>
                         <div>
                             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Estudiantes</p>
@@ -863,9 +821,7 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 {/* Buscador de estudiantes */}
                 <div className="relative flex-1 max-w-md">
-                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-tertiary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-tertiary)' }} strokeWidth={2} />
                     <input
                         type="text"
                         placeholder="Buscar alumno por nombre, número o email..."
@@ -879,9 +835,7 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
                             onClick={() => setSearchTerm("")}
                             className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-500/20"
                         >
-                            <svg className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+                            <X className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} strokeWidth={2} />
                         </button>
                     )}
                 </div>
@@ -893,9 +847,7 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium rounded-xl transition-all shadow-lg shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/30"
                 >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                    </svg>
+                    <QrCode className="w-5 h-5" strokeWidth={2} />
                     Escanear QR / Ingresar ID
                 </a>
             </div>
@@ -924,9 +876,7 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
             <div className="space-y-4">
                 {filteredStudents.length === 0 ? (
                     <div className="text-center py-12 rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                        <svg className="w-16 h-16 mx-auto mb-4 opacity-50" style={{ color: 'var(--text-tertiary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
+                        <Search className="w-16 h-16 mx-auto mb-4 opacity-50" style={{ color: 'var(--text-tertiary)' }} strokeWidth={1.5} />
                         <p style={{ color: 'var(--text-secondary)' }}>No se encontraron estudiantes con &quot;{searchTerm}&quot;</p>
                     </div>
                 ) : (
@@ -984,9 +934,7 @@ export default function PaymentsPanel({ students, payments, onPaymentConfirm, on
                     <div className="rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-150" style={{ background: 'var(--modal-bg)' }}>
                         <div className="flex justify-center mb-4">
                             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-400 to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/30">
-                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
+                                <AlertTriangle className="w-8 h-8 text-white" strokeWidth={2} />
                             </div>
                         </div>
 
