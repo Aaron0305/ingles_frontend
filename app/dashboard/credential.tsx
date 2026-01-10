@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { X, FileDown, Printer, Lock } from "lucide-react";
+import Image from "next/image";
 
 // ============================================
 // TIPOS
@@ -13,13 +14,14 @@ export interface Student {
     studentNumber: string;
     name: string;
     email: string;
+    emergencyPhone?: string;
     level: "Beginner" | "Intermediate" | "Advanced";
     monthlyFee: number;
     progress: number;
     lastAccess: string;
     status: "active" | "inactive";
     createdAt: string;
-    expiresAt: string;
+    expiresAt?: string;
 }
 
 interface CredentialModalProps {
@@ -158,7 +160,7 @@ export default function CredentialModal({ student, isOpen, onClose }: Credential
                     ref={credentialRef}
                     style={{
                         width: "320px",
-                        height: "202px",
+                        height: "210px",
                         margin: "0 auto",
                         background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
                         borderRadius: "12px",
@@ -168,12 +170,13 @@ export default function CredentialModal({ student, isOpen, onClose }: Credential
                         display: "flex",
                         flexDirection: "column",
                         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                        position: "relative",
                     }}
                 >
-                    {/* Header con gradiente */}
+                    {/* Header con gradiente y logo */}
                     <div
                         style={{
-                            background: "linear-gradient(135deg, #1e40af 0%, #0ea5e9 100%)",
+                            background: "linear-gradient(135deg, #014287 0%, #2596be 100%)",
                             padding: "10px 16px",
                             display: "flex",
                             justifyContent: "space-between",
@@ -181,47 +184,48 @@ export default function CredentialModal({ student, isOpen, onClose }: Credential
                         }}
                     >
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            {/* Logo de la academia */}
                             <div
                                 style={{
-                                    width: "28px",
-                                    height: "28px",
-                                    background: "rgba(255,255,255,0.2)",
+                                    width: "100px",
+                                    height: "32px",
+                                    background: "white",
                                     borderRadius: "6px",
+                                    padding: "4px 8px",
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
                                 }}
                             >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                </svg>
-                            </div>
-                            <div>
-                                <div style={{ color: "white", fontSize: "12px", fontWeight: "700", letterSpacing: "0.5px" }}>
-                                    WHAT TIME IS IT?
-                                </div>
-                                <div style={{ color: "rgba(255,255,255,0.8)", fontSize: "8px", textTransform: "uppercase", letterSpacing: "1px" }}>
-                                    Academia de Inglés
-                                </div>
+                                <img 
+                                    src="/image/logo.png" 
+                                    alt="What Time Is It? Idiomas" 
+                                    style={{ 
+                                        width: "100%", 
+                                        height: "100%", 
+                                        objectFit: "contain" 
+                                    }}
+                                />
                             </div>
                         </div>
                         <div
                             style={{
-                                background: levelColor.light,
-                                color: levelColor.text,
-                                padding: "3px 8px",
-                                borderRadius: "10px",
+                                color: "white",
                                 fontSize: "9px",
                                 fontWeight: "600",
                                 textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                                background: "rgba(255,255,255,0.2)",
+                                padding: "4px 10px",
+                                borderRadius: "10px",
                             }}
                         >
-                            {student.level}
+                            Credencial Estudiantil
                         </div>
                     </div>
 
                     {/* Contenido principal */}
-                    <div style={{ flex: 1, display: "flex", padding: "12px 16px", gap: "14px" }}>
+                    <div style={{ flex: 1, display: "flex", padding: "12px 16px", gap: "14px", position: "relative" }}>
                         {/* QR Code */}
                         <div
                             style={{
@@ -258,51 +262,63 @@ export default function CredentialModal({ student, isOpen, onClose }: Credential
                             </div>
 
                             {/* Grid de datos */}
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                                 <div>
                                     <div style={{ fontSize: "7px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                                         No. Estudiante
                                     </div>
-                                    <div style={{ fontSize: "11px", fontWeight: "600", color: "#334155", fontFamily: "monospace" }}>
+                                    <div style={{ fontSize: "14px", fontWeight: "700", color: "#014287", fontFamily: "monospace" }}>
                                         {student.studentNumber}
                                     </div>
                                 </div>
                                 <div>
                                     <div style={{ fontSize: "7px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                                        Mensualidad
+                                        Fecha de Inscripción
                                     </div>
-                                    <div style={{ fontSize: "11px", fontWeight: "700", color: "#10b981" }}>
-                                        ${student.monthlyFee}
-                                    </div>
-                                </div>
-                                <div style={{ gridColumn: "1 / -1" }}>
-                                    <div style={{ fontSize: "7px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                                        Vigencia
-                                    </div>
-                                    <div style={{ fontSize: "10px", fontWeight: "500", color: "#334155" }}>
-                                        {formatDate(student.expiresAt)}
+                                    <div style={{ fontSize: "11px", fontWeight: "700", color: "#014287" }}>
+                                        {formatDate(student.createdAt)}
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Mascota como marca de agua */}
+                        <div
+                            style={{
+                                position: "absolute",
+                                bottom: "-10px",
+                                right: "-15px",
+                                width: "130px",
+                                height: "130px",
+                                opacity: 0.12,
+                                filter: "grayscale(20%)",
+                                pointerEvents: "none",
+                            }}
+                        >
+                            <img 
+                                src="/image/mascota.png" 
+                                alt="Mascota" 
+                                style={{ 
+                                    width: "100%", 
+                                    height: "100%", 
+                                    objectFit: "contain" 
+                                }}
+                            />
                         </div>
                     </div>
 
                     {/* Footer */}
                     <div
                         style={{
-                            background: "#f1f5f9",
+                            background: "linear-gradient(90deg, #014287 0%, #2596be 100%)",
                             padding: "6px 16px",
                             display: "flex",
-                            justifyContent: "space-between",
+                            justifyContent: "center",
                             alignItems: "center",
-                            borderTop: "1px solid #e2e8f0",
                         }}
                     >
-                        <div style={{ fontSize: "8px", color: "#64748b", fontFamily: "monospace" }}>
-                            ID: {student.id}
-                        </div>
-                        <div style={{ fontSize: "7px", color: "#94a3b8" }}>
-                            Válida únicamente con QR verificado
+                        <div style={{ fontSize: "8px", color: "white", fontWeight: "500", letterSpacing: "0.5px" }}>
+                            What Time Is It? Idiomas® - Academia de Inglés
                         </div>
                     </div>
                 </div>

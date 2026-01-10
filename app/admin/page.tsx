@@ -8,10 +8,12 @@ import PaymentsPanel, { PaymentRecord } from "../dashboard/payments";
 import { studentsApi, adminsApi, paymentsApi, authApi } from "@/lib/api";
 import { QRCodeSVG } from "qrcode.react";
 import { 
-    ShieldCheck, Users, CheckCircle, IdCard, CircleDollarSign, 
-    BarChart3, Plus, UserPlus, Search, X, Trash2, Ban, QrCode, 
-    TrendingDown, FileText, Copy, AlertTriangle
+    ShieldCheck, Users, CheckCircle, CircleDollarSign, 
+    BarChart3, Plus, UserPlus, Search, X, Trash2, Ban, 
+    TrendingDown, FileText, Copy, AlertTriangle, Pencil,
+    UserX, UserCheck, Loader2
 } from "lucide-react";
+import Image from "next/image";
 
 // ============================================
 // TIPOS
@@ -37,6 +39,16 @@ interface NewAdminForm {
 interface NewStudentForm {
     name: string;
     email: string;
+    emergencyPhone: string;
+    level: "Beginner" | "Intermediate" | "Advanced";
+    priceOption: string;
+    customPrice: string;
+}
+
+interface EditStudentForm {
+    name: string;
+    email: string;
+    emergencyPhone: string;
     level: "Beginner" | "Intermediate" | "Advanced";
 }
 
@@ -46,11 +58,14 @@ type TabType = "students" | "credentials" | "payments" | "admins" | "reports";
 // CONSTANTES
 // ============================================
 
-const PRICE_BY_LEVEL = {
-    Beginner: 500,
-    Intermediate: 600,
-    Advanced: 700,
-};
+const PRICE_OPTIONS = [
+    { value: "149.50", label: "$149.50" },
+    { value: "650", label: "$650" },
+    { value: "750", label: "$750" },
+    { value: "760", label: "$760" },
+    { value: "790", label: "$790" },
+    { value: "custom", label: "Otro (personalizado)" },
+] as const;
 
 // ============================================
 // COMPONENTE PRINCIPAL
@@ -68,10 +83,10 @@ export default function SuperAdminDashboard() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showCredentialModal, setShowCredentialModal] = useState(false);
     const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showDeleteAdminModal, setShowDeleteAdminModal] = useState(false);
     const [showQRModal, setShowQRModal] = useState(false);
-    const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+    const [showEditStudentModal, setShowEditStudentModal] = useState(false);
+    const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
     const [adminToDelete, setAdminToDelete] = useState<Admin | null>(null);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     
@@ -79,12 +94,17 @@ export default function SuperAdminDashboard() {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterLevel, setFilterLevel] = useState<string>("all");
     const [filterStatus, setFilterStatus] = useState<string>("all");
+    const [currentPage, setCurrentPage] = useState(1);
+    const studentsPerPage = 10;
     
     // Formularios
     const [formData, setFormData] = useState<NewStudentForm>({
         name: "",
         email: "",
+        emergencyPhone: "",
         level: "Beginner",
+        priceOption: "149.50",
+        customPrice: "",
     });
     const [adminFormData, setAdminFormData] = useState<NewAdminForm>({
         name: "",
@@ -92,9 +112,23 @@ export default function SuperAdminDashboard() {
         password: "",
         confirmPassword: "",
     });
-    const [formErrors, setFormErrors] = useState<Partial<NewStudentForm>>({});
+    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [adminFormErrors, setAdminFormErrors] = useState<Partial<NewAdminForm & { confirmPassword?: string }>>({});
+    const [editFormData, setEditFormData] = useState<EditStudentForm>({
+        name: "",
+        email: "",
+        emergencyPhone: "",
+        level: "Beginner",
+    });
+    const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
     const [isCreating, setIsCreating] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    
+    // Estado para modal de confirmación de activar/desactivar estudiante
+    const [showStatusModal, setShowStatusModal] = useState(false);
+    const [studentToToggle, setStudentToToggle] = useState<Student | null>(null);
+    const [isTogglingStatus, setIsTogglingStatus] = useState(false);
     
     // Socket para comunicación en tiempo real
     const [socket, setSocket] = useState<Socket | null>(null);
@@ -223,12 +257,23 @@ export default function SuperAdminDashboard() {
     };
 
     const validateStudentForm = (): boolean => {
-        const errors: Partial<NewStudentForm> = {};
+        const errors: Record<string, string> = {};
         if (!formData.name.trim()) errors.name = "Nombre requerido";
         if (!formData.email.trim()) errors.email = "Email requerido";
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
             errors.email = "Email inválido";
         }
+        
+        // Validar precio personalizado
+        if (formData.priceOption === "custom") {
+            const price = parseFloat(formData.customPrice);
+            if (!formData.customPrice.trim()) {
+                errors.customPrice = "El precio es requerido";
+            } else if (isNaN(price) || price <= 0) {
+                errors.customPrice = "Ingresa un precio válido mayor a 0";
+            }
+        }
+        
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -237,11 +282,18 @@ export default function SuperAdminDashboard() {
         if (!validateStudentForm()) return;
         setIsCreating(true);
 
+        // Calcular el precio final
+        const finalPrice = formData.priceOption === "custom" 
+            ? parseFloat(formData.customPrice) 
+            : parseFloat(formData.priceOption);
+
         try {
             const newStudent = await studentsApi.create({
                 name: formData.name,
                 email: formData.email,
                 level: formData.level,
+                monthlyFee: finalPrice,
+                emergencyPhone: formData.emergencyPhone || undefined,
             });
 
             const studentWithProgress: Student = {
@@ -254,7 +306,7 @@ export default function SuperAdminDashboard() {
             setSelectedStudent(studentWithProgress);
             setShowCreateModal(false);
             setShowCredentialModal(true);
-            setFormData({ name: "", email: "", level: "Beginner" });
+            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner", priceOption: "149.50", customPrice: "" });
         } catch (error) {
             console.error("Error creando estudiante:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
@@ -264,9 +316,105 @@ export default function SuperAdminDashboard() {
         }
     };
 
-    const handleViewCredential = (student: Student) => {
-        setSelectedStudent(student);
-        setShowCredentialModal(true);
+    const handleEditStudent = (student: Student) => {
+        setStudentToEdit(student);
+        setEditFormData({
+            name: student.name,
+            email: student.email,
+            emergencyPhone: student.emergencyPhone || "",
+            level: student.level,
+        });
+        setEditFormErrors({});
+        setShowEditStudentModal(true);
+    };
+
+    const validateEditForm = (): boolean => {
+        const errors: Record<string, string> = {};
+        if (!editFormData.name.trim()) errors.name = "Nombre requerido";
+        if (!editFormData.email.trim()) errors.email = "Email requerido";
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editFormData.email)) {
+            errors.email = "Email inválido";
+        }
+        setEditFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
+    const handleSaveEditStudent = async () => {
+        if (!validateEditForm() || !studentToEdit) return;
+        setIsEditing(true);
+
+        try {
+            const updatedStudent = await studentsApi.update(studentToEdit.id, {
+                name: editFormData.name,
+                email: editFormData.email,
+                emergencyPhone: editFormData.emergencyPhone || undefined,
+                level: editFormData.level,
+            });
+
+            setStudents(prev => prev.map(s => 
+                s.id === studentToEdit.id 
+                    ? { ...s, ...updatedStudent, progress: s.progress, lastAccess: s.lastAccess } 
+                    : s
+            ));
+            setShowEditStudentModal(false);
+            setStudentToEdit(null);
+            setSaveMessage({ type: 'success', text: 'Cambios guardados correctamente' });
+            setTimeout(() => setSaveMessage(null), 3000);
+        } catch (error) {
+            console.error("Error actualizando estudiante:", error);
+            const message = error instanceof Error ? error.message : "Error al actualizar";
+            
+            // Si el error es de email duplicado, mostrar en el campo de email
+            if (message.toLowerCase().includes('correo') || message.toLowerCase().includes('email')) {
+                setEditFormErrors({ email: message });
+                setSaveMessage({ type: 'error', text: message });
+            } else {
+                setEditFormErrors({ email: message });
+                setSaveMessage({ type: 'error', text: 'Error al guardar cambios' });
+            }
+            setTimeout(() => setSaveMessage(null), 4000);
+        } finally {
+            setIsEditing(false);
+        }
+    };
+
+    // Función para abrir modal de confirmación de cambio de estado
+    const handleToggleStatusClick = (student: Student) => {
+        setStudentToToggle(student);
+        setShowStatusModal(true);
+    };
+
+    // Función para confirmar cambio de estado
+    const handleConfirmToggleStatus = async () => {
+        if (!studentToToggle) return;
+        setIsTogglingStatus(true);
+
+        try {
+            const newStatus = studentToToggle.status === "active" ? "inactive" : "active";
+            const updatedStudent = await studentsApi.update(studentToToggle.id, {
+                status: newStatus,
+            });
+
+            setStudents(prev => prev.map(s => 
+                s.id === studentToToggle.id 
+                    ? { ...s, status: updatedStudent.status } 
+                    : s
+            ));
+            
+            setShowStatusModal(false);
+            setStudentToToggle(null);
+            setSaveMessage({ 
+                type: 'success', 
+                text: newStatus === "active" ? 'Estudiante activado correctamente' : 'Estudiante desactivado correctamente' 
+            });
+            setTimeout(() => setSaveMessage(null), 3000);
+        } catch (error) {
+            console.error("Error cambiando estado:", error);
+            setSaveMessage({ type: 'error', text: 'Error al cambiar estado del estudiante' });
+            setTimeout(() => setSaveMessage(null), 4000);
+        } finally {
+            setIsTogglingStatus(false);
+        }
     };
 
     const handlePaymentConfirm = async (studentId: string, month: number, year: number) => {
@@ -308,40 +456,6 @@ export default function SuperAdminDashboard() {
             ));
         } catch (error) {
             console.error("Error revocando pago:", error);
-        }
-    };
-
-    const handleToggleStudentStatus = async (studentId: string) => {
-        const student = students.find(s => s.id === studentId);
-        if (!student) return;
-
-        try {
-            const updatedStudent = await studentsApi.toggleStatus(studentId, student.status);
-            setStudents(prev => prev.map(s => 
-                s.id === studentId ? { ...s, status: updatedStudent.status } : s
-            ));
-        } catch (error) {
-            console.error("Error actualizando estado:", error);
-        }
-    };
-
-    const handleDeleteStudent = (student: Student) => {
-        setStudentToDelete(student);
-        setShowDeleteModal(true);
-    };
-
-    const confirmDeleteStudent = async () => {
-        if (studentToDelete) {
-            try {
-                await studentsApi.delete(studentToDelete.id);
-                setStudents(prev => prev.filter(student => student.id !== studentToDelete.id));
-                setPayments(prev => prev.filter(payment => payment.studentId !== studentToDelete.id));
-            } catch (error) {
-                console.error("Error eliminando estudiante:", error);
-            } finally {
-                setShowDeleteModal(false);
-                setStudentToDelete(null);
-            }
         }
     };
 
@@ -461,6 +575,28 @@ export default function SuperAdminDashboard() {
         return students.length > 0 ? ((inactive / students.length) * 100).toFixed(1) : "0";
     };
 
+    // Formatear fecha
+    const formatDate = (dateString: string): string => {
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        } catch {
+            return dateString;
+        }
+    };
+
+    // Paginación
+    const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
+    const paginatedStudents = filteredStudents.slice(
+        (currentPage - 1) * studentsPerPage,
+        currentPage * studentsPerPage
+    );
+
+    // Resetear página cuando cambian los filtros
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterLevel, filterStatus]);
+
     // ============================================
     // HELPERS
     // ============================================
@@ -484,13 +620,35 @@ export default function SuperAdminDashboard() {
 
     return (
         <div className="dashboard-container min-h-screen" style={{ background: 'var(--background)' }}>
+            {/* Toast de notificación */}
+            {saveMessage && (
+                <div className={`fixed top-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-fade-in ${
+                    saveMessage.type === 'success' 
+                        ? 'bg-green-500 text-white' 
+                        : 'bg-red-500 text-white'
+                }`}>
+                    {saveMessage.type === 'success' ? (
+                        <CheckCircle className="w-5 h-5" strokeWidth={2} />
+                    ) : (
+                        <AlertTriangle className="w-5 h-5" strokeWidth={2} />
+                    )}
+                    <span className="font-medium">{saveMessage.text}</span>
+                </div>
+            )}
+
             {/* Header */}
             <header className="dashboard-header sticky top-0 z-40" style={{ background: 'var(--header-bg)', borderBottom: '1px solid var(--header-border)' }}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                                <ShieldCheck className="w-6 h-6 text-white" strokeWidth={2} />
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 flex items-center justify-center p-1.5">
+                                <Image 
+                                    src="/image/logo_mensaje.png" 
+                                    alt="Logo" 
+                                    width={28} 
+                                    height={28} 
+                                    className="object-contain"
+                                />
                             </div>
                             <div>
                                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Super Admin</h1>
@@ -498,7 +656,7 @@ export default function SuperAdminDashboard() {
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
-                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-500">
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-500">
                                 Super Administrador
                             </span>
                             <button
@@ -517,21 +675,22 @@ export default function SuperAdminDashboard() {
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-64">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
                         <span className="ml-3" style={{ color: 'var(--text-secondary)' }}>Cargando datos...</span>
                     </div>
                 ) : (
                 <>
                 {/* Header Stats - Diseño moderno Super Admin */}
                 <div className="mb-8">
-                    <div className="rounded-2xl p-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)', border: '1px solid var(--border-color)' }}>
-                        {/* Decoración de fondo */}
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                    <div className="rounded-2xl p-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%)', border: '1px solid var(--border-color)' }}>
+                        {/* Decoración de fondo - Gradiente radial rojo institucional */}
+                        <div className="absolute top-0 left-0 w-96 h-96 rounded-full blur-2xl -translate-y-1/3 -translate-x-1/4" style={{ background: 'radial-gradient(circle, rgba(193, 18, 31, 0.35) 0%, rgba(193, 18, 31, 0.15) 40%, rgba(193, 18, 31, 0) 70%)' }} />
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-500/15 to-cyan-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                         
                         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                             {/* Estudiantes - Principal */}
                             <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/25">
+                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
                                     <Users className="w-8 h-8 text-white" strokeWidth={2} />
                                 </div>
                                 <div>
@@ -550,7 +709,7 @@ export default function SuperAdminDashboard() {
 
                             {/* Administradores */}
                             <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
                                     <ShieldCheck className="w-7 h-7 text-white" strokeWidth={2} />
                                 </div>
                                 <div>
@@ -586,31 +745,39 @@ export default function SuperAdminDashboard() {
                     <div className="flex gap-2 flex-wrap">
                         <button
                             onClick={() => setActiveTab("students")}
-                            className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "students" ? "bg-blue-600 text-white" : ""}`}
-                            style={activeTab !== "students" ? { background: 'var(--surface)', color: 'var(--text-secondary)' } : {}}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "students" ? "text-white" : ""}`}
+                            style={activeTab === "students" 
+                                ? { background: '#014287', color: 'white' } 
+                                : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
                         >
                             Estudiantes
                         </button>
                         <button
                             onClick={() => setActiveTab("payments")}
-                            className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "payments" ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white" : ""}`}
-                            style={activeTab !== "payments" ? { background: 'var(--surface)', color: 'var(--text-secondary)' } : {}}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "payments" ? "text-white" : ""}`}
+                            style={activeTab === "payments" 
+                                ? { background: '#014287', color: 'white' } 
+                                : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
                         >
                             <CircleDollarSign className="w-4 h-4" strokeWidth={2} />
                             Pagos
                         </button>
                         <button
                             onClick={() => setActiveTab("admins")}
-                            className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "admins" ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white" : ""}`}
-                            style={activeTab !== "admins" ? { background: 'var(--surface)', color: 'var(--text-secondary)' } : {}}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "admins" ? "text-white" : ""}`}
+                            style={activeTab === "admins" 
+                                ? { background: '#014287', color: 'white' } 
+                                : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
                         >
                             <Users className="w-4 h-4" strokeWidth={2} />
                             Administradores
                         </button>
                         <button
                             onClick={() => setActiveTab("reports")}
-                            className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "reports" ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white" : ""}`}
-                            style={activeTab !== "reports" ? { background: 'var(--surface)', color: 'var(--text-secondary)' } : {}}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "reports" ? "text-white" : ""}`}
+                            style={activeTab === "reports" 
+                                ? { background: '#014287', color: 'white' } 
+                                : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
                         >
                             <BarChart3 className="w-4 h-4" strokeWidth={2} />
                             Reportes
@@ -620,7 +787,8 @@ export default function SuperAdminDashboard() {
                     {activeTab !== "payments" && activeTab !== "admins" && activeTab !== "reports" && (
                         <button
                             onClick={() => setShowCreateModal(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-medium hover:from-blue-700 hover:to-cyan-700 transition-all"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all hover:opacity-90"
+                            style={{ background: '#014287' }}
                         >
                             <Plus className="w-5 h-5" strokeWidth={2} />
                             Nuevo Estudiante
@@ -630,7 +798,8 @@ export default function SuperAdminDashboard() {
                     {activeTab === "admins" && (
                         <button
                             onClick={() => setShowCreateAdminModal(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all hover:opacity-90"
+                            style={{ background: '#014287' }}
                         >
                             <UserPlus className="w-5 h-5" strokeWidth={2} />
                             Nuevo Administrador
@@ -650,8 +819,14 @@ export default function SuperAdminDashboard() {
                                     placeholder="Buscar por número, nombre o email..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                    className="w-full pl-10 pr-4 py-2 rounded-lg focus:outline-none transition-all"
+                                    style={{ 
+                                        background: 'var(--input-bg)', 
+                                        border: '1px solid var(--input-border)', 
+                                        color: 'var(--text-primary)'
+                                    }}
+                                    onFocus={(e) => e.target.style.borderColor = '#2596be'}
+                                    onBlur={(e) => e.target.style.borderColor = 'var(--input-border)'}
                                 />
                             </div>
                         </div>
@@ -660,25 +835,25 @@ export default function SuperAdminDashboard() {
                         <select
                             value={filterLevel}
                             onChange={(e) => setFilterLevel(e.target.value)}
-                            className="px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                            className="px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-white font-medium cursor-pointer"
+                            style={{ background: '#014287', border: 'none' }}
                         >
-                            <option value="all">Todos los niveles</option>
-                            <option value="Beginner">Beginner</option>
-                            <option value="Intermediate">Intermediate</option>
-                            <option value="Advanced">Advanced</option>
+                            <option value="all" className="bg-gray-800 text-white">Todos los niveles</option>
+                            <option value="Beginner" className="bg-gray-800 text-white">Beginner</option>
+                            <option value="Intermediate" className="bg-gray-800 text-white">Intermediate</option>
+                            <option value="Advanced" className="bg-gray-800 text-white">Advanced</option>
                         </select>
                         
                         {/* Filtro por estado */}
                         <select
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value)}
-                            className="px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                            className="px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-white font-medium cursor-pointer"
+                            style={{ background: '#014287', border: 'none' }}
                         >
-                            <option value="all">Todos los estados</option>
-                            <option value="active">Activos</option>
-                            <option value="inactive">Inactivos</option>
+                            <option value="all" className="bg-gray-800 text-white">Todos los estados</option>
+                            <option value="active" className="bg-gray-800 text-white">Activos</option>
+                            <option value="inactive" className="bg-gray-800 text-white">Inactivos</option>
                         </select>
 
                         {/* Limpiar filtros */}
@@ -689,7 +864,8 @@ export default function SuperAdminDashboard() {
                                     setFilterLevel("all");
                                     setFilterStatus("all");
                                 }}
-                                className="px-4 py-2 rounded-lg text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors"
+                                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                style={{ background: '#ea242e', color: 'white' }}
                             >
                                 Limpiar filtros
                             </button>
@@ -782,8 +958,8 @@ export default function SuperAdminDashboard() {
                         {/* Resumen General */}
                         <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                                    <FileText className="w-5 h-5 text-purple-500" strokeWidth={2} />
+                                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                                    <FileText className="w-5 h-5 text-blue-500" strokeWidth={2} />
                                 </div>
                                 <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Resumen General</h3>
                             </div>
@@ -798,7 +974,7 @@ export default function SuperAdminDashboard() {
                                 </div>
                                 <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
                                     <span style={{ color: 'var(--text-secondary)' }}>Administradores</span>
-                                    <span className="font-bold text-purple-500">{admins.length}</span>
+                                    <span className="font-bold text-blue-500">{admins.length}</span>
                                 </div>
                                 <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
                                     <span style={{ color: 'var(--text-secondary)' }}>Pagos Registrados</span>
@@ -835,7 +1011,7 @@ export default function SuperAdminDashboard() {
                                     style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}
                                 >
                                     <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
+                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg">
                                             {admin.name.charAt(0).toUpperCase()}
                                         </div>
                                         <div>
@@ -892,7 +1068,8 @@ export default function SuperAdminDashboard() {
                                     <p style={{ color: 'var(--text-secondary)' }}>No hay administradores registrados</p>
                                     <button
                                         onClick={() => setShowCreateAdminModal(true)}
-                                        className="mt-4 px-4 py-2 rounded-lg bg-purple-600 text-white font-medium hover:bg-purple-700 transition-colors"
+                                        className="mt-4 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-colors"
+                                        style={{ background: '#014287' }}
                                     >
                                         Crear primer administrador
                                     </button>
@@ -912,117 +1089,73 @@ export default function SuperAdminDashboard() {
                             <table className="w-full">
                                 <thead>
                                     <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                        <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                            No. Estudiante
+                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                            No.
                                         </th>
-                                        <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                                             Estudiante
                                         </th>
-                                        <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                                             Nivel
                                         </th>
-                                        {activeTab === "students" ? (
-                                            <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                                Fecha Inscripción
-                                            </th>
-                                        ) : (
-                                            <>
-                                                <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                                    Mensualidad
-                                                </th>
-                                                <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                                    Vence
-                                                </th>
-                                            </>
-                                        )}
-                                        <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                            Tel. Emergencia
+                                        </th>
+                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                            Inscripción
+                                        </th>
+                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                                             Estado
                                         </th>
-                                        <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                                             Acciones
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredStudents.map((student) => (
+                                    {paginatedStudents.map((student) => (
                                         <tr key={student.id} className="table-row-hover transition-colors" style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-3 py-3 whitespace-nowrap">
                                                 <span className="text-sm font-mono text-cyan-500">{student.studentNumber}</span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-3 py-3 whitespace-nowrap">
                                                 <div>
                                                     <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{student.name}</p>
-                                                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{student.email}</p>
+                                                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{student.email}</p>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getLevelBadge(student.level)}`}>
+                                            <td className="px-3 py-3 whitespace-nowrap">
+                                                <span className={`inline-flex items-center justify-center w-24 px-2 py-0.5 rounded-full text-xs font-medium border ${getLevelBadge(student.level)}`}>
                                                     {student.level}
                                                 </span>
                                             </td>
-                                            {activeTab === "students" ? (
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                                    {student.createdAt}
-                                                </td>
-                                            ) : (
-                                                <>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="text-sm font-semibold text-green-500">${student.monthlyFee}</span>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                                        {student.expiresAt}
-                                                    </td>
-                                                </>
-                                            )}
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${student.status === "active"
-                                                        ? "bg-green-500/20 text-green-500"
-                                                        : "bg-gray-500/20 text-gray-500"
-                                                    }`}>
+                                            <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                                {student.emergencyPhone || ""}
+                                            </td>
+                                            <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                                {formatDate(student.createdAt)}
+                                            </td>
+                                            <td className="px-3 py-3 whitespace-nowrap">
+                                                <button
+                                                    onClick={() => handleToggleStatusClick(student)}
+                                                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium cursor-pointer transition-all hover:scale-105 ${student.status === "active"
+                                                        ? "bg-green-500/20 text-green-500 hover:bg-green-500/30"
+                                                        : "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
+                                                    }`}
+                                                    title={student.status === "active" ? "Clic para desactivar" : "Clic para activar"}
+                                                >
                                                     <span className={`w-1.5 h-1.5 rounded-full ${student.status === "active" ? "bg-green-500" : "bg-gray-500"}`} />
                                                     {student.status === "active" ? "Activo" : "Inactivo"}
-                                                </span>
+                                                </button>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-2">
+                                            <td className="px-3 py-3 whitespace-nowrap">
+                                                <div className="flex items-center gap-1">
                                                     <button
-                                                        onClick={() => handleViewCredential(student)}
-                                                        className="p-2 text-blue-500 hover:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-colors"
-                                                        title="Ver Credencial"
+                                                        onClick={() => handleEditStudent(student)}
+                                                        className="p-1.5 text-blue-500 hover:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-colors"
+                                                        title="Editar Estudiante"
                                                     >
-                                                        <IdCard className="w-4 h-4" strokeWidth={2} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedStudent(student);
-                                                            setShowQRModal(true);
-                                                        }}
-                                                        className="p-2 text-purple-500 hover:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 rounded-lg transition-colors"
-                                                        title="Ver QR de Pago"
-                                                    >
-                                                        <QrCode className="w-4 h-4" strokeWidth={2} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleToggleStudentStatus(student.id)}
-                                                        className={`p-2 rounded-lg transition-colors ${
-                                                            student.status === "active" 
-                                                                ? "text-amber-500 hover:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" 
-                                                                : "text-green-500 hover:text-green-400 bg-green-500/10 hover:bg-green-500/20"
-                                                        }`}
-                                                        title={student.status === "active" ? "Desactivar" : "Activar"}
-                                                    >
-                                                        {student.status === "active" ? (
-                                                            <Ban className="w-4 h-4" strokeWidth={2} />
-                                                        ) : (
-                                                            <CheckCircle className="w-4 h-4" strokeWidth={2} />
-                                                        )}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteStudent(student)}
-                                                        className="p-2 text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors"
-                                                        title="Eliminar"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" strokeWidth={2} />
+                                                        <Pencil className="w-4 h-4" strokeWidth={2} />
                                                     </button>
                                                 </div>
                                             </td>
@@ -1031,6 +1164,60 @@ export default function SuperAdminDashboard() {
                                 </tbody>
                             </table>
                         </div>
+                        
+                        {/* Paginación */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between p-4" style={{ borderTop: '1px solid var(--border-color)' }}>
+                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                    Mostrando {((currentPage - 1) * studentsPerPage) + 1} - {Math.min(currentPage * studentsPerPage, filteredStudents.length)} de {filteredStudents.length} estudiantes
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        disabled={currentPage === 1}
+                                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        style={{ background: '#014287', color: 'white' }}
+                                    >
+                                        Anterior
+                                    </button>
+                                    <div className="flex items-center gap-1">
+                                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                                            let pageNum;
+                                            if (totalPages <= 5) {
+                                                pageNum = i + 1;
+                                            } else if (currentPage <= 3) {
+                                                pageNum = i + 1;
+                                            } else if (currentPage >= totalPages - 2) {
+                                                pageNum = totalPages - 4 + i;
+                                            } else {
+                                                pageNum = currentPage - 2 + i;
+                                            }
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => setCurrentPage(pageNum)}
+                                                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === pageNum ? 'text-white' : ''}`}
+                                                    style={currentPage === pageNum 
+                                                        ? { background: '#014287' } 
+                                                        : { background: 'var(--surface)', color: 'var(--text-secondary)' }
+                                                    }
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        style={{ background: '#014287', color: 'white' }}
+                                    >
+                                        Siguiente
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
                 </>
@@ -1040,73 +1227,122 @@ export default function SuperAdminDashboard() {
             {/* Modal: Crear Estudiante */}
             {showCreateModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Estudiante</h3>
+                    <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Estudiante</h3>
                             <button onClick={() => setShowCreateModal(false)} style={{ color: 'var(--text-secondary)' }}>
                                 <X className="w-5 h-5" strokeWidth={2} />
                             </button>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-3">
+                            {/* Nombre */}
                             <div>
-                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
+                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
                                 <input
                                     type="text"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                     placeholder="Juan Pérez García"
-                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
                                 />
                                 {formErrors.name && <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>}
                             </div>
 
+                            {/* Email */}
                             <div>
-                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Email</label>
+                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
                                 <input
                                     type="email"
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     placeholder="estudiante@email.com"
-                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
                                 />
                                 {formErrors.email && <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>}
                             </div>
 
+                            {/* Teléfono de Emergencia */}
                             <div>
-                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Nivel</label>
+                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Tel. Emergencia (Papás)</label>
+                                <input
+                                    type="tel"
+                                    value={formData.emergencyPhone}
+                                    onChange={(e) => setFormData({ ...formData, emergencyPhone: e.target.value })}
+                                    placeholder="55 1234 5678"
+                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                />
+                            </div>
+
+                            {/* Nivel */}
+                            <div>
+                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nivel</label>
                                 <select
                                     value={formData.level}
                                     onChange={(e) => setFormData({ ...formData, level: e.target.value as NewStudentForm["level"] })}
-                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
                                 >
-                                    <option value="Beginner">Beginner - $500/mes</option>
-                                    <option value="Intermediate">Intermediate - $600/mes</option>
-                                    <option value="Advanced">Advanced - $700/mes</option>
+                                    <option value="Beginner" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner</option>
+                                    <option value="Intermediate" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate</option>
+                                    <option value="Advanced" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced</option>
                                 </select>
                             </div>
 
-                            <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-                                <p className="text-sm text-blue-500">
-                                    <span className="font-medium">Mensualidad:</span> ${PRICE_BY_LEVEL[formData.level]}
-                                </p>
+                            {/* Mensualidad */}
+                            <div>
+                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Mensualidad</label>
+                                <select
+                                    value={formData.priceOption}
+                                    onChange={(e) => setFormData({ ...formData, priceOption: e.target.value, customPrice: "" })}
+                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                >
+                                    {PRICE_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value} style={{ background: '#1f2937', color: '#ffffff' }}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
+
+                            {/* Campo de precio personalizado */}
+                            {formData.priceOption === "custom" && (
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Precio Personalizado</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={formData.customPrice}
+                                            onChange={(e) => setFormData({ ...formData, customPrice: e.target.value })}
+                                            placeholder="0.00"
+                                            className={`w-full pl-7 pr-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.customPrice ? "border-red-500" : ""}`}
+                                            style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.customPrice ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                        />
+                                    </div>
+                                    {formErrors.customPrice && <p className="mt-1 text-sm text-red-500">{formErrors.customPrice}</p>}
+                                </div>
+                            )}
                         </div>
 
-                        <div className="flex gap-3 mt-6">
+                        <div className="flex gap-3 mt-5">
                             <button
                                 onClick={handleCreateStudent}
                                 disabled={isCreating}
-                                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-medium rounded-lg transition-all disabled:opacity-50"
+                                className="flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm"
+                                style={{ background: '#014287' }}
                             >
                                 {isCreating ? "Creando..." : "Crear y Generar Credencial"}
                             </button>
                             <button
                                 onClick={() => setShowCreateModal(false)}
-                                className="px-4 py-3 font-medium rounded-lg transition-colors"
+                                className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
                                 style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
                             >
                                 Cancelar
@@ -1122,7 +1358,7 @@ export default function SuperAdminDashboard() {
                     <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
                                     <UserPlus className="w-5 h-5 text-white" strokeWidth={2} />
                                 </div>
                                 <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Administrador</h3>
@@ -1140,7 +1376,7 @@ export default function SuperAdminDashboard() {
                                     value={adminFormData.name}
                                     onChange={(e) => setAdminFormData({ ...adminFormData, name: e.target.value })}
                                     placeholder="Carlos Administrador"
-                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
                                 />
                                 {adminFormErrors.name && <p className="mt-1 text-sm text-red-500">{adminFormErrors.name}</p>}
@@ -1153,7 +1389,7 @@ export default function SuperAdminDashboard() {
                                     value={adminFormData.email}
                                     onChange={(e) => setAdminFormData({ ...adminFormData, email: e.target.value })}
                                     placeholder="admin@academia.com"
-                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
                                 />
                                 {adminFormErrors.email && <p className="mt-1 text-sm text-red-500">{adminFormErrors.email}</p>}
@@ -1166,7 +1402,7 @@ export default function SuperAdminDashboard() {
                                     value={adminFormData.password}
                                     onChange={(e) => setAdminFormData({ ...adminFormData, password: e.target.value })}
                                     placeholder="••••••••"
-                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.password ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
                                 />
                                 {adminFormErrors.password && <p className="mt-1 text-sm text-red-500">{adminFormErrors.password}</p>}
@@ -1179,14 +1415,14 @@ export default function SuperAdminDashboard() {
                                     value={adminFormData.confirmPassword}
                                     onChange={(e) => setAdminFormData({ ...adminFormData, confirmPassword: e.target.value })}
                                     placeholder="••••••••"
-                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.confirmPassword ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
                                 />
                                 {adminFormErrors.confirmPassword && <p className="mt-1 text-sm text-red-500">{adminFormErrors.confirmPassword}</p>}
                             </div>
 
-                            <div className="p-4 rounded-lg bg-purple-500/10 border border-purple-500/30">
-                                <p className="text-sm text-purple-500">
+                            <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                                <p className="text-sm text-blue-500">
                                     <span className="font-medium">Permisos:</span> Este administrador podrá gestionar estudiantes, credenciales y pagos.
                                 </p>
                             </div>
@@ -1196,7 +1432,8 @@ export default function SuperAdminDashboard() {
                             <button
                                 onClick={handleCreateAdmin}
                                 disabled={isCreating}
-                                className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium rounded-lg transition-all disabled:opacity-50"
+                                className="flex-1 px-4 py-3 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90"
+                                style={{ background: '#014287' }}
                             >
                                 {isCreating ? "Creando..." : "Crear Administrador"}
                             </button>
@@ -1219,62 +1456,6 @@ export default function SuperAdminDashboard() {
                     isOpen={showCredentialModal}
                     onClose={() => setShowCredentialModal(false)}
                 />
-            )}
-
-            {/* Modal: Confirmar Eliminación de Estudiante */}
-            {showDeleteModal && studentToDelete && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                        {/* Header con icono de advertencia */}
-                        <div className="flex flex-col items-center text-center mb-6">
-                            <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
-                                <AlertTriangle className="w-8 h-8 text-red-500" strokeWidth={2} />
-                            </div>
-                            <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-                                Eliminar Estudiante
-                            </h3>
-                            <p style={{ color: 'var(--text-secondary)' }}>
-                                ¿Estás seguro de eliminar a <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{studentToDelete.name}</span>?
-                            </p>
-                            <p className="text-sm mt-2" style={{ color: 'var(--text-tertiary)' }}>
-                                Esta acción eliminará todos los datos del estudiante incluyendo su historial de pagos. No se puede deshacer.
-                            </p>
-                        </div>
-
-                        {/* Info del estudiante a eliminar */}
-                        <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white font-bold">
-                                    {studentToDelete.name.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                    <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{studentToDelete.name}</p>
-                                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{studentToDelete.email}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Botones */}
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    setShowDeleteModal(false);
-                                    setStudentToDelete(null);
-                                }}
-                                className="flex-1 px-4 py-3 font-medium rounded-lg transition-colors"
-                                style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={confirmDeleteStudent}
-                                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg transition-all"
-                            >
-                                Sí, Eliminar
-                            </button>
-                        </div>
-                    </div>
-                </div>
             )}
 
             {/* Modal: Confirmar Eliminación de Administrador */}
@@ -1300,13 +1481,13 @@ export default function SuperAdminDashboard() {
                         {/* Info del administrador a eliminar */}
                         <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold">
                                     {adminToDelete.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div>
                                     <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{adminToDelete.name}</p>
                                     <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{adminToDelete.email}</p>
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-500/20 text-purple-500 mt-1">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-500 mt-1">
                                         <ShieldCheck className="w-3 h-3" strokeWidth={2} />
                                         {adminToDelete.role === "admin" ? "Administrador" : "Super Admin"}
                                     </span>
@@ -1358,7 +1539,7 @@ export default function SuperAdminDashboard() {
                         {/* Info del estudiante */}
                         <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg">
                                     {selectedStudent.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div>
@@ -1405,9 +1586,179 @@ export default function SuperAdminDashboard() {
                             </button>
                             <button
                                 onClick={() => setShowQRModal(false)}
-                                className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium rounded-lg transition-all"
+                                className="flex-1 px-4 py-3 text-white font-medium rounded-lg transition-all hover:opacity-90"
+                                style={{ background: '#014287' }}
                             >
                                 Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Editar Estudiante */}
+            {showEditStudentModal && studentToEdit && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
+                                    <Pencil className="w-4 h-4 text-white" strokeWidth={2} />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Editar Estudiante</h3>
+                                    <p className="text-xs font-mono text-cyan-500">#{studentToEdit.studentNumber}</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => {
+                                    setShowEditStudentModal(false);
+                                    setStudentToEdit(null);
+                                }} 
+                                style={{ color: 'var(--text-secondary)' }}
+                            >
+                                <X className="w-5 h-5" strokeWidth={2} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            {/* Nombre */}
+                            <div>
+                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
+                                <input
+                                    type="text"
+                                    value={editFormData.name}
+                                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                    placeholder="Nombre del estudiante"
+                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                />
+                                {editFormErrors.name && <p className="mt-1 text-xs text-red-500">{editFormErrors.name}</p>}
+                            </div>
+
+                            {/* Email */}
+                            <div>
+                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
+                                <input
+                                    type="email"
+                                    value={editFormData.email}
+                                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                                    placeholder="correo@ejemplo.com"
+                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                />
+                                {editFormErrors.email && <p className="mt-1 text-xs text-red-500">{editFormErrors.email}</p>}
+                            </div>
+
+                            {/* Teléfono de Emergencia */}
+                            <div>
+                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Tel. Emergencia (Papás)</label>
+                                <input
+                                    type="tel"
+                                    value={editFormData.emergencyPhone}
+                                    onChange={(e) => {
+                                        const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                        setEditFormData({ ...editFormData, emergencyPhone: value });
+                                    }}
+                                    placeholder="5512345678"
+                                    maxLength={10}
+                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                />
+                            </div>
+
+                            {/* Nivel */}
+                            <div>
+                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nivel</label>
+                                <select
+                                    value={editFormData.level}
+                                    onChange={(e) => setEditFormData({ ...editFormData, level: e.target.value as EditStudentForm["level"] })}
+                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                >
+                                    <option value="Beginner" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner</option>
+                                    <option value="Intermediate" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate</option>
+                                    <option value="Advanced" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-5">
+                            <button
+                                onClick={handleSaveEditStudent}
+                                disabled={isEditing}
+                                className="flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm"
+                                style={{ background: '#014287' }}
+                            >
+                                {isEditing ? "Guardando..." : "Guardar Cambios"}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowEditStudentModal(false);
+                                    setStudentToEdit(null);
+                                }}
+                                className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
+                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de confirmación para activar/desactivar estudiante */}
+            {showStatusModal && studentToToggle && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'var(--modal-overlay)' }}>
+                    <div className="rounded-xl shadow-2xl max-w-sm w-full p-5" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${studentToToggle.status === "active" ? "bg-red-500/20" : "bg-green-500/20"}`}>
+                                {studentToToggle.status === "active" ? (
+                                    <UserX className="w-5 h-5 text-red-500" strokeWidth={2} />
+                                ) : (
+                                    <UserCheck className="w-5 h-5 text-green-500" strokeWidth={2} />
+                                )}
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
+                                    {studentToToggle.status === "active" ? "Desactivar Estudiante" : "Activar Estudiante"}
+                                </h3>
+                                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>#{studentToToggle.studentNumber}</p>
+                            </div>
+                        </div>
+
+                        <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                            {studentToToggle.status === "active" 
+                                ? `¿Estás seguro de que deseas desactivar a "${studentToToggle.name}"?`
+                                : `¿Estás seguro de que deseas activar a "${studentToToggle.name}"?`
+                            }
+                        </p>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleConfirmToggleStatus}
+                                disabled={isTogglingStatus}
+                                className={`flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm ${studentToToggle.status === "active" ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"}`}
+                            >
+                                {isTogglingStatus ? (
+                                    <span className="inline-flex items-center justify-center gap-2">
+                                        <Loader2 className="animate-spin h-4 w-4" strokeWidth={2} />
+                                        Procesando...
+                                    </span>
+                                ) : (
+                                    studentToToggle.status === "active" ? "Sí, Desactivar" : "Sí, Activar"
+                                )}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowStatusModal(false);
+                                    setStudentToToggle(null);
+                                }}
+                                className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
+                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                            >
+                                Cancelar
                             </button>
                         </div>
                     </div>

@@ -7,7 +7,8 @@ export const fetchCache = "force-no-store";
 import { Suspense, useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
-import { Camera, X } from "lucide-react";
+import { Camera, X, FileText, QrCode } from "lucide-react";
+import Image from "next/image";
 
 // IMPORTANTE: Usar Render para WebSockets (Vercel no soporta WebSockets persistentes)
 const getApiUrl = () => {
@@ -215,79 +216,144 @@ function PayScanContent() {
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden">
-      <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-6 text-white text-center">
-        <h1 className="text-xl font-bold">Escaneo de Pago</h1>
-        <p className="text-blue-100 text-sm mt-1">What Time Is It? Idiomas</p>
+    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden relative">
+      {/* Header con gradiente institucional y logo */}
+      <div className="relative bg-gradient-to-br from-[#014287] via-[#2596be] to-[#779bbf] p-6 text-white text-center overflow-hidden">
+        {/* Patrón de fondo decorativo */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
+          <div className="absolute bottom-0 right-0 w-40 h-40 bg-white rounded-full translate-x-1/2 translate-y-1/2 blur-3xl"></div>
+        </div>
+        
+        <div className="relative z-10">
+          {/* Logo mejorado - tamaño más pequeño */}
+          <div className="flex justify-center mb-3">
+            <div className="relative">
+              {/* Contenedor del logo más compacto */}
+              <div className="relative bg-white rounded-xl p-1.5 shadow-lg border border-white/30">
+                <Image 
+                  src="/image/logo_mensaje.png" 
+                  alt="What Time Is It? Idiomas" 
+                  width={60} 
+                  height={28} 
+                  className="object-contain"
+                  priority
+                />
+              </div>
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight mb-1">Escaneo de Pago</h1>
+          <p className="text-white/90 text-sm font-medium">Sistema de Pagos</p>
+        </div>
       </div>
 
-      {/* Tabs de modo */}
-      <div className="flex border-b">
+      {/* Tabs de modo con colores institucionales */}
+      <div className="flex border-b border-gray-200">
         <button
           onClick={switchToManual}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
+          className={`flex-1 py-4 text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
             mode === "manual"
-              ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
-              : "text-gray-500 hover:text-gray-700"
+              ? "text-white border-b-3 relative"
+              : "text-gray-600 hover:text-[#014287] hover:bg-gray-50"
           }`}
+          style={mode === "manual" ? { 
+            background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)',
+            borderBottom: '3px solid #014287'
+          } : {}}
         >
-          📝 Número Manual
+          <FileText className="w-4 h-4" strokeWidth={2.5} />
+          Número Manual
         </button>
         <button
           onClick={switchToQR}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
+          className={`flex-1 py-4 text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
             mode === "qr"
-              ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
-              : "text-gray-500 hover:text-gray-700"
+              ? "text-white border-b-3 relative"
+              : "text-gray-600 hover:text-[#014287] hover:bg-gray-50"
           }`}
+          style={mode === "qr" ? { 
+            background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)',
+            borderBottom: '3px solid #014287'
+          } : {}}
         >
-          📷 Escanear QR
+          <QrCode className="w-4 h-4" strokeWidth={2.5} />
+          Escanear QR
         </button>
       </div>
 
-      <div className="p-6 space-y-4">
+      <div className="p-6 space-y-5">
         {mode === "manual" ? (
           <>
-            <p className="text-sm text-gray-600">
-              Ingresa el <b>Número de Estudiante</b> o <b>Student ID</b> para procesar el pago.
-            </p>
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#2596be]/20 to-[#014287]/20 rounded-2xl mb-3">
+                <FileText className="w-8 h-8 text-[#014287]" strokeWidth={2} />
+              </div>
+              <p className="text-sm text-gray-700 font-medium">
+                Ingresa el <span className="font-bold text-[#014287]">Número de Estudiante</span> o <span className="font-bold text-[#014287]">Student ID</span> para procesar el pago.
+              </p>
+            </div>
 
-            <form onSubmit={onSubmit} className="space-y-3">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ej: 001 o UUID del estudiante"
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-800 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div className="relative">
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Ej: 001 o UUID del estudiante"
+                  className="w-full border-2 border-gray-300 rounded-xl px-4 py-3.5 text-gray-800 placeholder-gray-400 bg-white focus:outline-none transition-all duration-300 focus:border-[#2596be] focus:ring-4 focus:ring-[#2596be]/20 font-medium"
+                />
+              </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-60"
+                className="w-full px-6 py-4 text-white font-bold rounded-xl transition-all duration-300 disabled:opacity-60 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                style={{ 
+                  background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)',
+                }}
               >
-                {loading ? "Buscando…" : "Procesar Pago"}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Buscando…
+                  </span>
+                ) : (
+                  "Procesar Pago"
+                )}
               </button>
             </form>
           </>
         ) : (
           <>
-            <p className="text-sm text-gray-600 text-center">
-              Apunta la cámara al código QR del estudiante
-            </p>
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#2596be]/20 to-[#014287]/20 rounded-2xl mb-3">
+                <QrCode className="w-8 h-8 text-[#014287]" strokeWidth={2} />
+              </div>
+              <p className="text-sm text-gray-700 font-medium">
+                Apunta la cámara al código QR del estudiante
+              </p>
+            </div>
 
-            <div className="relative">
+            <div className="relative rounded-xl overflow-hidden border-2 border-gray-200 shadow-inner" style={{ minHeight: "300px" }}>
               <div 
                 id={scannerContainerId} 
-                className="w-full rounded-xl overflow-hidden bg-gray-900"
-                style={{ minHeight: "280px" }}
+                className="w-full rounded-xl overflow-hidden bg-[#010101]"
+                style={{ minHeight: "300px" }}
               ></div>
               
               {!scanning && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-xl">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl">
+                  <div className="mb-4">
+                    <div className="w-20 h-20 bg-gradient-to-br from-[#014287] to-[#2596be] rounded-2xl flex items-center justify-center shadow-lg mb-3">
+                      <Camera className="w-10 h-10 text-white" strokeWidth={2} />
+                    </div>
+                  </div>
                   <button
                     onClick={startScanner}
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors flex items-center gap-2"
+                    className="px-6 py-3 text-white font-bold rounded-xl transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                    style={{ 
+                      background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)',
+                    }}
                   >
-                    <Camera className="w-5 h-5" strokeWidth={2} />
+                    <Camera className="w-5 h-5" strokeWidth={2.5} />
                     Iniciar Cámara
                   </button>
                 </div>
@@ -296,36 +362,52 @@ function PayScanContent() {
               {scanning && (
                 <button
                   onClick={stopScanner}
-                  className="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
+                  className="absolute bottom-4 left-1/2 -translate-x-1/2 px-5 py-2.5 text-white text-sm font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl"
+                  style={{ background: '#ea242e' }}
                 >
                   Detener Escaneo
                 </button>
               )}
             </div>
 
-            <p className="text-xs text-gray-400 text-center">
+            <p className="text-xs text-gray-500 text-center font-medium">
               El QR debe contener el ID del estudiante o una URL de pago
             </p>
           </>
         )}
 
         {error && (
-          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
-            {error}
+          <div className="text-sm text-white bg-gradient-to-r from-[#ea242e] to-[#d46f75] border-2 border-[#c95e62] rounded-xl p-4 shadow-lg">
+            <div className="flex items-center gap-2">
+              <X className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} />
+              <span className="font-semibold">{error}</span>
+            </div>
           </div>
         )}
 
         <button
           onClick={() => window.close()}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 font-medium rounded-xl transition-colors border border-gray-200"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-50 font-semibold rounded-xl transition-all duration-300 border-2 border-gray-200 hover:border-gray-300"
         >
-          <X className="w-4 h-4" strokeWidth={2} />
+          <X className="w-4 h-4" strokeWidth={2.5} />
           Cerrar ventana
         </button>
       </div>
 
-      <div className="bg-gray-50 px-6 py-4 text-center">
-        <p className="text-xs text-gray-400">What Time Is It? Idiomas © {new Date().getFullYear()}</p>
+      {/* Footer con mascota */}
+      <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 text-center border-t border-gray-200 relative overflow-hidden">
+        <div className="absolute bottom-0 right-0 opacity-10">
+          <Image 
+            src="/image/mascota.png" 
+            alt="Mascota" 
+            width={80} 
+            height={80} 
+            className="object-contain"
+          />
+        </div>
+        <p className="text-xs text-gray-500 font-medium relative z-10">
+          What Time Is It? Idiomas © {new Date().getFullYear()}
+        </p>
       </div>
     </div>
   );
@@ -335,13 +417,32 @@ function PayScanContent() {
 function LoadingFallback() {
   return (
     <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden">
-      <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-6 text-white text-center">
-        <h1 className="text-xl font-bold">Escaneo de Pago</h1>
-        <p className="text-blue-100 text-sm mt-1">What Time Is It? Idiomas</p>
+      <div className="bg-gradient-to-br from-[#014287] via-[#2596be] to-[#779bbf] p-6 text-white text-center relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
+        </div>
+        <div className="relative z-10">
+          {/* Logo en loading */}
+          <div className="flex justify-center mb-3">
+            <div className="relative">
+              <div className="relative bg-white rounded-xl p-2 shadow-lg border border-white/30">
+                <Image 
+                  src="/image/logo_mensaje.png" 
+                  alt="Logo" 
+                  width={100} 
+                  height={45} 
+                  className="object-contain"
+                />
+              </div>
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight mb-1">Escaneo de Pago</h1>
+          <p className="text-white/90 text-sm font-medium">Sistema de Pagos</p>
+        </div>
       </div>
       <div className="p-12 text-center">
-        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-gray-500">Cargando...</p>
+        <div className="w-12 h-12 border-4 rounded-full animate-spin mx-auto mb-4" style={{ borderColor: '#2596be', borderTopColor: 'transparent' }}></div>
+        <p className="text-gray-600 font-medium">Cargando...</p>
       </div>
     </div>
   );
@@ -350,11 +451,20 @@ function LoadingFallback() {
 // Componente exportado con Suspense
 export default function PayScanLanding() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-600 flex items-center justify-center p-4">
-      <Suspense fallback={<LoadingFallback />}>
-        <SearchParamsHandler />
-        <PayScanContent />
-      </Suspense>
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #014287 0%, #2596be 50%, #779bbf 100%)' }}>
+      {/* Patrones decorativos de fondo */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2 blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white rounded-full blur-3xl"></div>
+      </div>
+      
+      <div className="relative z-10">
+        <Suspense fallback={<LoadingFallback />}>
+          <SearchParamsHandler />
+          <PayScanContent />
+        </Suspense>
+      </div>
     </div>
   );
 }

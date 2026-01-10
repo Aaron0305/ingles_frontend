@@ -560,3 +560,84 @@ body {
 .badge-beginner { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
 .badge-intermediate { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
 .badge-advanced { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+
+/* ============================================
+   ESTILOS INSTITUCIONALES - SELECTS Y BOTONES
+   ============================================ */
+
+/* Selects con colores institucionales */
+select[style*="779bbf"] {
+  background-color: #779bbf !important;
+  border-color: #014287 !important;
+  color: #010101 !important;
+  font-weight: 500 !important;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+select[style*="779bbf"]:focus {
+  outline: none !important;
+  border-color: #2596be !important;
+  box-shadow: 0 0 0 3px rgba(37, 150, 190, 0.2) !important;
+}
+
+/* Opciones de select - mejor contraste en modo oscuro */
+select[style*="779bbf"] option {
+  background-color: var(--surface) !important;
+  color: var(--text-primary) !important;
+  padding: 8px !important;
+}
+
+/* Asegurar que las opciones sean visibles en modo oscuro */
+@media (prefers-color-scheme: dark) {
+  select[style*="779bbf"] {
+    background-color: #779bbf !important;
+    color: #010101 !important;
+  }
+  
+  select[style*="779bbf"] option {
+    background-color: var(--surface) !important;
+    color: var(--text-primary) !important;
+  }
+  
+  select[style*="779bbf"] option:checked,
+  select[style*="779bbf"] option:hover {
+    background-color: #2596be !important;
+    color: white !important;
+  }
+}
+
+/* ============================================
+   ANIMACIONES - LOGIN PAGE
+   ============================================ */
+
+/* Animación shimmer para efectos de brillo */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Animación de pulso suave para el logo */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 8px 32px rgba(26, 86, 219, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    box-shadow: 0 8px 40px rgba(6, 182, 212, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+}
+
+/* Animación de flotación suave */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}

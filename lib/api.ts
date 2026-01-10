@@ -18,11 +18,12 @@ export interface Student {
     studentNumber: string;
     name: string;
     email: string;
+    emergencyPhone?: string;
     level: "Beginner" | "Intermediate" | "Advanced";
     monthlyFee: number;
     status: "active" | "inactive";
     createdAt: string;
-    expiresAt: string;
+    expiresAt?: string;
     lastAccess?: string;
 }
 
@@ -142,6 +143,8 @@ export const studentsApi = {
         name: string;
         email: string;
         level: "Beginner" | "Intermediate" | "Advanced";
+        monthlyFee?: number;
+        emergencyPhone?: string;
     }): Promise<Student> {
         const response = await fetch(`${API_URL}/api/students`, {
             method: "POST",

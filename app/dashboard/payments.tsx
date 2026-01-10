@@ -919,10 +919,31 @@ export default function PaymentsPanel({
                     href="/pay/scan"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium rounded-xl transition-all shadow-lg shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/30"
+                    className="flex items-center gap-3 px-6 py-3 font-semibold rounded-2xl transition-all shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#014287]"
+                    style={{
+                        background: 'linear-gradient(100deg, #014287 0%, #2176c1 50%, #c1121f 100%)',
+                        color: '#fff',
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 4px 16px 0 rgba(1,66,135,0.10), 0 2px 8px 0 rgba(193,18,31,0.10)',
+                        letterSpacing: '0.5px',
+                        fontSize: '1.08rem',
+                        minWidth: '320px',
+                        justifyContent: 'center',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        zIndex: 1
+                    }}
                 >
-                    <QrCode className="w-5 h-5" strokeWidth={2} />
-                    Escanear QR / Ingresar ID
+                    <span style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontWeight: 600,
+                        textShadow: '0 1px 8px rgba(1,66,135,0.10), 0 1px 8px rgba(193,18,31,0.10)'
+                    }}>
+                        <QrCode className="w-5 h-5" strokeWidth={2} />
+                        Escanear QR / Ingresar ID
+                    </span>
                 </a>
             </div>
 

@@ -3,7 +3,8 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api";
-import { BookOpen, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import Image from "next/image";
 
 interface LoginFormData {
     email: string;
@@ -163,20 +164,29 @@ export default function LoginPage() {
                 >
                     {/* Header */}
                     <div className="text-center mb-6">
-                        {/* Logo minimalista futurista */}
-                        <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl mb-3"
-                            style={{ 
-                                background: 'linear-gradient(135deg, #1a56db 0%, #06b6d4 100%)',
-                                boxShadow: '0 4px 20px rgba(26, 86, 219, 0.4)'
-                            }}>
-                            <BookOpen className="w-7 h-7 text-white" strokeWidth={2} />
+                        {/* Logo principal centrado */}
+                        <div className="relative inline-flex flex-col items-center justify-center">
+                            <div className="p-4 rounded-2xl mb-2"
+                                style={{
+                                    background: 'linear-gradient(135deg, rgba(26, 86, 219, 0.08) 0%, rgba(6, 182, 212, 0.08) 100%)',
+                                    backdropFilter: 'blur(10px)',
+                                }}>
+                                <Image 
+                                    src="/image/logo.png" 
+                                    alt="What Time Is It? Idiomas"
+                                    width={220}
+                                    height={70}
+                                    className="object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
+                                    priority
+                                />
+                            </div>
+                            {/* Línea decorativa bajo el logo */}
+                            <div className="w-20 h-0.5 rounded-full"
+                                style={{
+                                    background: 'linear-gradient(90deg, transparent, #06b6d4, #1a56db, #06b6d4, transparent)'
+                                }}
+                            />
                         </div>
-                        <h1 className="text-xl font-bold" style={{ color: colors.textPrimary }}>
-                            What Time Is It?
-                        </h1>
-                        <p className="text-xs font-medium tracking-widest mt-0.5" style={{ color: colors.accent }}>
-                            IDIOMAS
-                        </p>
                     </div>
 
                     {/* Error */}

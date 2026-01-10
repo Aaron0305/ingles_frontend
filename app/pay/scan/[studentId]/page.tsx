@@ -8,6 +8,7 @@ import { useParams, useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import { Check, X, AlertTriangle, Lock, LogIn, Eye, EyeOff, Loader2, Monitor, Smartphone } from "lucide-react";
 import { authApi } from "@/lib/api";
+import Image from "next/image";
 
 interface StudentInfo {
     id: string;
@@ -270,18 +271,43 @@ export default function PayScanPage() {
     }, [socket, student, pendingMonth, pendingYear, status, scanSent]);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all duration-500">
+        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #014287 0%, #2596be 50%, #779bbf 100%)' }}>
+            {/* Patrones decorativos de fondo */}
+            <div className="absolute inset-0 opacity-20">
+                <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
+                <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2 blur-3xl"></div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white rounded-full blur-3xl"></div>
+            </div>
+            
+            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all duration-500 relative z-10">
                 
-                {/* Header con logo */}
-                <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-8 text-white text-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-black/10"></div>
+                {/* Header con logo institucional */}
+                <div className="relative bg-gradient-to-br from-[#014287] via-[#2596be] to-[#779bbf] p-8 text-white text-center overflow-hidden">
+                    {/* Patrón de fondo decorativo */}
+                    <div className="absolute inset-0 opacity-10">
+                        <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
+                        <div className="absolute bottom-0 right-0 w-40 h-40 bg-white rounded-full translate-x-1/2 translate-y-1/2 blur-3xl"></div>
+                    </div>
+                    
                     <div className="relative z-10">
-                        <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                            <span className="text-4xl">🎓</span>
+                        {/* Logo mejorado - tamaño más pequeño */}
+                        <div className="flex justify-center mb-3">
+                            <div className="relative">
+                                {/* Contenedor del logo más compacto */}
+                                <div className="relative bg-white rounded-xl p-2 shadow-lg border border-white/30">
+                                    <Image 
+                                        src="/image/logo_mensaje.png" 
+                                        alt="What Time Is It? Idiomas" 
+                                        width={100} 
+                                        height={45} 
+                                        className="object-contain"
+                                        priority
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <h1 className="text-2xl font-bold tracking-tight">What Time Is It?</h1>
-                        <p className="text-white/80 text-sm mt-1 font-medium">Sistema de Pagos</p>
+                        <h1 className="text-2xl font-bold tracking-tight mb-1">Sistema de Pagos</h1>
+                        <p className="text-white/90 text-sm font-medium">What Time Is It? Idiomas</p>
                     </div>
                 </div>
 
@@ -293,28 +319,28 @@ export default function PayScanPage() {
                         <div className="py-4">
                             {/* Security Icon */}
                             <div className="text-center mb-6">
-                                <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-200">
+                                <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg" style={{ background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)' }}>
                                     <Lock className="w-10 h-10 text-white" strokeWidth={2} />
                                 </div>
                                 <h2 className="text-xl font-bold text-gray-800 mb-2">Acceso de Personal</h2>
-                                <p className="text-gray-500 text-sm">
+                                <p className="text-gray-600 text-sm font-medium">
                                     Inicia sesión para registrar el pago de este estudiante
                                 </p>
                             </div>
 
                             {/* Info Badge */}
-                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                            <div className="rounded-xl p-4 mb-6 border-2 shadow-sm" style={{ background: 'linear-gradient(135deg, rgba(37, 150, 190, 0.1) 0%, rgba(1, 66, 135, 0.1) 100%)', borderColor: '#2596be' }}>
                                 <div className="flex items-start gap-3">
                                     <div className="flex-shrink-0 mt-0.5">
                                         <div className="flex items-center gap-1">
-                                            <Smartphone className="w-4 h-4 text-blue-500" />
-                                            <span className="text-blue-400">→</span>
-                                            <Monitor className="w-4 h-4 text-blue-500" />
+                                            <Smartphone className="w-4 h-4" style={{ color: '#014287' }} />
+                                            <span style={{ color: '#2596be' }}>→</span>
+                                            <Monitor className="w-4 h-4" style={{ color: '#014287' }} />
                                         </div>
                                     </div>
-                                    <p className="text-sm text-blue-700">
-                                        <span className="font-semibold">¿Cómo funciona?</span><br/>
-                                        <span className="text-blue-600 text-xs">
+                                    <p className="text-sm" style={{ color: '#014287' }}>
+                                        <span className="font-bold">¿Cómo funciona?</span><br/>
+                                        <span className="text-xs font-medium" style={{ color: '#2596be' }}>
                                             Escanea aquí y confirma el pago desde tu panel de administración (computadora u otro dispositivo).
                                         </span>
                                     </p>
@@ -324,21 +350,34 @@ export default function PayScanPage() {
                             {/* Login Form */}
                             <form onSubmit={handleLogin} className="space-y-4">
                                 {loginError && (
-                                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-                                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                                        {loginError}
+                                    <div className="text-white px-4 py-3 rounded-xl text-sm flex items-center gap-2 shadow-lg" style={{ background: 'linear-gradient(135deg, #ea242e 0%, #d46f75 100%)', border: '2px solid #c95e62' }}>
+                                        <AlertTriangle className="w-4 h-4 flex-shrink-0" strokeWidth={2.5} />
+                                        <span className="font-semibold">{loginError}</span>
                                     </div>
                                 )}
                                 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">
                                         Correo electrónico
                                     </label>
                                     <input
                                         type="email"
                                         value={loginEmail}
                                         onChange={(e) => setLoginEmail(e.target.value)}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-gray-800"
+                                        className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-300 focus:outline-none transition-all duration-300 text-gray-800 font-medium"
+                                        style={{ 
+                                            focusRing: '4px',
+                                            focusBorderColor: '#2596be',
+                                            focusRingColor: 'rgba(37, 150, 190, 0.2)'
+                                        }}
+                                        onFocus={(e) => {
+                                            e.target.style.borderColor = '#2596be';
+                                            e.target.style.boxShadow = '0 0 0 4px rgba(37, 150, 190, 0.2)';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.target.style.borderColor = '#e5e7eb';
+                                            e.target.style.boxShadow = 'none';
+                                        }}
                                         placeholder="admin@ejemplo.com"
                                         required
                                         disabled={isLoggingIn}
@@ -346,7 +385,7 @@ export default function PayScanPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">
                                         Contraseña
                                     </label>
                                     <div className="relative">
@@ -354,7 +393,20 @@ export default function PayScanPage() {
                                             type={showPassword ? "text" : "password"}
                                             value={loginPassword}
                                             onChange={(e) => setLoginPassword(e.target.value)}
-                                            className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-gray-800"
+                                            className="w-full px-4 py-3.5 pr-12 rounded-xl border-2 border-gray-300 focus:outline-none transition-all duration-300 text-gray-800 font-medium"
+                                            style={{ 
+                                                focusRing: '4px',
+                                                focusBorderColor: '#2596be',
+                                                focusRingColor: 'rgba(37, 150, 190, 0.2)'
+                                            }}
+                                            onFocus={(e) => {
+                                                e.target.style.borderColor = '#2596be';
+                                                e.target.style.boxShadow = '0 0 0 4px rgba(37, 150, 190, 0.2)';
+                                            }}
+                                            onBlur={(e) => {
+                                                e.target.style.borderColor = '#e5e7eb';
+                                                e.target.style.boxShadow = 'none';
+                                            }}
                                             placeholder="••••••••"
                                             required
                                             disabled={isLoggingIn}
@@ -362,7 +414,7 @@ export default function PayScanPage() {
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                                         >
                                             {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                         </button>
@@ -372,7 +424,10 @@ export default function PayScanPage() {
                                 <button
                                     type="submit"
                                     disabled={isLoggingIn}
-                                    className="w-full px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-purple-200 hover:shadow-xl flex items-center justify-center gap-2"
+                                    className="w-full px-6 py-4 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-60 disabled:transform-none flex items-center justify-center gap-2"
+                                    style={{ 
+                                        background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)',
+                                    }}
                                 >
                                     {isLoggingIn ? (
                                         <>
@@ -381,7 +436,7 @@ export default function PayScanPage() {
                                         </>
                                     ) : (
                                         <>
-                                            <LogIn className="w-5 h-5" />
+                                            <LogIn className="w-5 h-5" strokeWidth={2.5} />
                                             Iniciar Sesión
                                         </>
                                     )}
@@ -394,20 +449,23 @@ export default function PayScanPage() {
                     {status === "connecting" && (
                         <div className="text-center py-12">
                             <div className="relative w-20 h-20 mx-auto mb-6">
-                                <div className="absolute inset-0 rounded-full border-4 border-indigo-100"></div>
-                                <div className="absolute inset-0 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin"></div>
+                                <div className="absolute inset-0 rounded-full border-4" style={{ borderColor: 'rgba(37, 150, 190, 0.2)' }}></div>
+                                <div className="absolute inset-0 rounded-full border-4 border-t-transparent animate-spin" style={{ borderColor: '#2596be' }}></div>
                                 <div className="absolute inset-0 flex items-center justify-center">
                                     <span className="text-2xl">🔌</span>
                                 </div>
                             </div>
-                            <h2 className="text-lg font-semibold text-gray-800 mb-2">Conectando...</h2>
-                            <p className="text-gray-500 text-sm">Estableciendo conexión segura</p>
+                            <h2 className="text-lg font-bold text-gray-800 mb-2">Conectando...</h2>
+                            <p className="text-gray-600 text-sm font-medium">Estableciendo conexión segura</p>
                             
                             {/* Progress bar */}
-                            <div className="mt-6 bg-gray-100 rounded-full h-2 overflow-hidden max-w-xs mx-auto">
+                            <div className="mt-6 bg-gray-100 rounded-full h-3 overflow-hidden max-w-xs mx-auto shadow-inner">
                                 <div 
-                                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-700 ease-out"
-                                    style={{ width: `${progress}%` }}
+                                    className="h-full transition-all duration-700 ease-out rounded-full"
+                                    style={{ 
+                                        width: `${progress}%`,
+                                        background: 'linear-gradient(90deg, #014287 0%, #2596be 100%)'
+                                    }}
                                 ></div>
                             </div>
                         </div>
@@ -417,20 +475,23 @@ export default function PayScanPage() {
                     {status === "loading" && (
                         <div className="text-center py-12">
                             <div className="relative w-20 h-20 mx-auto mb-6">
-                                <div className="absolute inset-0 rounded-full border-4 border-purple-100"></div>
-                                <div className="absolute inset-0 rounded-full border-4 border-purple-500 border-t-transparent animate-spin"></div>
+                                <div className="absolute inset-0 rounded-full border-4" style={{ borderColor: 'rgba(37, 150, 190, 0.2)' }}></div>
+                                <div className="absolute inset-0 rounded-full border-4 border-t-transparent animate-spin" style={{ borderColor: '#2596be' }}></div>
                                 <div className="absolute inset-0 flex items-center justify-center">
                                     <span className="text-2xl">📋</span>
                                 </div>
                             </div>
-                            <h2 className="text-lg font-semibold text-gray-800 mb-2">Cargando información</h2>
-                            <p className="text-gray-500 text-sm">Obteniendo datos del estudiante...</p>
+                            <h2 className="text-lg font-bold text-gray-800 mb-2">Cargando información</h2>
+                            <p className="text-gray-600 text-sm font-medium">Obteniendo datos del estudiante...</p>
                             
                             {/* Progress bar */}
-                            <div className="mt-6 bg-gray-100 rounded-full h-2 overflow-hidden max-w-xs mx-auto">
+                            <div className="mt-6 bg-gray-100 rounded-full h-3 overflow-hidden max-w-xs mx-auto shadow-inner">
                                 <div 
-                                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500 ease-out"
-                                    style={{ width: `${progress}%` }}
+                                    className="h-full transition-all duration-500 ease-out rounded-full"
+                                    style={{ 
+                                        width: `${progress}%`,
+                                        background: 'linear-gradient(90deg, #014287 0%, #2596be 100%)'
+                                    }}
                                 ></div>
                             </div>
                         </div>
@@ -440,52 +501,52 @@ export default function PayScanPage() {
                     {status === "processing" && student && (
                         <div className="text-center">
                             {/* Student Card */}
-                            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 mb-6 border border-gray-200">
-                                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4 shadow-lg">
+                            <div className="rounded-2xl p-6 mb-6 border-2 shadow-lg" style={{ background: 'linear-gradient(135deg, rgba(37, 150, 190, 0.1) 0%, rgba(1, 66, 135, 0.1) 100%)', borderColor: '#2596be' }}>
+                                <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4 shadow-lg" style={{ background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)' }}>
                                     {student.name.charAt(0).toUpperCase()}
                                 </div>
                                 <h2 className="font-bold text-xl text-gray-800">{student.name}</h2>
-                                <div className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium mt-2">
+                                <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold mt-2 text-white shadow-md" style={{ background: '#014287' }}>
                                     <span>👤</span>
                                     <span>#{student.studentNumber}</span>
                                 </div>
                             </div>
 
                             {/* Payment Info Card */}
-                            <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-6 mb-6">
-                                <div className="flex items-center justify-center gap-2 text-amber-600 mb-3">
+                            <div className="rounded-2xl p-6 mb-6 border-2 shadow-lg" style={{ background: 'linear-gradient(135deg, rgba(37, 150, 190, 0.15) 0%, rgba(1, 66, 135, 0.15) 100%)', borderColor: '#2596be' }}>
+                                <div className="flex items-center justify-center gap-2 mb-3" style={{ color: '#014287' }}>
                                     <span className="text-xl">📅</span>
-                                    <span className="font-semibold">Pago Pendiente</span>
+                                    <span className="font-bold">Pago Pendiente</span>
                                 </div>
                                 <p className="text-2xl font-bold text-gray-800 mb-2">
                                     {MONTHS[pendingMonth - 1]} {pendingYear}
                                 </p>
-                                <p className="text-4xl font-black text-emerald-600">
+                                <p className="text-4xl font-black" style={{ color: '#2596be' }}>
                                     {formatCurrency(student.monthlyFee)}
                                 </p>
                             </div>
 
                             {/* Mensaje de espera - Dispositivos */}
-                            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6">
+                            <div className="rounded-2xl p-4 mb-6 border-2 shadow-sm" style={{ background: 'linear-gradient(135deg, rgba(37, 150, 190, 0.1) 0%, rgba(1, 66, 135, 0.1) 100%)', borderColor: '#2596be' }}>
                                 <div className="flex items-center justify-center gap-3 mb-3">
                                     <div className="flex items-center gap-1">
-                                        <Smartphone className="w-5 h-5 text-blue-500" />
-                                        <span className="text-xs text-blue-600">Este dispositivo</span>
+                                        <Smartphone className="w-5 h-5" style={{ color: '#014287' }} />
+                                        <span className="text-xs font-semibold" style={{ color: '#014287' }}>Este dispositivo</span>
                                     </div>
                                     <div className="flex gap-1">
-                                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: "150ms" }}></div>
-                                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: "300ms" }}></div>
+                                        <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#2596be', animationDelay: "0ms" }}></div>
+                                        <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#2596be', animationDelay: "150ms" }}></div>
+                                        <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#2596be', animationDelay: "300ms" }}></div>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                        <Monitor className="w-5 h-5 text-blue-500" />
-                                        <span className="text-xs text-blue-600">Panel Admin</span>
+                                        <Monitor className="w-5 h-5" style={{ color: '#014287' }} />
+                                        <span className="text-xs font-semibold" style={{ color: '#014287' }}>Panel Admin</span>
                                     </div>
                                 </div>
-                                <p className="text-sm font-semibold text-blue-700">
+                                <p className="text-sm font-bold" style={{ color: '#014287' }}>
                                     Solicitud enviada al panel de administración
                                 </p>
-                                <p className="text-xs text-blue-600 mt-1">
+                                <p className="text-xs font-medium mt-1" style={{ color: '#2596be' }}>
                                     Confirma el pago desde tu computadora o cualquier dispositivo con sesión activa
                                 </p>
                             </div>
@@ -493,18 +554,21 @@ export default function PayScanPage() {
                             {/* Processing Animation */}
                             <div className="flex flex-col items-center gap-3">
                                 <div className="flex gap-2">
-                                    <div className="w-3 h-3 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                                    <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
-                                    <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                                    <div className="w-3 h-3 rounded-full animate-bounce" style={{ background: '#014287', animationDelay: "0ms" }}></div>
+                                    <div className="w-3 h-3 rounded-full animate-bounce" style={{ background: '#2596be', animationDelay: "150ms" }}></div>
+                                    <div className="w-3 h-3 rounded-full animate-bounce" style={{ background: '#779bbf', animationDelay: "300ms" }}></div>
                                 </div>
-                                <p className="text-sm font-medium text-gray-600">{message}</p>
+                                <p className="text-sm font-bold text-gray-700">{message}</p>
                             </div>
                             
                             {/* Progress bar */}
-                            <div className="mt-6 bg-gray-100 rounded-full h-2 overflow-hidden">
+                            <div className="mt-6 bg-gray-100 rounded-full h-3 overflow-hidden shadow-inner">
                                 <div 
-                                    className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-500 ease-out"
-                                    style={{ width: `${progress}%` }}
+                                    className="h-full transition-all duration-500 ease-out rounded-full"
+                                    style={{ 
+                                        width: `${progress}%`,
+                                        background: 'linear-gradient(90deg, #014287 0%, #2596be 50%, #779bbf 100%)'
+                                    }}
                                 ></div>
                             </div>
                         </div>
@@ -515,42 +579,43 @@ export default function PayScanPage() {
                         <div className="text-center py-6">
                             {/* Success Animation */}
                             <div className="relative w-24 h-24 mx-auto mb-6">
-                                <div className="absolute inset-0 bg-emerald-100 rounded-full animate-ping opacity-25"></div>
-                                <div className="relative w-24 h-24 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-200">
+                                <div className="absolute inset-0 rounded-full animate-ping opacity-25" style={{ background: '#2596be' }}></div>
+                                <div className="relative w-24 h-24 rounded-full flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, #2596be 0%, #014287 100%)' }}>
                                     <Check className="w-12 h-12 text-white" strokeWidth={3} />
                                 </div>
                             </div>
                             
-                            <h2 className="text-2xl font-bold text-emerald-600 mb-2">¡Pago Exitoso!</h2>
-                            <p className="text-gray-600 mb-6">{message}</p>
+                            <h2 className="text-2xl font-bold mb-2" style={{ color: '#014287' }}>¡Pago Exitoso!</h2>
+                            <p className="text-gray-700 mb-6 font-medium">{message}</p>
                             
                             {student && (
-                                <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-5 text-left space-y-3">
-                                    <div className="flex justify-between items-center pb-3 border-b border-emerald-200">
-                                        <span className="text-gray-600 text-sm">Estudiante</span>
-                                        <span className="font-semibold text-gray-800">{student.name}</span>
+                                <div className="rounded-2xl p-5 text-left space-y-3 border-2 shadow-lg mb-6" style={{ background: 'linear-gradient(135deg, rgba(37, 150, 190, 0.1) 0%, rgba(1, 66, 135, 0.1) 100%)', borderColor: '#2596be' }}>
+                                    <div className="flex justify-between items-center pb-3 border-b-2" style={{ borderColor: '#2596be' }}>
+                                        <span className="text-gray-600 text-sm font-semibold">Estudiante</span>
+                                        <span className="font-bold text-gray-800">{student.name}</span>
                                     </div>
-                                    <div className="flex justify-between items-center pb-3 border-b border-emerald-200">
-                                        <span className="text-gray-600 text-sm">Mes</span>
-                                        <span className="font-semibold text-gray-800">{MONTHS[pendingMonth - 1]} {pendingYear}</span>
+                                    <div className="flex justify-between items-center pb-3 border-b-2" style={{ borderColor: '#2596be' }}>
+                                        <span className="text-gray-600 text-sm font-semibold">Mes</span>
+                                        <span className="font-bold text-gray-800">{MONTHS[pendingMonth - 1]} {pendingYear}</span>
                                     </div>
                                     <div className="flex justify-between items-center">
-                                        <span className="text-gray-600 text-sm">Monto</span>
-                                        <span className="font-bold text-xl text-emerald-600">{formatCurrency(student.monthlyFee)}</span>
+                                        <span className="text-gray-600 text-sm font-semibold">Monto</span>
+                                        <span className="font-black text-xl" style={{ color: '#014287' }}>{formatCurrency(student.monthlyFee)}</span>
                                     </div>
                                 </div>
                             )}
 
-                            <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                                <p className="text-sm text-blue-700">
-                                    <span className="font-semibold">📧 Comprobante enviado</span><br/>
-                                    <span className="text-blue-600">Revisa tu correo electrónico</span>
+                            <div className="mt-6 p-4 rounded-xl border-2 shadow-sm" style={{ background: 'linear-gradient(135deg, rgba(37, 150, 190, 0.1) 0%, rgba(1, 66, 135, 0.1) 100%)', borderColor: '#2596be' }}>
+                                <p className="text-sm font-semibold" style={{ color: '#014287' }}>
+                                    <span className="font-bold">📧 Comprobante enviado</span><br/>
+                                    <span className="font-medium" style={{ color: '#2596be' }}>Revisa tu correo electrónico</span>
                                 </p>
                             </div>
                             
                             <button
                                 onClick={() => router.push("/pay/scan")}
-                                className="mt-6 w-full px-6 py-4 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300"
+                                className="mt-6 w-full px-6 py-4 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                style={{ background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)' }}
                             >
                                 Procesar otro pago
                             </button>
@@ -560,14 +625,15 @@ export default function PayScanPage() {
                     {/* Status: Rejected */}
                     {status === "rejected" && (
                         <div className="text-center py-6">
-                            <div className="w-24 h-24 bg-gradient-to-br from-red-400 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-red-200">
+                            <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg" style={{ background: 'linear-gradient(135deg, #ea242e 0%, #d46f75 100%)' }}>
                                 <X className="w-12 h-12 text-white" strokeWidth={3} />
                             </div>
-                            <h2 className="text-2xl font-bold text-red-600 mb-2">Pago No Procesado</h2>
-                            <p className="text-gray-600 mb-6">{message}</p>
+                            <h2 className="text-2xl font-bold mb-2" style={{ color: '#ea242e' }}>Pago No Procesado</h2>
+                            <p className="text-gray-700 mb-6 font-medium">{message}</p>
                             <button
                                 onClick={() => window.location.reload()}
-                                className="w-full px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg"
+                                className="w-full px-6 py-4 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                style={{ background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)' }}
                             >
                                 Intentar de nuevo
                             </button>
@@ -577,14 +643,15 @@ export default function PayScanPage() {
                     {/* Status: Error */}
                     {status === "error" && (
                         <div className="text-center py-6">
-                            <div className="w-24 h-24 bg-gradient-to-br from-red-400 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-red-200">
-                                <AlertTriangle className="w-12 h-12 text-white" strokeWidth={2} />
+                            <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg" style={{ background: 'linear-gradient(135deg, #ea242e 0%, #d46f75 100%)' }}>
+                                <AlertTriangle className="w-12 h-12 text-white" strokeWidth={2.5} />
                             </div>
-                            <h2 className="text-2xl font-bold text-red-600 mb-2">Error de Conexión</h2>
-                            <p className="text-gray-600 mb-6">{message}</p>
+                            <h2 className="text-2xl font-bold mb-2" style={{ color: '#ea242e' }}>Error de Conexión</h2>
+                            <p className="text-gray-700 mb-6 font-medium">{message}</p>
                             <button
                                 onClick={() => window.location.reload()}
-                                className="w-full px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg"
+                                className="w-full px-6 py-4 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                style={{ background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)' }}
                             >
                                 Reintentar
                             </button>
@@ -592,9 +659,18 @@ export default function PayScanPage() {
                     )}
                 </div>
 
-                {/* Footer */}
-                <div className="bg-gray-50 px-6 py-4 text-center border-t">
-                    <p className="text-xs text-gray-400">
+                {/* Footer con mascota */}
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 text-center border-t border-gray-200 relative overflow-hidden">
+                    <div className="absolute bottom-0 right-0 opacity-10">
+                        <Image 
+                            src="/image/mascota.png" 
+                            alt="Mascota" 
+                            width={80} 
+                            height={80} 
+                            className="object-contain"
+                        />
+                    </div>
+                    <p className="text-xs text-gray-500 font-medium relative z-10">
                         What Time Is It? Idiomas © {new Date().getFullYear()}
                     </p>
                 </div>
