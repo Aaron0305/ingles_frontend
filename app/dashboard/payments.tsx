@@ -3,10 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Student } from "./credential";
 import { Socket } from "socket.io-client";
-import { 
-    CircleDollarSign, Check, QrCode, X, Loader2, ChevronDown, 
-    Calendar, Users, CheckCircle, XCircle, Search, Clock, DollarSign, AlertTriangle
+import {
+    Calendar, Users, CheckCircle, XCircle, Search, Clock, DollarSign, AlertTriangle, Filter, Sparkles, IdCard,
+    CircleDollarSign, Check, QrCode, X, Loader2, ChevronDown
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 // ============================================
 // TIPOS
@@ -15,7 +16,7 @@ import {
 export interface PaymentRecord {
     id: string;
     studentId: string;
-    month: number; // 1-12
+    month: number; // Esto ahora representará el "index" del periodo (1-12, 1-48, etc)
     year: number;
     amount: number;
     status: "paid" | "pending" | "overdue";
@@ -35,7 +36,7 @@ interface PaymentScanRequest {
 interface PaymentConfirmModalProps {
     isOpen: boolean;
     student: Student | null;
-    month: number;
+    periodIndex: number; // Antes month
     year: number;
     onConfirm: () => void;
     onCancel: () => void;
@@ -68,7 +69,7 @@ interface QRScannerModalProps {
 }
 
 // ============================================
-// CONSTANTES
+// CONSTANTES Y UTILIDADES DE ESQUEMAS
 // ============================================
 
 const MONTHS = [
@@ -76,19 +77,111 @@ const MONTHS = [
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ];
 
+// Helper to get day of year 1-366
+const getDayOfYear = (date: Date) => {
+    const start = new Date(date.getFullYear(), 0, 0);
+    const diff = date.getTime() - start.getTime();
+    const oneDay = 1000 * 60 * 60 * 24;
+    return Math.floor(diff / oneDay);
+};
+
 const MONTHS_SHORT = [
     "Ene", "Feb", "Mar", "Abr", "May", "Jun",
     "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
 ];
 
+// Días festivos oficiales y comunes de México (YYYY-MM-DD)
+// Se deben actualizar anualmente o mover a backend
+const MEXICAN_HOLIDAYS = [
+    "2025-01-01", "2025-02-03", "2025-03-17", "2025-04-17", "2025-04-18", "2025-05-01", "2025-09-16", "2025-11-17", "2025-12-25",
+    "2026-01-01", "2026-02-02", "2026-03-16", "2026-04-02", "2026-04-03", "2026-05-01", "2026-09-16", "2026-11-16", "2026-12-25",
+];
+
+const isHoliday = (date: Date): boolean => {
+    const dateString = date.toISOString().split('T')[0];
+    return MEXICAN_HOLIDAYS.includes(dateString);
+};
+
+const getNextClassDay = (date: Date, classDays: number[]): Date => {
+    let nextDate = new Date(date);
+    nextDate.setDate(date.getDate() + 1);
+
+    // Buscar el siguiente día que sea día de clase Y que no sea festivo (opcional, si se recorre indefinidamente)
+    // Aquí asumimos recorrido simple al siguiente día de clase válido
+    while (!classDays.includes(nextDate.getDay())) {
+        nextDate.setDate(nextDate.getDate() + 1);
+    }
+
+    // Si el nuevo día TAMBIÉN es festivo, ¿se vuelve a recorrer?
+    // Generalmente sí. Recursivo o loop.
+    if (isHoliday(nextDate)) {
+        return getNextClassDay(nextDate, classDays);
+    }
+
+    return nextDate;
+};
+
+type PaymentScheme = "daily" | "weekly" | "biweekly" | "monthly_28";
+
+interface SchemeConfig {
+    periods: number;
+    label: string;
+    shortLabel: string;
+    getPeriodLabel: (index: number) => string;
+    getPeriodFullName: (index: number) => string;
+    cols: string; // Tailwind grid cols class
+}
+
+const SCHEME_CONFIGS: Record<PaymentScheme, SchemeConfig> = {
+    monthly_28: {
+        periods: 12,
+        label: "Mes",
+        shortLabel: "Mes",
+        getPeriodLabel: (i) => MONTHS_SHORT[i - 1] || `${i}`,
+        getPeriodFullName: (i) => MONTHS[i - 1] || `Mes ${i}`,
+        cols: "grid-cols-6 sm:grid-cols-12"
+    },
+    biweekly: {
+        periods: 24, // 2 quincenas por mes aprox
+        label: "Catorcenal",
+        shortLabel: "Q",
+        getPeriodLabel: (i) => `Q${i}`,
+        getPeriodFullName: (i) => `Quincena ${i}`,
+        cols: "grid-cols-8 sm:grid-cols-12"
+    },
+    weekly: {
+        periods: 48, // 4 semanas por mes aprox
+        label: "Semana",
+        shortLabel: "S",
+        getPeriodLabel: (i) => `S${i}`,
+        getPeriodFullName: (i) => `Semana ${i}`,
+        cols: "grid-cols-8 sm:grid-cols-12 md:grid-cols-16" // Custom grid needed or simple wrap
+    },
+    daily: {
+        periods: 30, // Mostramos un "ciclo" de 30 días para visualización
+        label: "Día",
+        shortLabel: "D",
+        getPeriodLabel: (i) => `D${i}`,
+        getPeriodFullName: (i) => `Día ${i}`,
+        cols: "grid-cols-7 sm:grid-cols-10"
+    }
+};
+
+const getStudentScheme = (student: Student): PaymentScheme => {
+    return student.paymentScheme || "monthly_28";
+};
+
 // ============================================
 // MODAL DE CONFIRMACIÓN DE PAGO
 // ============================================
 
-function PaymentConfirmModal({ isOpen, student, month, year, onConfirm, onCancel, onReject, isFromScan }: PaymentConfirmModalProps) {
+function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, onCancel, onReject, isFromScan }: PaymentConfirmModalProps) {
     const [isConfirming, setIsConfirming] = useState(false);
 
     if (!isOpen || !student) return null;
+
+    const scheme = getStudentScheme(student);
+    const config = SCHEME_CONFIGS[scheme];
 
     const handleConfirm = async () => {
         setIsConfirming(true);
@@ -123,11 +216,11 @@ function PaymentConfirmModal({ isOpen, student, month, year, onConfirm, onCancel
                             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>#{student.studentNumber}</p>
                         </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-3 text-sm">
                         <div className="rounded-lg p-2 text-center" style={{ background: 'var(--surface)' }}>
-                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Mes</p>
-                            <p className="font-bold" style={{ color: 'var(--text-primary)' }}>{MONTHS[month - 1]}</p>
+                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{config.label}</p>
+                            <p className="font-bold" style={{ color: 'var(--text-primary)' }}>{config.getPeriodFullName(periodIndex)}</p>
                         </div>
                         <div className="rounded-lg p-2 text-center" style={{ background: 'var(--surface)' }}>
                             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Año</p>
@@ -140,6 +233,7 @@ function PaymentConfirmModal({ isOpen, student, month, year, onConfirm, onCancel
                 <div className="text-center mb-5">
                     <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Monto a pagar</p>
                     <p className="text-3xl font-bold text-green-500">${student.monthlyFee}</p>
+                    <p className="text-xs text-gray-500 mt-1">Esquema: {config.label}</p>
                 </div>
 
                 {/* Indicador de escaneo QR */}
@@ -197,7 +291,7 @@ function PaymentConfirmModal({ isOpen, student, month, year, onConfirm, onCancel
 // MODAL DE ÉXITO
 // ============================================
 
-function PaymentSuccessModal({ isOpen, student, month, onClose }: { isOpen: boolean; student: Student | null; month: number; onClose: () => void }) {
+function PaymentSuccessModal({ isOpen, student, periodIndex, onClose }: { isOpen: boolean; student: Student | null; periodIndex: number; onClose: () => void }) {
     useEffect(() => {
         if (isOpen) {
             const timer = setTimeout(onClose, 1500);
@@ -206,6 +300,9 @@ function PaymentSuccessModal({ isOpen, student, month, onClose }: { isOpen: bool
     }, [isOpen, onClose]);
 
     if (!isOpen || !student) return null;
+
+    const scheme = getStudentScheme(student);
+    const config = SCHEME_CONFIGS[scheme];
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -220,9 +317,9 @@ function PaymentSuccessModal({ isOpen, student, month, onClose }: { isOpen: bool
                 <h3 className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
                     ¡Pago Registrado!
                 </h3>
-                
+
                 <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>
-                    <span className="font-semibold text-blue-500">{student.name}</span> - {MONTHS[month - 1]}
+                    <span className="font-semibold text-blue-500">{student.name}</span> - {config.getPeriodFullName(periodIndex)}
                 </p>
 
                 <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 rounded-full text-green-500 text-xs font-medium">
@@ -245,8 +342,8 @@ function QRScannerModal({ isOpen, onClose, onStudentDetected, students }: QRScan
     if (!isOpen) return null;
 
     const handleManualSearch = () => {
-        const student = students.find(s => 
-            s.studentNumber === manualCode || 
+        const student = students.find(s =>
+            s.studentNumber === manualCode ||
             s.id === manualCode ||
             s.name.toLowerCase().includes(manualCode.toLowerCase())
         );
@@ -355,35 +452,42 @@ function QRScannerModal({ isOpen, onClose, onStudentDetected, students }: QRScan
 }
 
 // ============================================
-// COMPONENTE DE CELDA DE MES
+// COMPONENTE DE CELDA DE PERIODO (MES/QUINCENA/SEMANA)
 // ============================================
 
-function MonthCell({ 
-    month, 
-    payment, 
+function PeriodCell({
+    periodIndex,
+    payment,
     onClick,
     onRevoke,
-    isCurrentMonth,
-    selectedYear
-}: { 
-    month: number; 
-    payment?: PaymentRecord; 
+    isCurrentPeriod,
+    selectedYear,
+    config,
+    isOverdue,
+    customLabel
+}: {
+    periodIndex: number;
+    payment?: PaymentRecord;
     onClick: () => void;
     onRevoke?: () => void;
-    isCurrentMonth: boolean;
+    isCurrentPeriod: boolean;
+
     selectedYear: number;
+    config: SchemeConfig;
+    isOverdue?: boolean; // Nuevo prop para indicar si está vencido
+    customLabel?: string; // Nuevo prop para label personalizado
 }) {
     const isPaid = payment?.status === "paid";
-    const currentMonth = new Date().getMonth() + 1;
-    const currentYear = new Date().getFullYear();
-    
-    // Determinar si es mes pasado en el año actual (vencido si no está pagado)
-    const isPastMonth = selectedYear < currentYear || (selectedYear === currentYear && month < currentMonth);
-    
-    // Solo mostrar como pendiente (naranja) el mes actual no pagado
-    const isPending = isCurrentMonth && !isPaid;
-    // Mostrar como vencido (rojo) los meses pasados no pagados
-    const isOverdue = isPastMonth && !isPaid;
+
+    // Status visual
+    let statusColor = "bg-gray-500/10 hover:bg-blue-500/15 border-gray-500/20 hover:border-blue-500/30";
+
+    if (isPaid) {
+        statusColor = "bg-green-500/15 hover:bg-red-500/15 border-green-500/40 hover:border-red-500/40";
+    } else if (isOverdue) {
+        // Estilo para pagos vencidos/pendientes
+        statusColor = "bg-red-500/10 hover:bg-red-500/20 border-red-500/30 hover:border-red-500/50 animate-pulse-slow";
+    }
 
     const handleClick = () => {
         if (isPaid && onRevoke) {
@@ -397,38 +501,29 @@ function MonthCell({
         <button
             onClick={handleClick}
             className={`
-                relative p-1.5 sm:p-2 rounded-lg transition-all duration-200 group flex flex-col items-center
-                ${isPaid 
-                    ? "bg-green-500/15 hover:bg-red-500/15 border border-green-500/40 hover:border-red-500/40" 
-                    : isOverdue
-                    ? "bg-red-500/15 hover:bg-red-500/25 border border-red-500/40"
-                    : isPending
-                    ? "bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/40"
-                    : "bg-gray-500/10 hover:bg-blue-500/15 border border-gray-500/20 hover:border-blue-500/30"
-                }
-                ${isCurrentMonth ? "ring-2 ring-blue-500 ring-offset-1" : ""}
+                relative p-1.5 sm:p-2 rounded-lg transition-all duration-200 group flex flex-col items-center justify-center min-h-[50px]
+                border ${statusColor}
+                ${isCurrentPeriod ? "ring-2 ring-blue-500 ring-offset-1" : ""}
             `}
         >
-            <span className="text-[10px] sm:text-xs font-medium mb-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                {MONTHS_SHORT[month - 1]}
+            <span className={`text-[10px] sm:text-xs font-medium mb-0.5 ${isOverdue && !isPaid ? 'text-red-400' : ''}`} style={{ color: isOverdue && !isPaid ? undefined : 'var(--text-tertiary)' }}>
+                {customLabel || config.getPeriodLabel(periodIndex)}
             </span>
-            
+
             {isPaid ? (
                 <div className="relative">
                     <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 group-hover:hidden" strokeWidth={2.5} />
                     <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 hidden group-hover:block" strokeWidth={2.5} />
                 </div>
             ) : isOverdue ? (
-                <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" strokeWidth={2} />
-            ) : isPending ? (
-                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" strokeWidth={2} />
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500/70 group-hover:text-red-500" strokeWidth={1.5} />
             ) : (
                 <CircleDollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-blue-400" strokeWidth={1.5} />
             )}
 
             {/* Tooltip */}
             <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                {isPaid ? "Revocar" : isOverdue ? "Vencido" : isPending ? "Pendiente" : "Registrar"}
+                {isPaid ? "Revocar" : `Pagar ${config.getPeriodFullName(periodIndex)}`}
             </div>
         </button>
     );
@@ -438,59 +533,59 @@ function MonthCell({
 // CARD DE ESTUDIANTE CON PAGOS Y CARRUSEL DE AÑOS
 // ============================================
 
-function StudentPaymentCard({ 
-    student, 
-    payments, 
-    onMonthClick,
-    onMonthRevoke 
-}: { 
-    student: Student; 
+function StudentPaymentCard({
+    student,
+    payments,
+    onPeriodClick,
+    onPeriodRevoke
+}: {
+    student: Student;
     payments: PaymentRecord[];
-    onMonthClick: (month: number, year: number) => void;
-    onMonthRevoke?: (month: number, year: number) => void;
+    onPeriodClick: (periodIndex: number, year: number) => void;
+    onPeriodRevoke?: (periodIndex: number, year: number) => void;
 }) {
-    const currentMonth = new Date().getMonth() + 1;
     const currentYear = new Date().getFullYear();
-    
+    const scheme = getStudentScheme(student);
+    const config = SCHEME_CONFIGS[scheme];
+
     // Calcular el año de inscripción del estudiante (usamos createdAt)
-    const enrollmentYear = student.createdAt 
-        ? new Date(student.createdAt).getFullYear() 
+    const enrollmentYear = student.createdAt
+        ? new Date(student.createdAt).getFullYear()
         : currentYear;
-    
-    // Función para verificar si un año tiene los 12 meses pagados
+
+    // Función para verificar si un año tiene todos los periodos pagados
     const isYearFullyPaid = (year: number) => {
         const yearPayments = payments.filter(p => p.year === year && p.status === "paid");
-        return yearPayments.length >= 12;
+        return yearPayments.length >= config.periods;
     };
-    
+
     // Calcular el último año disponible
-    // Si el año actual tiene 12 meses pagados, habilitar el siguiente año
     let maxYear = currentYear;
     while (isYearFullyPaid(maxYear)) {
         maxYear++;
     }
-    
-    // Generar array de años disponibles (desde inscripción hasta maxYear)
+
+    // Generar array de años disponibles
     const availableYears = Array.from(
-        { length: maxYear - enrollmentYear + 1 }, 
+        { length: maxYear - enrollmentYear + 1 },
         (_, i) => enrollmentYear + i
     );
-    
-    // Estado para el año seleccionado en el carrusel
-    // Si el año actual está completamente pagado, seleccionar el siguiente por defecto
+
     const [selectedYear, setSelectedYear] = useState(() => {
         if (isYearFullyPaid(currentYear)) {
             return currentYear + 1;
         }
         return currentYear;
     });
-    
+
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+
     // Pagos del año seleccionado
     const yearPayments = payments.filter(p => p.year === selectedYear);
-    const paidMonths = yearPayments.filter(p => p.status === "paid").length;
-    
-    // Progreso siempre sobre 12 meses
-    const progress = (paidMonths / 12) * 100;
+    const paidPeriodsCount = yearPayments.filter(p => p.status === "paid").length;
+
+    // Progreso
+    const progress = (paidPeriodsCount / config.periods) * 100;
 
     // Navegación del carrusel
     const canGoPrev = selectedYear > enrollmentYear;
@@ -509,11 +604,10 @@ function StudentPaymentCard({
                             <h3 className="font-bold truncate text-sm" style={{ color: 'var(--text-primary)' }}>
                                 {student.name}
                             </h3>
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
-                                student.level === 'Beginner' ? 'bg-blue-500/20 text-blue-500' :
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${student.level === 'Beginner' ? 'bg-blue-500/20 text-blue-500' :
                                 student.level === 'Intermediate' ? 'bg-amber-500/20 text-amber-500' :
-                                'bg-emerald-500/20 text-emerald-500'
-                            }`}>
+                                    'bg-emerald-500/20 text-emerald-500'
+                                }`}>
                                 {student.level === 'Beginner' ? 'B' : student.level === 'Intermediate' ? 'I' : 'A'}
                             </span>
                         </div>
@@ -522,10 +616,10 @@ function StudentPaymentCard({
                                 #{student.studentNumber}
                             </span>
                             <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>•</span>
-                            <span className="text-[11px] font-medium text-green-500">${student.monthlyFee}/mes</span>
+                            <span className="text-[11px] font-medium text-green-500">${student.monthlyFee}/{config.shortLabel}</span>
                         </div>
                     </div>
-                    
+
                     {/* Mini indicador de progreso circular */}
                     <div className="relative w-12 h-12">
                         <svg className="w-12 h-12 -rotate-90">
@@ -551,88 +645,212 @@ function StudentPaymentCard({
                             />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-[10px] font-bold" style={{ color: 'var(--text-primary)' }}>
-                                {paidMonths}/12
+                            <span className="text-[8px] font-bold" style={{ color: 'var(--text-primary)' }}>
+                                {paidPeriodsCount}/{config.periods}
                             </span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Selector de año minimalista */}
-            {availableYears.length > 1 && (
-                <div className="px-4 py-2 flex items-center justify-center gap-1" style={{ background: 'var(--surface-alt)' }}>
-                    <button
-                        onClick={() => canGoPrev && setSelectedYear(selectedYear - 1)}
-                        disabled={!canGoPrev}
-                        className={`p-1 rounded transition-all ${canGoPrev ? 'hover:bg-blue-500/20 text-blue-500' : 'opacity-30'}`}
-                    >
-                        <ChevronDown className="w-4 h-4 rotate-90" strokeWidth={2} />
-                    </button>
-                    
-                    <div className="flex items-center gap-1">
-                        {availableYears.map((year) => {
-                            const yearFullyPaid = isYearFullyPaid(year);
-                            const isFutureYear = year > currentYear;
-                            
-                            return (
-                                <button
-                                    key={year}
-                                    onClick={() => setSelectedYear(year)}
-                                    className={`
-                                        px-2.5 py-1 rounded-md text-xs font-semibold transition-all relative
-                                        ${year === selectedYear 
-                                            ? 'bg-blue-500 text-white shadow-sm' 
-                                            : yearFullyPaid 
-                                                ? 'bg-green-500/20 text-green-500 hover:bg-green-500/30'
-                                                : 'hover:bg-blue-500/10'
-                                        }
-                                    `}
-                                    style={year !== selectedYear && !yearFullyPaid ? { color: 'var(--text-tertiary)' } : {}}
-                                >
-                                    {year}
-                                    {yearFullyPaid && year !== selectedYear && (
-                                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
-                                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                    
-                    <button
-                        onClick={() => canGoNext && setSelectedYear(selectedYear + 1)}
-                        disabled={!canGoNext}
-                        className={`p-1 rounded transition-all ${canGoNext ? 'hover:bg-blue-500/20 text-blue-500' : 'opacity-30'}`}
-                    >
-                        <ChevronDown className="w-4 h-4 -rotate-90" strokeWidth={2} />
-                    </button>
-                </div>
-            )}
 
-            {/* Grid de meses compacto */}
+            {/* Selector de Mes (Solo para Daily) */}
+            {
+                scheme === 'daily' && (
+                    <div className="px-4 py-2 flex items-center justify-center gap-2 border-b border-gray-100 dark:border-gray-800">
+                        <button
+                            onClick={() => setSelectedMonth(prev => prev === 0 ? 11 : prev - 1)}
+                            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                        >
+                            <ChevronDown className="w-4 h-4 rotate-90" />
+                        </button>
+                        <span className="text-sm font-semibold w-24 text-center">{MONTHS[selectedMonth]}</span>
+                        <button
+                            onClick={() => setSelectedMonth(prev => prev === 11 ? 0 : prev + 1)}
+                            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                        >
+                            <ChevronDown className="w-4 h-4 -rotate-90" />
+                        </button>
+                    </div>
+                )
+            }
+
+            {/* Selector de año minimalista */}
+            {
+                availableYears.length > 1 && (
+                    <div className="px-4 py-2 flex items-center justify-center gap-1" style={{ background: 'var(--surface-alt)' }}>
+                        <button
+                            onClick={() => canGoPrev && setSelectedYear(selectedYear - 1)}
+                            disabled={!canGoPrev}
+                            className={`p-1 rounded transition-all ${canGoPrev ? 'hover:bg-blue-500/20 text-blue-500' : 'opacity-30'}`}
+                        >
+                            <ChevronDown className="w-4 h-4 rotate-90" strokeWidth={2} />
+                        </button>
+
+                        <div className="flex items-center gap-1">
+                            {availableYears.map((year) => {
+                                const yearFullyPaid = isYearFullyPaid(year);
+                                const isFutureYear = year > currentYear;
+
+                                return (
+                                    <button
+                                        key={year}
+                                        onClick={() => setSelectedYear(year)}
+                                        className={`
+                                        px-2.5 py-1 rounded-md text-xs font-semibold transition-all relative
+                                        ${year === selectedYear
+                                                ? 'bg-blue-500 text-white shadow-sm'
+                                                : yearFullyPaid
+                                                    ? 'bg-green-500/20 text-green-500 hover:bg-green-500/30'
+                                                    : 'hover:bg-blue-500/10'
+                                            }
+                                    `}
+                                        style={year !== selectedYear && !yearFullyPaid ? { color: 'var(--text-tertiary)' } : {}}
+                                    >
+                                        {year}
+                                        {yearFullyPaid && year !== selectedYear && (
+                                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                                <Check className="w-2 h-2 text-white" strokeWidth={3} />
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button
+                            onClick={() => canGoNext && setSelectedYear(selectedYear + 1)}
+                            disabled={!canGoNext}
+                            className={`p-1 rounded transition-all ${canGoNext ? 'hover:bg-blue-500/20 text-blue-500' : 'opacity-30'}`}
+                        >
+                            <ChevronDown className="w-4 h-4 -rotate-90" strokeWidth={2} />
+                        </button>
+                    </div>
+                )
+            }
+
+            {/* Grid de periodos */}
             <div className="p-3">
-                <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => {
-                        const payment = yearPayments.find(p => p.month === month);
-                        const isCurrentMonthYear = month === currentMonth && selectedYear === currentYear;
-                        
-                        return (
-                            <MonthCell
-                                key={month}
-                                month={month}
-                                payment={payment}
-                                onClick={() => onMonthClick(month, selectedYear)}
-                                onRevoke={onMonthRevoke ? () => onMonthRevoke(month, selectedYear) : undefined}
-                                isCurrentMonth={isCurrentMonthYear}
-                                selectedYear={selectedYear}
-                            />
-                        );
-                    })}
+                {/* 
+                    Usamos style para grid-template-columns en casos complejos 
+                    o las clases de tailwind predefinidas
+                */}
+                <div className={`grid gap-1.5 ${scheme === 'weekly' ? 'grid-cols-6 sm:grid-cols-8 md:grid-cols-12' : config.cols}`}>
+                    {(() => {
+                        // Lógica especial para Daily
+                        if (scheme === 'daily') {
+                            const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+                            const today = new Date();
+                            const enrollmentDate = student.enrollmentDate
+                                ? new Date(student.enrollmentDate)
+                                : (student.createdAt ? new Date(student.createdAt) : new Date(selectedYear, 0, 1));
+                            // Normalizar enrollmentDate para ignorar horas
+                            enrollmentDate.setHours(0, 0, 0, 0);
+
+                            // Generar obligaciones de pago
+                            const obligations: { originalDate: Date; effectiveDate: Date; isShifted: boolean }[] = [];
+
+                            for (let day = 1; day <= daysInMonth; day++) {
+                                const date = new Date(selectedYear, selectedMonth, day);
+
+                                // Ocultar días anteriores a la inscripción
+                                if (date < enrollmentDate) continue;
+
+                                const dayOfWeek = date.getDay();
+
+                                // Si NO es día de clase, ignorar (a menos que sea un día destino de un recorrido, pero eso se maneja en el push)
+                                if (student.classDays && student.classDays.length > 0 && !student.classDays.includes(dayOfWeek)) {
+                                    continue;
+                                }
+
+                                // Es un día de clase
+                                if (isHoliday(date)) {
+                                    // Si es festivo, encontrar el siguiente día de clase válido
+                                    const nextDate = getNextClassDay(date, student.classDays || []);
+                                    // Verificar que el siguiente día esté dentro del mismo año (opcional, pero dashboard es por año)
+                                    // Agregamos la obligación con fecha efectiva modificada
+                                    obligations.push({
+                                        originalDate: date,
+                                        effectiveDate: nextDate,
+                                        isShifted: true
+                                    });
+                                } else {
+                                    // Día normal
+                                    obligations.push({
+                                        originalDate: date,
+                                        effectiveDate: date,
+                                        isShifted: false
+                                    });
+                                }
+                            }
+
+                            // Ordenar obligaciones por fecha efectiva para mostrar en orden cronológico real de pago
+                            obligations.sort((a, b) => a.effectiveDate.getTime() - b.effectiveDate.getTime());
+
+                            return obligations.map((ob) => {
+                                const { originalDate, effectiveDate, isShifted } = ob;
+                                const originalDayOfYear = getDayOfYear(originalDate);
+
+                                const payment = yearPayments.find(p => p.month === originalDayOfYear); // Usamos ID original para trackear el pago
+
+                                // Calcular Overdue basado en la fecha EFECTIVA (cuando realmente debía pagar)
+                                const isPastOrToday = effectiveDate <= today;
+                                const isOverdue = isPastOrToday && !payment;
+
+                                // Formatear label
+                                const dayNum = originalDate.getDate();
+                                let label = `${dayNum}`;
+                                if (isShifted) {
+                                    // Mostrar fecha original flecha nueva? o solo nueva?
+                                    // El usuario dijo "solo deben ver los dias que hace el pago"
+                                    // Pero es confuso si desaparece el 10 y aparece doble el 12.
+                                    // Mostremos: "10 ➔ 12" o similar si hay espacio, o simplemente la fecha de cobro actual con un indicador
+                                    const effectiveDay = effectiveDate.getDate();
+                                    const effectiveMonth = MONTHS_SHORT[effectiveDate.getMonth()];
+                                    // label = `${dayNum}→${effectiveDay}`; // Muy largo?
+                                    // Mejor: Mostrar el día EFECTIVO de pago, quizás con tooltip del original
+                                    label = `${effectiveDay} ${effectiveMonth}`;
+                                }
+
+                                return (
+                                    <PeriodCell
+                                        key={`${originalDayOfYear}-${isShifted ? 'S' : 'R'}`} // Key única compuesta
+                                        periodIndex={originalDayOfYear}
+                                        payment={payment}
+                                        onClick={() => onPeriodClick(originalDayOfYear, selectedYear)}
+                                        onRevoke={onPeriodRevoke ? () => onPeriodRevoke(originalDayOfYear, selectedYear) : undefined}
+                                        isCurrentPeriod={effectiveDate.toDateString() === today.toDateString()}
+                                        selectedYear={selectedYear}
+                                        config={config}
+                                        isOverdue={isOverdue}
+                                        customLabel={label}
+                                    />
+                                );
+                            });
+                        }
+
+                        // Lógica estándar para otros esquemas
+                        return Array.from({ length: config.periods }, (_, i) => i + 1).map((periodIndex) => {
+                            const payment = yearPayments.find(p => p.month === periodIndex);
+                            const isCurrent = false;
+
+                            return (
+                                <PeriodCell
+                                    key={periodIndex}
+                                    periodIndex={periodIndex}
+                                    payment={payment}
+                                    onClick={() => onPeriodClick(periodIndex, selectedYear)}
+                                    onRevoke={onPeriodRevoke ? () => onPeriodRevoke(periodIndex, selectedYear) : undefined}
+                                    isCurrentPeriod={isCurrent}
+                                    selectedYear={selectedYear}
+                                    config={config}
+                                />
+                            );
+                        });
+                    })()}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 
@@ -640,41 +858,49 @@ function StudentPaymentCard({
 // PANEL PRINCIPAL DE PAGOS
 // ============================================
 
-export default function PaymentsPanel({ 
-    students, 
-    payments, 
-    onPaymentConfirm, 
-    onPaymentRevoke, 
+export default function PaymentsPanel({
+    students,
+    payments,
+    onPaymentConfirm,
+    onPaymentRevoke,
     socket,
     pendingPaymentRequest,
-    onPaymentRequestHandled 
+    onPaymentRequestHandled
 }: PaymentsPanelProps) {
     const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1;
     const [showScanner, setShowScanner] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-    const [selectedMonth, setSelectedMonth] = useState<number>(0);
+    const [selectedPeriod, setSelectedPeriod] = useState<number>(0);
     const [selectedYear, setSelectedYear] = useState<number>(currentYear);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showRevokeModal, setShowRevokeModal] = useState(false);
+
+    // Router for QR navigation
+    const router = useRouter();
+
+    // Filtros de búsqueda (igual que en StudentList, pero interno)
     const [searchTerm, setSearchTerm] = useState("");
-    
+    const [filterLevel, setFilterLevel] = useState<string>("all");
+    const [filterStatus, setFilterStatus] = useState<string>("all");
+
     // Estado para el escaneo QR en tiempo real
     const [scanRequest, setScanRequest] = useState<PaymentScanRequest | null>(null);
     const [showScanNotification, setShowScanNotification] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+
 
     // Procesar solicitud de pago pendiente del componente padre
     useEffect(() => {
         if (pendingPaymentRequest) {
             console.log("📱 Procesando solicitud de pago pendiente:", pendingPaymentRequest);
             setScanRequest(pendingPaymentRequest);
-            
+
             const student = students.find(s => s.id === pendingPaymentRequest.studentId);
             if (student) {
                 setSelectedStudent(student);
-                setSelectedMonth(pendingPaymentRequest.pendingMonth);
+                setSelectedPeriod(pendingPaymentRequest.pendingMonth);
                 setSelectedYear(pendingPaymentRequest.pendingYear);
                 setShowConfirmModal(true);
             }
@@ -689,19 +915,19 @@ export default function PaymentsPanel({
             console.log("📱 Solicitud de pago recibida:", data);
             setScanRequest(data);
             setShowScanNotification(true);
-            
+
             // Reproducir sonido de notificación
             if (audioRef.current) {
-                audioRef.current.play().catch(() => {});
+                audioRef.current.play().catch(() => { });
             }
-            
+
             // Buscar el estudiante y abrir modal
             const student = students.find(s => s.id === data.studentId);
             if (student) {
                 setSelectedStudent(student);
-                setSelectedMonth(data.pendingMonth);
+                setSelectedPeriod(data.pendingMonth);
                 setSelectedYear(data.pendingYear);
-                
+
                 // Pequeño delay para que se vea la notificación
                 setTimeout(() => {
                     setShowConfirmModal(true);
@@ -719,57 +945,35 @@ export default function PaymentsPanel({
 
     const handleStudentDetected = (student: Student) => {
         setSelectedStudent(student);
-        setSelectedMonth(currentMonth);
-        setSelectedYear(currentYear);
         setShowScanner(false);
-        setShowConfirmModal(true);
-    };
-
-    const handleMonthClick = (student: Student, month: number, year: number) => {
-        const payment = payments.find(
-            p => p.studentId === student.id && p.month === month && p.year === year
-        );
-        
-        if (payment?.status !== "paid") {
-            setSelectedStudent(student);
-            setSelectedMonth(month);
-            setSelectedYear(year);
-            setShowConfirmModal(true);
-        }
-    };
-
-    const handleMonthRevoke = (student: Student, month: number, year: number) => {
-        setSelectedStudent(student);
-        setSelectedMonth(month);
-        setSelectedYear(year);
-        setShowRevokeModal(true);
+        // No auto-opening modal anymore, user needs to click the specific period
     };
 
     const handleConfirmRevoke = () => {
-        if (selectedStudent && selectedMonth && onPaymentRevoke) {
-            onPaymentRevoke(selectedStudent.id, selectedMonth, selectedYear);
+        if (selectedStudent && selectedPeriod && onPaymentRevoke) {
+            onPaymentRevoke(selectedStudent.id, selectedPeriod, selectedYear);
         }
         setShowRevokeModal(false);
     };
 
     const handleConfirmPayment = () => {
-        if (selectedStudent && selectedMonth) {
-            onPaymentConfirm(selectedStudent.id, selectedMonth, selectedYear);
+        if (selectedStudent && selectedPeriod) {
+            onPaymentConfirm(selectedStudent.id, selectedPeriod, selectedYear);
             setShowConfirmModal(false);
             setShowSuccessModal(true);
-            
+
             // Notificar al estudiante a través del socket
             if (socket && scanRequest) {
                 socket.emit("payment-confirmed", {
                     studentId: selectedStudent.id,
-                    month: selectedMonth,
+                    month: selectedPeriod,
                     year: selectedYear,
                     success: true,
-                    message: `Pago de ${MONTHS[selectedMonth - 1]} ${selectedYear} confirmado exitosamente`
+                    message: `Pago confirmado exitosamente`
                 });
                 setScanRequest(null);
             }
-            
+
             // Limpiar la solicitud pendiente del componente padre
             if (onPaymentRequestHandled) {
                 onPaymentRequestHandled();
@@ -787,7 +991,7 @@ export default function PaymentsPanel({
             setScanRequest(null);
         }
         setShowConfirmModal(false);
-        
+
         // Limpiar la solicitud pendiente del componente padre
         if (onPaymentRequestHandled) {
             onPaymentRequestHandled();
@@ -795,223 +999,152 @@ export default function PaymentsPanel({
     };
 
     // Filtrar estudiantes por búsqueda
-    const filteredStudents = students.filter(student => 
-        student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.studentNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredStudents = students.filter(student => {
+        const search = searchTerm.toLowerCase().trim();
+        const isNumeric = /^\d+$/.test(search);
 
-    // Estadísticas (solo del año actual y mes actual)
-    const totalPendingCurrentMonth = students.filter(student => {
-        const payment = payments.find(
-            p => p.studentId === student.id && p.month === currentMonth && p.year === currentYear && p.status === "paid"
+        const matchesSearch = search === "" || (
+            isNumeric
+                ? student.studentNumber.toString().includes(search)
+                : (
+                    student.name.toLowerCase().includes(search) ||
+                    student.studentNumber.toLowerCase().includes(search)
+                )
         );
-        return !payment;
-    }).length;
-    
-    const totalPaidCurrentMonth = payments.filter(
-        p => p.status === "paid" && p.year === currentYear && p.month === currentMonth
-    ).length;
-    
-    const totalRevenue = payments
-        .filter(p => p.status === "paid" && p.year === currentYear)
-        .reduce((acc, p) => acc + p.amount, 0);
+
+        const matchesLevel = filterLevel === "all" || student.level === filterLevel;
+        const matchesStatus = filterStatus === "all" || student.status === filterStatus;
+
+        return matchesSearch && matchesLevel && matchesStatus;
+    });
 
     return (
         <div className="space-y-6">
-            {/* Audio para notificación */}
-            <audio ref={audioRef} src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleQkAHIlZ" preload="auto" />
-            
-            {/* Notificación flotante de escaneo QR */}
-            {showScanNotification && scanRequest && (
-                <div className="fixed top-4 right-4 z-[100] animate-in slide-in-from-right fade-in duration-300">
-                    <div className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-2xl shadow-2xl p-4 max-w-sm">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center animate-pulse">
-                                <QrCode className="w-6 h-6" strokeWidth={2} />
+            <audio ref={audioRef} src="/sounds/notification.mp3" className="hidden" />
+
+            {/* Header y Filtros Avanzados */}
+            <div className="p-5 rounded-2xl shadow-sm border border-gray-200/60 dark:border-gray-700/50 bg-white dark:bg-slate-800/50 backdrop-blur-sm transition-all hover:shadow-md">
+                <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+                    {/* Buscador Potenciado */}
+                    <div className="relative flex-1 w-full lg:max-w-xl group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Buscar por nombre o matrícula..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="block w-full pl-10 pr-24 py-3 rounded-xl border border-gray-200 dark:border-gray-700/50 bg-gray-50/50 dark:bg-slate-900/50 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                        />
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                            <button className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors shadow-sm">
+                                Buscar
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Filtros Dropdown */}
+                    <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                        <div className="relative min-w-[160px]">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Sparkles className="h-4 w-4 text-gray-400" />
                             </div>
-                            <div>
-                                <p className="font-bold text-sm">¡QR Escaneado!</p>
-                                <p className="text-blue-100 text-xs">{scanRequest.studentName}</p>
-                                <p className="text-blue-100 text-xs">#{scanRequest.studentNumber}</p>
+                            <select
+                                value={filterLevel}
+                                onChange={(e) => setFilterLevel(e.target.value)}
+                                className="block w-full pl-10 pr-8 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700/50 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer appearance-none text-gray-700 dark:text-gray-200"
+                            >
+                                <option value="all">Nivel: Todos</option>
+                                <option value="Beginner">Beginner</option>
+                                <option value="Intermediate">Intermediate</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                <Filter className="h-3 w-3 text-gray-400" />
                             </div>
                         </div>
+
+                        <div className="relative min-w-[160px]">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <IdCard className="h-4 w-4 text-gray-400" />
+                            </div>
+                            <select
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                                className="block w-full pl-10 pr-8 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700/50 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer appearance-none text-gray-700 dark:text-gray-200"
+                            >
+                                <option value="all">Estado: Todos</option>
+                                <option value="active">Activos</option>
+                                <option value="inactive">Inactivos</option>
+                            </select>
+                            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                <Filter className="h-3 w-3 text-gray-400" />
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => router.push('/pay/scan')}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20 whitespace-nowrap transform hover:-translate-y-0.5"
+                        >
+                            <QrCode className="w-5 h-5" />
+                            <span className="hidden sm:inline">Escanear QR</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Notificación de escaneo */}
+            {showScanNotification && (
+                <div className="fixed top-20 right-4 z-50 bg-blue-500 text-white px-6 py-4 rounded-xl shadow-2xl animate-in slide-in-from-right duration-300 flex items-center gap-3">
+                    <div className="p-2 bg-white/20 rounded-full animate-pulse">
+                        <QrCode className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <p className="font-bold">¡Nueva solicitud de pago!</p>
+                        <p className="text-sm opacity-90">{scanRequest?.studentName}</p>
                     </div>
                 </div>
             )}
-            
-            {/* Header con estadísticas */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                            <CheckCircle className="w-5 h-5 text-green-500" strokeWidth={2} />
-                        </div>
-                        <div>
-                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Pagados (Mes)</p>
-                            <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{totalPaidCurrentMonth}</p>
-                        </div>
-                    </div>
-                </div>
 
-                <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                            <Clock className="w-5 h-5 text-amber-500" strokeWidth={2} />
-                        </div>
-                        <div>
-                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Pendientes (Mes)</p>
-                            <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{totalPendingCurrentMonth}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                            <DollarSign className="w-5 h-5 text-blue-500" strokeWidth={2} />
-                        </div>
-                        <div>
-                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Recaudado {currentYear}</p>
-                            <p className="text-xl font-bold text-green-500">${totalRevenue.toLocaleString()}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                            <Users className="w-5 h-5 text-purple-500" strokeWidth={2} />
-                        </div>
-                        <div>
-                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Estudiantes</p>
-                            <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{students.length}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Controles - Búsqueda y Escanear */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                {/* Buscador de estudiantes */}
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-tertiary)' }} strokeWidth={2} />
-                    <input
-                        type="text"
-                        placeholder="Buscar alumno por nombre, número o email..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 transition-all"
-                        style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
-                    />
-                    {searchTerm && (
-                        <button
-                            onClick={() => setSearchTerm("")}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-500/20"
-                        >
-                            <X className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} strokeWidth={2} />
-                        </button>
-                    )}
-                </div>
-
-                {/* Botón para ir a escanear QR o ingresar ID */}
-                <a
-                    href="/pay/scan"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-6 py-3 font-semibold rounded-2xl transition-all shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#014287]"
-                    style={{
-                        background: 'linear-gradient(100deg, #014287 0%, #2176c1 50%, #c1121f 100%)',
-                        color: '#fff',
-                        border: '1px solid #e2e8f0',
-                        boxShadow: '0 4px 16px 0 rgba(1,66,135,0.10), 0 2px 8px 0 rgba(193,18,31,0.10)',
-                        letterSpacing: '0.5px',
-                        fontSize: '1.08rem',
-                        minWidth: '320px',
-                        justifyContent: 'center',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        zIndex: 1
-                    }}
-                >
-                    <span style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        fontWeight: 600,
-                        textShadow: '0 1px 8px rgba(1,66,135,0.10), 0 1px 8px rgba(193,18,31,0.10)'
-                    }}>
-                        <QrCode className="w-5 h-5" strokeWidth={2} />
-                        Escanear QR / Ingresar ID
-                    </span>
-                </a>
-            </div>
-
-            {/* Leyenda compacta */}
-            <div className="flex flex-wrap items-center gap-3 text-xs">
-                <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded bg-green-500/20 border border-green-500/50" />
-                    <span style={{ color: 'var(--text-tertiary)' }}>Pagado</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded bg-orange-500/20 border border-orange-500/50" />
-                    <span style={{ color: 'var(--text-tertiary)' }}>Pendiente</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded bg-red-500/20 border border-red-500/50" />
-                    <span style={{ color: 'var(--text-tertiary)' }}>Vencido</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded ring-1 ring-blue-500" style={{ background: 'var(--surface)' }} />
-                    <span style={{ color: 'var(--text-tertiary)' }}>Mes actual</span>
-                </div>
-            </div>
-
-            {/* Lista de estudiantes con pagos */}
-            <div className="space-y-4">
+            {/* Lista de Cards */}
+            <div className="grid grid-cols-1 gap-6">
                 {filteredStudents.length === 0 ? (
-                    <div className="text-center py-12 rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                        <Search className="w-16 h-16 mx-auto mb-4 opacity-50" style={{ color: 'var(--text-tertiary)' }} strokeWidth={1.5} />
-                        <p style={{ color: 'var(--text-secondary)' }}>No se encontraron estudiantes con &quot;{searchTerm}&quot;</p>
+                    <div className="text-center py-12 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700">
+                        <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-500 font-medium">No se encontraron estudiantes</p>
                     </div>
                 ) : (
-                    filteredStudents.map((student) => {
-                        const studentPayments = payments.filter(p => p.studentId === student.id);
-                        
-                        return (
-                            <StudentPaymentCard
-                                key={student.id}
-                                student={student}
-                                payments={studentPayments}
-                                onMonthClick={(month, year) => handleMonthClick(student, month, year)}
-                                onMonthRevoke={onPaymentRevoke ? (month, year) => handleMonthRevoke(student, month, year) : undefined}
-                            />
-                        );
-                    })
+                    filteredStudents.map(student => (
+                        <StudentPaymentCard
+                            key={student.id}
+                            student={student}
+                            payments={payments.filter(p => p.studentId === student.id)}
+                            onPeriodClick={(periodIndex, year) => {
+                                setSelectedStudent(student);
+                                setSelectedPeriod(periodIndex);
+                                setSelectedYear(year);
+                                setShowConfirmModal(true);
+                            }}
+                            onPeriodRevoke={(periodIndex, year) => {
+                                setSelectedStudent(student);
+                                setSelectedPeriod(periodIndex);
+                                setSelectedYear(year);
+                                setShowRevokeModal(true);
+                            }}
+                        />
+                    ))
                 )}
             </div>
 
             {/* Modales */}
-            <QRScannerModal
-                isOpen={showScanner}
-                onClose={() => setShowScanner(false)}
-                onStudentDetected={handleStudentDetected}
-                students={students}
-            />
-
             <PaymentConfirmModal
                 isOpen={showConfirmModal}
                 student={selectedStudent}
-                month={selectedMonth}
+                periodIndex={selectedPeriod}
                 year={selectedYear}
                 onConfirm={handleConfirmPayment}
-                onCancel={() => {
-                    if (scanRequest) {
-                        handleRejectScanPayment();
-                    } else {
-                        setShowConfirmModal(false);
-                    }
-                }}
+                onCancel={() => setShowConfirmModal(false)}
                 onReject={scanRequest ? handleRejectScanPayment : undefined}
                 isFromScan={!!scanRequest}
             />
@@ -1019,41 +1152,42 @@ export default function PaymentsPanel({
             <PaymentSuccessModal
                 isOpen={showSuccessModal}
                 student={selectedStudent}
-                month={selectedMonth}
+                periodIndex={selectedPeriod}
                 onClose={() => setShowSuccessModal(false)}
             />
 
-            {/* Modal de Revocar Pago */}
+
+
+            {/* Modal de confirmación de revocación */}
             {showRevokeModal && selectedStudent && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-                    <div className="rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-150" style={{ background: 'var(--modal-bg)' }}>
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
                         <div className="flex justify-center mb-4">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-400 to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/30">
-                                <AlertTriangle className="w-8 h-8 text-white" strokeWidth={2} />
+                            <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
+                                <AlertTriangle className="w-8 h-8 text-red-500" strokeWidth={2} />
                             </div>
                         </div>
 
-                        <h3 className="text-xl font-bold text-center mb-2" style={{ color: 'var(--text-primary)' }}>
-                            Revocar Pago
+                        <h3 className="text-xl font-bold text-center mb-2 dark:text-white">
+                            ¿Revocar pago?
                         </h3>
 
-                        <p className="text-center text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                            ¿Estás seguro de revocar el pago de <span className="font-semibold text-blue-500">{selectedStudent.name}</span> del mes de <span className="font-semibold text-red-500">{MONTHS[selectedMonth - 1]} {selectedYear}</span>?
+                        <p className="text-center text-gray-500 dark:text-gray-400 text-sm mb-6">
+                            Esta acción marcará el pago de <span className="font-bold text-gray-700 dark:text-gray-300">{selectedStudent.name}</span> como pendiente nuevamente.
                         </p>
 
                         <div className="flex gap-3">
                             <button
-                                onClick={handleConfirmRevoke}
-                                className="flex-1 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-red-500/25"
-                            >
-                                Sí, Revocar
-                            </button>
-                            <button
                                 onClick={() => setShowRevokeModal(false)}
-                                className="px-5 py-3 font-semibold rounded-xl transition-colors"
-                                style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
+                                className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 font-medium rounded-xl transition-colors"
                             >
                                 Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmRevoke}
+                                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-colors shadow-lg shadow-red-500/20"
+                            >
+                                Revocar
                             </button>
                         </div>
                     </div>

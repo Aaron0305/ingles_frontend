@@ -54,7 +54,7 @@ function PayScanContent() {
         try {
           const scanner = scannerRef.current;
           if (scanner.isScanning) {
-            scanner.stop().catch(() => {});
+            scanner.stop().catch(() => { });
           }
         } catch {
           // Ignorar errores al limpiar
@@ -69,7 +69,7 @@ function PayScanContent() {
     if (scannerRef.current && scanning) {
       try {
         if (scannerRef.current.isScanning) {
-          scannerRef.current.stop().catch(() => {});
+          scannerRef.current.stop().catch(() => { });
         }
       } catch {
         // Ignorar errores
@@ -84,7 +84,7 @@ function PayScanContent() {
     if (urlMatch) {
       return urlMatch[1];
     }
-    
+
     // Si es directamente un UUID
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (uuidRegex.test(qrData.trim())) {
@@ -114,7 +114,7 @@ function PayScanContent() {
         },
         async (decodedText) => {
           console.log("QR escaneado:", decodedText);
-          
+
           try {
             if (html5QrCode.isScanning) {
               await html5QrCode.stop();
@@ -218,32 +218,55 @@ function PayScanContent() {
   return (
     <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden relative">
       {/* Header con gradiente institucional y logo */}
-      <div className="relative bg-gradient-to-br from-[#014287] via-[#2596be] to-[#779bbf] p-6 text-white text-center overflow-hidden">
-        {/* Patrón de fondo decorativo */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
-          <div className="absolute bottom-0 right-0 w-40 h-40 bg-white rounded-full translate-x-1/2 translate-y-1/2 blur-3xl"></div>
+      {/* Header con diseño solicitado: Rojo con Azul y línea diagonal blanca */}
+      <div className="relative p-6 text-white text-center overflow-hidden h-32 flex items-center justify-center">
+        {/* Fondo con diseño específico */}
+        <div className="absolute inset-0 z-0">
+          {/* Base Azul Institucional */}
+          <div className="absolute inset-0 bg-[#002f5d]"></div>
+
+          {/* Parte Roja Institucional (Diagonal superior izquierda) */}
+          <div
+            className="absolute top-0 left-0 w-full h-full bg-[#E31837]"
+            style={{
+              clipPath: 'polygon(0 0, 65% 0, 35% 100%, 0 100%)'
+            }}
+          ></div>
+
+          {/* Línea Diagonal Blanca con Gradiente */}
+          <div
+            className="absolute top-0 left-0 w-full h-full"
+            style={{
+              background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.8) 45%, rgba(255,255,255,0.8) 55%, transparent 60%)',
+              mixBlendMode: 'overlay'
+            }}
+          ></div>
+
+          {/* Efecto de brillo/gradiente general */}
+          <div className="absolute inset-0 bg-gradient-to-br from-black/10 to-transparent"></div>
         </div>
-        
-        <div className="relative z-10">
-          {/* Logo mejorado - tamaño más pequeño */}
-          <div className="flex justify-center mb-3">
-            <div className="relative">
-              {/* Contenedor del logo más compacto */}
-              <div className="relative bg-white rounded-xl p-1.5 shadow-lg border border-white/30">
-                <Image 
-                  src="/image/logo_mensaje.png" 
-                  alt="What Time Is It? Idiomas" 
-                  width={60} 
-                  height={28} 
+
+        <div className="relative z-10 w-full">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/90 p-1.5 rounded-lg shadow-lg backdrop-blur-sm">
+                <Image
+                  src="/image/logo_mensaje.png"
+                  alt="Logo"
+                  width={40}
+                  height={40}
                   className="object-contain"
                   priority
                 />
               </div>
+              <div className="text-left">
+                <h1 className="text-xl font-black tracking-tight leading-none text-white drop-shadow-md">ESCANEO</h1>
+                <p className="text-sm font-medium text-white/90 drop-shadow-sm">DE PAGOS</p>
+              </div>
             </div>
+            {/* Decoración extra sutil */}
+            <QrCode className="w-8 h-8 text-white/20" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight mb-1">Escaneo de Pago</h1>
-          <p className="text-white/90 text-sm font-medium">Sistema de Pagos</p>
         </div>
       </div>
 
@@ -251,12 +274,11 @@ function PayScanContent() {
       <div className="flex border-b border-gray-200">
         <button
           onClick={switchToManual}
-          className={`flex-1 py-4 text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
-            mode === "manual"
+          className={`flex-1 py-4 text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${mode === "manual"
               ? "text-white border-b-3 relative"
               : "text-gray-600 hover:text-[#014287] hover:bg-gray-50"
-          }`}
-          style={mode === "manual" ? { 
+            }`}
+          style={mode === "manual" ? {
             background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)',
             borderBottom: '3px solid #014287'
           } : {}}
@@ -266,12 +288,11 @@ function PayScanContent() {
         </button>
         <button
           onClick={switchToQR}
-          className={`flex-1 py-4 text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
-            mode === "qr"
+          className={`flex-1 py-4 text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${mode === "qr"
               ? "text-white border-b-3 relative"
               : "text-gray-600 hover:text-[#014287] hover:bg-gray-50"
-          }`}
-          style={mode === "qr" ? { 
+            }`}
+          style={mode === "qr" ? {
             background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)',
             borderBottom: '3px solid #014287'
           } : {}}
@@ -305,19 +326,26 @@ function PayScanContent() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full px-6 py-4 text-white font-bold rounded-xl transition-all duration-300 disabled:opacity-60 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                style={{ 
-                  background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)',
-                }}
+                className="w-full px-6 py-4 text-white font-bold rounded-xl transition-all duration-300 disabled:opacity-60 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 relative overflow-hidden group"
               >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Buscando…
-                  </span>
-                ) : (
-                  "Procesar Pago"
-                )}
+                <div className="absolute inset-0 bg-gradient-to-r from-[#E31837] to-[#002f5d]"></div>
+                <div className="absolute inset-0 bg-white/20 group-hover:bg-transparent transition-colors"></div>
+                {/* Línea diagonal decorativa en el botón */}
+                <div className="absolute inset-0 w-[200%] h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-[100%] animate-[shimmer_2s_infinite]"></div>
+
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  {loading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Buscando...
+                    </>
+                  ) : (
+                    <>
+                      Procesar Pago
+                      <FileText className="w-5 h-5" />
+                    </>
+                  )}
+                </span>
               </button>
             </form>
           </>
@@ -333,12 +361,12 @@ function PayScanContent() {
             </div>
 
             <div className="relative rounded-xl overflow-hidden border-2 border-gray-200 shadow-inner" style={{ minHeight: "300px" }}>
-              <div 
-                id={scannerContainerId} 
+              <div
+                id={scannerContainerId}
                 className="w-full rounded-xl overflow-hidden bg-[#010101]"
                 style={{ minHeight: "300px" }}
               ></div>
-              
+
               {!scanning && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl">
                   <div className="mb-4">
@@ -348,13 +376,14 @@ function PayScanContent() {
                   </div>
                   <button
                     onClick={startScanner}
-                    className="px-6 py-3 text-white font-bold rounded-xl transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                    style={{ 
-                      background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)',
-                    }}
+                    className="px-6 py-3 text-white font-bold rounded-xl transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 relative overflow-hidden group"
                   >
-                    <Camera className="w-5 h-5" strokeWidth={2.5} />
-                    Iniciar Cámara
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#E31837] to-[#002f5d]"></div>
+                    <div className="absolute inset-0 w-[200%] h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-[100%] animate-[shimmer_2s_infinite]"></div>
+                    <span className="relative z-10 flex items-center gap-2">
+                      <Camera className="w-5 h-5" strokeWidth={2.5} />
+                      Iniciar Cámara
+                    </span>
                   </button>
                 </div>
               )}
@@ -386,22 +415,22 @@ function PayScanContent() {
         )}
 
         <button
-          onClick={() => window.close()}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-50 font-semibold rounded-xl transition-all duration-300 border-2 border-gray-200 hover:border-gray-300"
+          onClick={() => router.push("/dashboard")}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-600 hover:text-white hover:bg-gray-800 font-semibold rounded-xl transition-all duration-300 border-2 border-gray-200 hover:border-gray-800 group"
         >
-          <X className="w-4 h-4" strokeWidth={2.5} />
-          Cerrar ventana
+          <X className="w-4 h-4 group-hover:rotate-90 transition-transform" strokeWidth={2.5} />
+          Volver al Dashboard
         </button>
       </div>
 
       {/* Footer con mascota */}
       <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 text-center border-t border-gray-200 relative overflow-hidden">
         <div className="absolute bottom-0 right-0 opacity-10">
-          <Image 
-            src="/image/mascota.png" 
-            alt="Mascota" 
-            width={80} 
-            height={80} 
+          <Image
+            src="/image/mascota.png"
+            alt="Mascota"
+            width={80}
+            height={80}
             className="object-contain"
           />
         </div>
@@ -426,11 +455,11 @@ function LoadingFallback() {
           <div className="flex justify-center mb-3">
             <div className="relative">
               <div className="relative bg-white rounded-xl p-2 shadow-lg border border-white/30">
-                <Image 
-                  src="/image/logo_mensaje.png" 
-                  alt="Logo" 
-                  width={100} 
-                  height={45} 
+                <Image
+                  src="/image/logo_mensaje.png"
+                  alt="Logo"
+                  width={100}
+                  height={45}
                   className="object-contain"
                 />
               </div>
@@ -458,7 +487,7 @@ export default function PayScanLanding() {
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2 blur-3xl"></div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white rounded-full blur-3xl"></div>
       </div>
-      
+
       <div className="relative z-10">
         <Suspense fallback={<LoadingFallback />}>
           <SearchParamsHandler />

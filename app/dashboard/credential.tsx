@@ -22,6 +22,9 @@ export interface Student {
     status: "active" | "inactive";
     createdAt: string;
     expiresAt?: string;
+    paymentScheme?: "daily" | "weekly" | "biweekly" | "monthly_28";
+    classDays?: number[]; // Días de clase: 0=Dom, 1=Lun, ... 6=Sab
+    enrollmentDate?: string;
 }
 
 interface CredentialModalProps {
@@ -80,7 +83,7 @@ export default function CredentialModal({ student, isOpen, onClose }: Credential
             const jsPDF = (await import("jspdf")).default;
 
             const element = credentialRef.current;
-            
+
             // Crear canvas con alta resolución
             const canvas = await html2canvas(element, {
                 scale: 3,
@@ -99,7 +102,7 @@ export default function CredentialModal({ student, isOpen, onClose }: Credential
 
             const imgData = canvas.toDataURL("image/png", 1.0);
             pdf.addImage(imgData, "PNG", 0, 0, 85.6, 54);
-            
+
             pdf.save(`Credencial - ${student.name}.pdf`);
         } catch (error) {
             console.error("Error generando PDF:", error);
@@ -156,7 +159,7 @@ export default function CredentialModal({ student, isOpen, onClose }: Credential
                 </div>
 
                 {/* ========== CREDENCIAL PREMIUM ========== */}
-                <div 
+                <div
                     ref={credentialRef}
                     style={{
                         width: "320px",
@@ -197,13 +200,13 @@ export default function CredentialModal({ student, isOpen, onClose }: Credential
                                     justifyContent: "center",
                                 }}
                             >
-                                <img 
-                                    src="/image/logo.png" 
-                                    alt="What Time Is It? Idiomas" 
-                                    style={{ 
-                                        width: "100%", 
-                                        height: "100%", 
-                                        objectFit: "contain" 
+                                <img
+                                    src="/image/logo.png"
+                                    alt="What Time Is It? Idiomas"
+                                    style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        objectFit: "contain"
                                     }}
                                 />
                             </div>
@@ -295,13 +298,13 @@ export default function CredentialModal({ student, isOpen, onClose }: Credential
                                 pointerEvents: "none",
                             }}
                         >
-                            <img 
-                                src="/image/mascota.png" 
-                                alt="Mascota" 
-                                style={{ 
-                                    width: "100%", 
-                                    height: "100%", 
-                                    objectFit: "contain" 
+                            <img
+                                src="/image/mascota.png"
+                                alt="Mascota"
+                                style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "contain"
                                 }}
                             />
                         </div>

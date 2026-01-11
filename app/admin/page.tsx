@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import CredentialModal, { Student } from "../dashboard/credential";
 import PaymentsPanel, { PaymentRecord } from "../dashboard/payments";
+import CredentialsPanel from "../dashboard/credentials-panel";
 import { studentsApi, adminsApi, paymentsApi, authApi } from "@/lib/api";
 import { QRCodeSVG } from "qrcode.react";
-import { 
-    ShieldCheck, Users, CheckCircle, CircleDollarSign, 
-    BarChart3, Plus, UserPlus, Search, X, Trash2, Ban, 
+import {
+    ShieldCheck, Users, CheckCircle, CircleDollarSign,
+    BarChart3, Plus, UserPlus, Search, X, Trash2, Ban,
     TrendingDown, FileText, Copy, AlertTriangle, Pencil,
-    UserX, UserCheck, Loader2
+    UserX, UserCheck, Loader2, Shield, LogOut
 } from "lucide-react";
 import Image from "next/image";
 
@@ -43,6 +44,8 @@ interface NewStudentForm {
     level: "Beginner" | "Intermediate" | "Advanced";
     priceOption: string;
     customPrice: string;
+    paymentScheme: "daily" | "weekly" | "biweekly" | "monthly_28";
+    classDays: number[];
 }
 
 interface EditStudentForm {
@@ -78,7 +81,7 @@ export default function SuperAdminDashboard() {
     const [admins, setAdmins] = useState<Admin[]>([]);
     const [payments, setPayments] = useState<PaymentRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     // Modales
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showCredentialModal, setShowCredentialModal] = useState(false);
@@ -89,14 +92,14 @@ export default function SuperAdminDashboard() {
     const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
     const [adminToDelete, setAdminToDelete] = useState<Admin | null>(null);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-    
+
     // Filtros y búsqueda
     const [searchTerm, setSearchTerm] = useState("");
     const [filterLevel, setFilterLevel] = useState<string>("all");
     const [filterStatus, setFilterStatus] = useState<string>("all");
     const [currentPage, setCurrentPage] = useState(1);
     const studentsPerPage = 10;
-    
+
     // Formularios
     const [formData, setFormData] = useState<NewStudentForm>({
         name: "",
@@ -105,6 +108,9 @@ export default function SuperAdminDashboard() {
         level: "Beginner",
         priceOption: "149.50",
         customPrice: "",
+        paymentScheme: "monthly_28",
+        classDays: [],
+
     });
     const [adminFormData, setAdminFormData] = useState<NewAdminForm>({
         name: "",
@@ -124,12 +130,12 @@ export default function SuperAdminDashboard() {
     const [isCreating, setIsCreating] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-    
+
     // Estado para modal de confirmación de activar/desactivar estudiante
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [studentToToggle, setStudentToToggle] = useState<Student | null>(null);
     const [isTogglingStatus, setIsTogglingStatus] = useState(false);
-    
+
     // Socket para comunicación en tiempo real
     const [socket, setSocket] = useState<Socket | null>(null);
 
@@ -142,7 +148,7 @@ export default function SuperAdminDashboard() {
         const SOCKET_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
             ? 'https://ingles-backend-bk4n.onrender.com'
             : 'http://localhost:3001';
-            
+
         const newSocket = io(SOCKET_URL, {
             path: "/api/socket",
             transports: ["websocket", "polling"],
@@ -224,7 +230,7 @@ export default function SuperAdminDashboard() {
                 adminsApi.getAll(),
                 paymentsApi.getAll(),
             ]);
-            
+
             // Transformar datos para compatibilidad con el componente
             const transformedStudents: Student[] = studentsData.map(s => ({
                 ...s,
@@ -236,7 +242,7 @@ export default function SuperAdminDashboard() {
                 ...a,
                 lastLogin: undefined,
             }));
-            
+
             setStudents(transformedStudents);
             setAdmins(transformedAdmins);
             setPayments(paymentsData);
@@ -263,7 +269,7 @@ export default function SuperAdminDashboard() {
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
             errors.email = "Email inválido";
         }
-        
+
         // Validar precio personalizado
         if (formData.priceOption === "custom") {
             const price = parseFloat(formData.customPrice);
@@ -273,7 +279,7 @@ export default function SuperAdminDashboard() {
                 errors.customPrice = "Ingresa un precio válido mayor a 0";
             }
         }
-        
+
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -283,8 +289,8 @@ export default function SuperAdminDashboard() {
         setIsCreating(true);
 
         // Calcular el precio final
-        const finalPrice = formData.priceOption === "custom" 
-            ? parseFloat(formData.customPrice) 
+        const finalPrice = formData.priceOption === "custom"
+            ? parseFloat(formData.customPrice)
             : parseFloat(formData.priceOption);
 
         try {
@@ -294,6 +300,8 @@ export default function SuperAdminDashboard() {
                 level: formData.level,
                 monthlyFee: finalPrice,
                 emergencyPhone: formData.emergencyPhone || undefined,
+                paymentScheme: formData.paymentScheme,
+                classDays: formData.paymentScheme === 'daily' ? formData.classDays : undefined,
             });
 
             const studentWithProgress: Student = {
@@ -306,7 +314,7 @@ export default function SuperAdminDashboard() {
             setSelectedStudent(studentWithProgress);
             setShowCreateModal(false);
             setShowCredentialModal(true);
-            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner", priceOption: "149.50", customPrice: "" });
+            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner", priceOption: "149.50", customPrice: "", paymentScheme: "monthly_28", classDays: [] });
         } catch (error) {
             console.error("Error creando estudiante:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
@@ -351,9 +359,9 @@ export default function SuperAdminDashboard() {
                 level: editFormData.level,
             });
 
-            setStudents(prev => prev.map(s => 
-                s.id === studentToEdit.id 
-                    ? { ...s, ...updatedStudent, progress: s.progress, lastAccess: s.lastAccess } 
+            setStudents(prev => prev.map(s =>
+                s.id === studentToEdit.id
+                    ? { ...s, ...updatedStudent, progress: s.progress, lastAccess: s.lastAccess }
                     : s
             ));
             setShowEditStudentModal(false);
@@ -363,7 +371,7 @@ export default function SuperAdminDashboard() {
         } catch (error) {
             console.error("Error actualizando estudiante:", error);
             const message = error instanceof Error ? error.message : "Error al actualizar";
-            
+
             // Si el error es de email duplicado, mostrar en el campo de email
             if (message.toLowerCase().includes('correo') || message.toLowerCase().includes('email')) {
                 setEditFormErrors({ email: message });
@@ -395,17 +403,17 @@ export default function SuperAdminDashboard() {
                 status: newStatus,
             });
 
-            setStudents(prev => prev.map(s => 
-                s.id === studentToToggle.id 
-                    ? { ...s, status: updatedStudent.status } 
+            setStudents(prev => prev.map(s =>
+                s.id === studentToToggle.id
+                    ? { ...s, status: updatedStudent.status }
                     : s
             ));
-            
+
             setShowStatusModal(false);
             setStudentToToggle(null);
-            setSaveMessage({ 
-                type: 'success', 
-                text: newStatus === "active" ? 'Estudiante activado correctamente' : 'Estudiante desactivado correctamente' 
+            setSaveMessage({
+                type: 'success',
+                text: newStatus === "active" ? 'Estudiante activado correctamente' : 'Estudiante desactivado correctamente'
             });
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (error) {
@@ -447,9 +455,9 @@ export default function SuperAdminDashboard() {
     const handlePaymentRevoke = async (studentId: string, month: number, year: number) => {
         try {
             await paymentsApi.revoke(studentId, month, year);
-            
+
             // Actualizar estado local - cambiar a pending
-            setPayments(prev => prev.map(p => 
+            setPayments(prev => prev.map(p =>
                 p.studentId === studentId && p.month === month && p.year === year
                     ? { ...p, status: "pending" as const, paidAt: undefined }
                     : p
@@ -465,7 +473,7 @@ export default function SuperAdminDashboard() {
 
     const validateAdminForm = (): boolean => {
         const errors: Partial<NewAdminForm & { confirmPassword?: string }> = {};
-        
+
         if (!adminFormData.name.trim()) errors.name = "Nombre requerido";
         if (!adminFormData.email.trim()) errors.email = "Email requerido";
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminFormData.email)) {
@@ -478,7 +486,7 @@ export default function SuperAdminDashboard() {
         if (adminFormData.password !== adminFormData.confirmPassword) {
             errors.confirmPassword = "Las contraseñas no coinciden";
         }
-        
+
         setAdminFormErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -503,6 +511,7 @@ export default function SuperAdminDashboard() {
             setAdmins((prev) => [...prev, adminWithLastLogin]);
             setShowCreateAdminModal(false);
             setAdminFormData({ name: "", email: "", password: "", confirmPassword: "" });
+            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [] });
         } catch (error) {
             console.error("Error creando admin:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
@@ -513,8 +522,8 @@ export default function SuperAdminDashboard() {
     };
 
     const handleToggleAdminStatus = (adminId: string) => {
-        setAdmins(prev => prev.map(admin => 
-            admin.id === adminId 
+        setAdmins(prev => prev.map(admin =>
+            admin.id === adminId
                 ? { ...admin, status: admin.status === "active" ? "inactive" : "active" }
                 : admin
         ));
@@ -543,13 +552,17 @@ export default function SuperAdminDashboard() {
     // FILTROS Y ESTADÍSTICAS
     // ============================================
 
-    // Filtrar estudiantes (búsqueda por número, nombre o email)
+    // Filtrar estudiantes (búsqueda por número o nombre)
     const filteredStudents = students.filter(student => {
         const search = searchTerm.toLowerCase().trim();
-        const matchesSearch = search === "" ||
-                            student.studentNumber.toLowerCase().includes(search) ||
-                            student.name.toLowerCase().includes(search) ||
-                            student.email.toLowerCase().includes(search);
+        const isNumeric = /^\d+$/.test(search);
+
+        const matchesSearch = search === "" || (
+            isNumeric
+                ? student.studentNumber.toString().includes(search)
+                : student.name.toLowerCase().includes(search)
+        );
+
         const matchesLevel = filterLevel === "all" || student.level === filterLevel;
         const matchesStatus = filterStatus === "all" || student.status === filterStatus;
         return matchesSearch && matchesLevel && matchesStatus;
@@ -622,11 +635,10 @@ export default function SuperAdminDashboard() {
         <div className="dashboard-container min-h-screen" style={{ background: 'var(--background)' }}>
             {/* Toast de notificación */}
             {saveMessage && (
-                <div className={`fixed top-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-fade-in ${
-                    saveMessage.type === 'success' 
-                        ? 'bg-green-500 text-white' 
-                        : 'bg-red-500 text-white'
-                }`}>
+                <div className={`fixed top-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-fade-in ${saveMessage.type === 'success'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-red-500 text-white'
+                    }`}>
                     {saveMessage.type === 'success' ? (
                         <CheckCircle className="w-5 h-5" strokeWidth={2} />
                     ) : (
@@ -642,29 +654,30 @@ export default function SuperAdminDashboard() {
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 flex items-center justify-center p-1.5">
-                                <Image 
-                                    src="/image/logo_mensaje.png" 
-                                    alt="Logo" 
-                                    width={28} 
-                                    height={28} 
+                                <Image
+                                    src="/image/logo_mensaje.png"
+                                    alt="Logo"
+                                    width={28}
+                                    height={28}
                                     className="object-contain"
                                 />
                             </div>
                             <div>
-                                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Super Admin</h1>
-                                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Panel de Control Principal</p>
+                                <h1 className="text-xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400">
+                                    Sistema Administrativo
+                                </h1>
+                                <span className="text-xs font-semibold tracking-wider text-blue-500 uppercase">
+                                    Panel de Control
+                                </span>
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
-                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-500">
-                                Super Administrador
-                            </span>
                             <button
                                 onClick={handleLogout}
-                                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
-                                style={{ color: 'var(--text-secondary)' }}
+                                className="group relative flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium text-sm border border-gray-200 dark:border-slate-700 hover:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all duration-300 shadow-sm hover:shadow-md"
                             >
-                                Cerrar Sesión
+                                <span className="group-hover:text-red-600 transition-colors">Cerrar Sesión</span>
+                                <LogOut className="w-4 h-4 text-gray-400 group-hover:text-red-500 transition-colors" />
                             </button>
                         </div>
                     </div>
@@ -679,1091 +692,1177 @@ export default function SuperAdminDashboard() {
                         <span className="ml-3" style={{ color: 'var(--text-secondary)' }}>Cargando datos...</span>
                     </div>
                 ) : (
-                <>
-                {/* Header Stats - Diseño moderno Super Admin */}
-                <div className="mb-8">
-                    <div className="rounded-2xl p-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%)', border: '1px solid var(--border-color)' }}>
-                        {/* Decoración de fondo - Gradiente radial rojo institucional */}
-                        <div className="absolute top-0 left-0 w-96 h-96 rounded-full blur-2xl -translate-y-1/3 -translate-x-1/4" style={{ background: 'radial-gradient(circle, rgba(193, 18, 31, 0.35) 0%, rgba(193, 18, 31, 0.15) 40%, rgba(193, 18, 31, 0) 70%)' }} />
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-500/15 to-cyan-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                        
-                        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                            {/* Estudiantes - Principal */}
-                            <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
-                                    <Users className="w-8 h-8 text-white" strokeWidth={2} />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Total de Estudiantes</p>
-                                    <div className="flex items-baseline gap-2">
-                                        <p className="text-4xl font-black" style={{ color: 'var(--text-primary)' }}>{students.length}</p>
-                                        <span className="text-sm font-medium px-2 py-0.5 rounded-full bg-green-500/20 text-green-500">
-                                            {students.filter(s => s.status === "active").length} activos
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
+                    <>
+                        {/* Header Stats - Diseño moderno Super Admin */}
+                        <div className="mb-8">
+                            <div className="rounded-2xl p-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%)', border: '1px solid var(--border-color)' }}>
+                                {/* Decoración de fondo - Gradiente radial rojo institucional */}
+                                <div className="absolute top-0 left-0 w-96 h-96 rounded-full blur-2xl -translate-y-1/3 -translate-x-1/4" style={{ background: 'radial-gradient(circle, rgba(193, 18, 31, 0.35) 0%, rgba(193, 18, 31, 0.15) 40%, rgba(193, 18, 31, 0) 70%)' }} />
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-500/15 to-cyan-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
-                            {/* Separador visual */}
-                            <div className="hidden lg:block w-px h-16 bg-gradient-to-b from-transparent via-gray-500/30 to-transparent" />
-
-                            {/* Administradores */}
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-                                    <ShieldCheck className="w-7 h-7 text-white" strokeWidth={2} />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Administradores</p>
-                                    <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{admins.length}</p>
-                                </div>
-                            </div>
-
-                            {/* Separador visual */}
-                            <div className="hidden lg:block w-px h-16 bg-gradient-to-b from-transparent via-gray-500/30 to-transparent" />
-
-                            {/* Distribución por nivel */}
-                            <div className="flex gap-3">
-                                <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
-                                    <p className="text-2xl font-bold text-blue-500">{students.filter(s => s.level === "Beginner").length}</p>
-                                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Beginner</p>
-                                </div>
-                                <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
-                                    <p className="text-2xl font-bold text-amber-500">{students.filter(s => s.level === "Intermediate").length}</p>
-                                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Intermediate</p>
-                                </div>
-                                <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
-                                    <p className="text-2xl font-bold text-emerald-500">{students.filter(s => s.level === "Advanced").length}</p>
-                                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Advanced</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Tabs */}
-                <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-                    <div className="flex gap-2 flex-wrap">
-                        <button
-                            onClick={() => setActiveTab("students")}
-                            className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "students" ? "text-white" : ""}`}
-                            style={activeTab === "students" 
-                                ? { background: '#014287', color: 'white' } 
-                                : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
-                        >
-                            Estudiantes
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("payments")}
-                            className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "payments" ? "text-white" : ""}`}
-                            style={activeTab === "payments" 
-                                ? { background: '#014287', color: 'white' } 
-                                : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
-                        >
-                            <CircleDollarSign className="w-4 h-4" strokeWidth={2} />
-                            Pagos
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("admins")}
-                            className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "admins" ? "text-white" : ""}`}
-                            style={activeTab === "admins" 
-                                ? { background: '#014287', color: 'white' } 
-                                : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
-                        >
-                            <Users className="w-4 h-4" strokeWidth={2} />
-                            Administradores
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("reports")}
-                            className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "reports" ? "text-white" : ""}`}
-                            style={activeTab === "reports" 
-                                ? { background: '#014287', color: 'white' } 
-                                : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
-                        >
-                            <BarChart3 className="w-4 h-4" strokeWidth={2} />
-                            Reportes
-                        </button>
-                    </div>
-
-                    {activeTab !== "payments" && activeTab !== "admins" && activeTab !== "reports" && (
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all hover:opacity-90"
-                            style={{ background: '#014287' }}
-                        >
-                            <Plus className="w-5 h-5" strokeWidth={2} />
-                            Nuevo Estudiante
-                        </button>
-                    )}
-
-                    {activeTab === "admins" && (
-                        <button
-                            onClick={() => setShowCreateAdminModal(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all hover:opacity-90"
-                            style={{ background: '#014287' }}
-                        >
-                            <UserPlus className="w-5 h-5" strokeWidth={2} />
-                            Nuevo Administrador
-                        </button>
-                    )}
-                </div>
-
-                {/* Barra de búsqueda y filtros - Solo para estudiantes y credenciales */}
-                {(activeTab === "students" || activeTab === "credentials") && (
-                    <div className="flex flex-wrap gap-4 mb-6 p-4 rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                        {/* Búsqueda */}
-                        <div className="flex-1 min-w-[200px]">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-tertiary)' }} strokeWidth={2} />
-                                <input
-                                    type="text"
-                                    placeholder="Buscar por número, nombre o email..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 rounded-lg focus:outline-none transition-all"
-                                    style={{ 
-                                        background: 'var(--input-bg)', 
-                                        border: '1px solid var(--input-border)', 
-                                        color: 'var(--text-primary)'
-                                    }}
-                                    onFocus={(e) => e.target.style.borderColor = '#2596be'}
-                                    onBlur={(e) => e.target.style.borderColor = 'var(--input-border)'}
-                                />
-                            </div>
-                        </div>
-                        
-                        {/* Filtro por nivel */}
-                        <select
-                            value={filterLevel}
-                            onChange={(e) => setFilterLevel(e.target.value)}
-                            className="px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-white font-medium cursor-pointer"
-                            style={{ background: '#014287', border: 'none' }}
-                        >
-                            <option value="all" className="bg-gray-800 text-white">Todos los niveles</option>
-                            <option value="Beginner" className="bg-gray-800 text-white">Beginner</option>
-                            <option value="Intermediate" className="bg-gray-800 text-white">Intermediate</option>
-                            <option value="Advanced" className="bg-gray-800 text-white">Advanced</option>
-                        </select>
-                        
-                        {/* Filtro por estado */}
-                        <select
-                            value={filterStatus}
-                            onChange={(e) => setFilterStatus(e.target.value)}
-                            className="px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-white font-medium cursor-pointer"
-                            style={{ background: '#014287', border: 'none' }}
-                        >
-                            <option value="all" className="bg-gray-800 text-white">Todos los estados</option>
-                            <option value="active" className="bg-gray-800 text-white">Activos</option>
-                            <option value="inactive" className="bg-gray-800 text-white">Inactivos</option>
-                        </select>
-
-                        {/* Limpiar filtros */}
-                        {(searchTerm || filterLevel !== "all" || filterStatus !== "all") && (
-                            <button
-                                onClick={() => {
-                                    setSearchTerm("");
-                                    setFilterLevel("all");
-                                    setFilterStatus("all");
-                                }}
-                                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                                style={{ background: '#ea242e', color: 'white' }}
-                            >
-                                Limpiar filtros
-                            </button>
-                        )}
-                    </div>
-                )}
-
-                {/* Content - Reports Tab */}
-                {activeTab === "reports" ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Reporte de Ingresos Mensuales */}
-                        <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                                    <CircleDollarSign className="w-5 h-5 text-green-500" strokeWidth={2} />
-                                </div>
-                                <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Ingresos del Mes</h3>
-                            </div>
-                            <p className="text-4xl font-bold text-green-500 mb-2">${getMonthlyIncome().toLocaleString()}</p>
-                            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                {new Date().toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
-                            </p>
-                            <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
-                                <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                                    Total acumulado: <span className="font-semibold text-green-500">${payments.filter(p => p.status === "paid").reduce((acc, p) => acc + p.amount, 0).toLocaleString()}</span>
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Estudiantes por Nivel */}
-                        <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                                    <Users className="w-5 h-5 text-blue-500" strokeWidth={2} />
-                                </div>
-                                <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Estudiantes por Nivel</h3>
-                            </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <div className="flex justify-between mb-1">
-                                        <span className="text-sm font-medium text-blue-500">Beginner</span>
-                                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{getStudentsByLevel().Beginner}</span>
-                                    </div>
-                                    <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-alt)' }}>
-                                        <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${students.length > 0 ? (getStudentsByLevel().Beginner / students.length) * 100 : 0}%` }} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between mb-1">
-                                        <span className="text-sm font-medium text-yellow-500">Intermediate</span>
-                                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{getStudentsByLevel().Intermediate}</span>
-                                    </div>
-                                    <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-alt)' }}>
-                                        <div className="h-full bg-yellow-500 rounded-full transition-all" style={{ width: `${students.length > 0 ? (getStudentsByLevel().Intermediate / students.length) * 100 : 0}%` }} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between mb-1">
-                                        <span className="text-sm font-medium text-green-500">Advanced</span>
-                                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{getStudentsByLevel().Advanced}</span>
-                                    </div>
-                                    <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-alt)' }}>
-                                        <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${students.length > 0 ? (getStudentsByLevel().Advanced / students.length) * 100 : 0}%` }} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Tasa de Deserción */}
-                        <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-                                    <TrendingDown className="w-5 h-5 text-red-500" strokeWidth={2} />
-                                </div>
-                                <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Tasa de Deserción</h3>
-                            </div>
-                            <p className="text-4xl font-bold mb-2" style={{ color: Number(getDropoutRate()) > 20 ? '#ef4444' : Number(getDropoutRate()) > 10 ? '#f59e0b' : '#22c55e' }}>
-                                {getDropoutRate()}%
-                            </p>
-                            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                {students.filter(s => s.status === "inactive").length} de {students.length} estudiantes inactivos
-                            </p>
-                            <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
-                                <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                                    {Number(getDropoutRate()) <= 10 ? "✅ Excelente retención" : Number(getDropoutRate()) <= 20 ? "⚠️ Atención moderada" : "🚨 Requiere acción"}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Resumen General */}
-                        <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                                    <FileText className="w-5 h-5 text-blue-500" strokeWidth={2} />
-                                </div>
-                                <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Resumen General</h3>
-                            </div>
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
-                                    <span style={{ color: 'var(--text-secondary)' }}>Total Estudiantes</span>
-                                    <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{students.length}</span>
-                                </div>
-                                <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
-                                    <span style={{ color: 'var(--text-secondary)' }}>Estudiantes Activos</span>
-                                    <span className="font-bold text-green-500">{students.filter(s => s.status === "active").length}</span>
-                                </div>
-                                <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
-                                    <span style={{ color: 'var(--text-secondary)' }}>Administradores</span>
-                                    <span className="font-bold text-blue-500">{admins.length}</span>
-                                </div>
-                                <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
-                                    <span style={{ color: 'var(--text-secondary)' }}>Pagos Registrados</span>
-                                    <span className="font-bold text-blue-500">{payments.filter(p => p.status === "paid").length}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                ) : activeTab === "payments" ? (
-                    <PaymentsPanel
-                        students={students}
-                        payments={payments}
-                        onPaymentConfirm={handlePaymentConfirm}
-                        onPaymentRevoke={handlePaymentRevoke}
-                        socket={socket}
-                    />
-                ) : activeTab === "admins" ? (
-                    /* Content - Admins Tab */
-                    <div className="data-table rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                        <div className="p-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
-                            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                                Gestión de Administradores
-                            </h2>
-                            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                                Los administradores pueden gestionar estudiantes, credenciales y pagos
-                            </p>
-                        </div>
-                        
-                        <div className="grid gap-4 p-6">
-                            {admins.map((admin) => (
-                                <div 
-                                    key={admin.id} 
-                                    className="flex items-center justify-between p-4 rounded-xl transition-colors"
-                                    style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}
-                                >
+                                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                                    {/* Estudiantes - Principal */}
                                     <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg">
-                                            {admin.name.charAt(0).toUpperCase()}
+                                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
+                                            <Users className="w-8 h-8 text-white" strokeWidth={2} />
                                         </div>
                                         <div>
-                                            <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>{admin.name}</h3>
-                                            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{admin.email}</p>
-                                            <div className="flex items-center gap-3 mt-1">
-                                                <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                                    Creado: {new Date(admin.createdAt).toLocaleDateString()}
+                                            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Total de Estudiantes</p>
+                                            <div className="flex items-baseline gap-2">
+                                                <p className="text-4xl font-black" style={{ color: 'var(--text-primary)' }}>{students.length}</p>
+                                                <span className="text-sm font-medium px-2 py-0.5 rounded-full bg-green-500/20 text-green-500">
+                                                    {students.filter(s => s.status === "active").length} activos
                                                 </span>
-                                                {admin.lastLogin && (
-                                                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                                        • Último acceso: {admin.lastLogin}
-                                                    </span>
-                                                )}
                                             </div>
                                         </div>
                                     </div>
-                                    
-                                    <div className="flex items-center gap-3">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                            admin.status === "active" 
-                                                ? "bg-green-500/20 text-green-500" 
-                                                : "bg-gray-500/20 text-gray-500"
-                                        }`}>
-                                            {admin.status === "active" ? "Activo" : "Inactivo"}
-                                        </span>
-                                        
-                                        <button
-                                            onClick={() => handleToggleAdminStatus(admin.id)}
-                                            className="p-2 rounded-lg transition-colors hover:bg-amber-500/20"
-                                            title={admin.status === "active" ? "Desactivar" : "Activar"}
-                                        >
-                                            {admin.status === "active" ? (
-                                                <Ban className="w-5 h-5 text-amber-500" strokeWidth={2} />
-                                            ) : (
-                                                <CheckCircle className="w-5 h-5 text-amber-500" strokeWidth={2} />
-                                            )}
-                                        </button>
-                                        
-                                        <button
-                                            onClick={() => handleDeleteAdmin(admin)}
-                                            className="p-2 rounded-lg transition-colors hover:bg-red-500/20"
-                                            title="Eliminar"
-                                        >
-                                            <Trash2 className="w-5 h-5 text-red-500" strokeWidth={2} />
-                                        </button>
+
+                                    {/* Separador visual */}
+                                    <div className="hidden lg:block w-px h-16 bg-gradient-to-b from-transparent via-gray-500/30 to-transparent" />
+
+                                    {/* Administradores */}
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                                            <ShieldCheck className="w-7 h-7 text-white" strokeWidth={2} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Administradores</p>
+                                            <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{admins.length}</p>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                            
-                            {admins.length === 0 && (
-                                <div className="text-center py-12">
-                                    <Users className="w-16 h-16 mx-auto mb-4 opacity-50" style={{ color: 'var(--text-tertiary)' }} strokeWidth={1.5} />
-                                    <p style={{ color: 'var(--text-secondary)' }}>No hay administradores registrados</p>
-                                    <button
-                                        onClick={() => setShowCreateAdminModal(true)}
-                                        className="mt-4 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-colors"
-                                        style={{ background: '#014287' }}
-                                    >
-                                        Crear primer administrador
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    /* Content - Students/Credentials Tab */
-                    <div className="data-table rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                        <div className="p-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
-                            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                                {activeTab === "students" ? "Seguimiento de Estudiantes" : "Credenciales Generadas"}
-                            </h2>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                            No.
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                            Estudiante
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                            Nivel
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                            Tel. Emergencia
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                            Inscripción
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                            Estado
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                            Acciones
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {paginatedStudents.map((student) => (
-                                        <tr key={student.id} className="table-row-hover transition-colors" style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                            <td className="px-3 py-3 whitespace-nowrap">
-                                                <span className="text-sm font-mono text-cyan-500">{student.studentNumber}</span>
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap">
-                                                <div>
-                                                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{student.name}</p>
-                                                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{student.email}</p>
-                                                </div>
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap">
-                                                <span className={`inline-flex items-center justify-center w-24 px-2 py-0.5 rounded-full text-xs font-medium border ${getLevelBadge(student.level)}`}>
-                                                    {student.level}
-                                                </span>
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                                {student.emergencyPhone || ""}
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                                {formatDate(student.createdAt)}
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap">
-                                                <button
-                                                    onClick={() => handleToggleStatusClick(student)}
-                                                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium cursor-pointer transition-all hover:scale-105 ${student.status === "active"
-                                                        ? "bg-green-500/20 text-green-500 hover:bg-green-500/30"
-                                                        : "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
-                                                    }`}
-                                                    title={student.status === "active" ? "Clic para desactivar" : "Clic para activar"}
-                                                >
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${student.status === "active" ? "bg-green-500" : "bg-gray-500"}`} />
-                                                    {student.status === "active" ? "Activo" : "Inactivo"}
-                                                </button>
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap">
-                                                <div className="flex items-center gap-1">
-                                                    <button
-                                                        onClick={() => handleEditStudent(student)}
-                                                        className="p-1.5 text-blue-500 hover:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-colors"
-                                                        title="Editar Estudiante"
-                                                    >
-                                                        <Pencil className="w-4 h-4" strokeWidth={2} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        
-                        {/* Paginación */}
-                        {totalPages > 1 && (
-                            <div className="flex items-center justify-between p-4" style={{ borderTop: '1px solid var(--border-color)' }}>
-                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                    Mostrando {((currentPage - 1) * studentsPerPage) + 1} - {Math.min(currentPage * studentsPerPage, filteredStudents.length)} de {filteredStudents.length} estudiantes
-                                </p>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                        disabled={currentPage === 1}
-                                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        style={{ background: '#014287', color: 'white' }}
-                                    >
-                                        Anterior
-                                    </button>
-                                    <div className="flex items-center gap-1">
-                                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                                            let pageNum;
-                                            if (totalPages <= 5) {
-                                                pageNum = i + 1;
-                                            } else if (currentPage <= 3) {
-                                                pageNum = i + 1;
-                                            } else if (currentPage >= totalPages - 2) {
-                                                pageNum = totalPages - 4 + i;
-                                            } else {
-                                                pageNum = currentPage - 2 + i;
-                                            }
-                                            return (
-                                                <button
-                                                    key={pageNum}
-                                                    onClick={() => setCurrentPage(pageNum)}
-                                                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === pageNum ? 'text-white' : ''}`}
-                                                    style={currentPage === pageNum 
-                                                        ? { background: '#014287' } 
-                                                        : { background: 'var(--surface)', color: 'var(--text-secondary)' }
-                                                    }
-                                                >
-                                                    {pageNum}
-                                                </button>
-                                            );
-                                        })}
+
+                                    {/* Separador visual */}
+                                    <div className="hidden lg:block w-px h-16 bg-gradient-to-b from-transparent via-gray-500/30 to-transparent" />
+
+                                    {/* Distribución por nivel */}
+                                    <div className="flex gap-3">
+                                        <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
+                                            <p className="text-2xl font-bold text-blue-500">{students.filter(s => s.level === "Beginner").length}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Beginner</p>
+                                        </div>
+                                        <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
+                                            <p className="text-2xl font-bold text-amber-500">{students.filter(s => s.level === "Intermediate").length}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Intermediate</p>
+                                        </div>
+                                        <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
+                                            <p className="text-2xl font-bold text-emerald-500">{students.filter(s => s.level === "Advanced").length}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Advanced</p>
+                                        </div>
                                     </div>
-                                    <button
-                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                        disabled={currentPage === totalPages}
-                                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        style={{ background: '#014287', color: 'white' }}
-                                    >
-                                        Siguiente
-                                    </button>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+                            <div className="flex gap-2 flex-wrap">
+                                <button
+                                    onClick={() => setActiveTab("students")}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "students" ? "text-white" : ""}`}
+                                    style={activeTab === "students"
+                                        ? { background: '#014287', color: 'white' }
+                                        : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
+                                >
+                                    Estudiantes
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("payments")}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "payments" ? "text-white" : ""}`}
+                                    style={activeTab === "payments"
+                                        ? { background: '#014287', color: 'white' }
+                                        : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
+                                >
+                                    <CircleDollarSign className="w-4 h-4" strokeWidth={2} />
+                                    Pagos
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("credentials")}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "credentials" ? "text-white" : ""}`}
+                                    style={activeTab === "credentials"
+                                        ? { background: '#014287', color: 'white' }
+                                        : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
+                                >
+                                    <Shield className="w-4 h-4" strokeWidth={2} />
+                                    Credenciales
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("admins")}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "admins" ? "text-white" : ""}`}
+                                    style={activeTab === "admins"
+                                        ? { background: '#014287', color: 'white' }
+                                        : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
+                                >
+                                    <Users className="w-4 h-4" strokeWidth={2} />
+                                    Administradores
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("reports")}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "reports" ? "text-white" : ""}`}
+                                    style={activeTab === "reports"
+                                        ? { background: '#014287', color: 'white' }
+                                        : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
+                                >
+                                    <BarChart3 className="w-4 h-4" strokeWidth={2} />
+                                    Reportes
+                                </button>
+                            </div>
+
+                            {activeTab !== "payments" && activeTab !== "admins" && activeTab !== "reports" && (
+                                <button
+                                    onClick={() => setShowCreateModal(true)}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all hover:opacity-90"
+                                    style={{ background: '#014287' }}
+                                >
+                                    <Plus className="w-5 h-5" strokeWidth={2} />
+                                    Nuevo Estudiante
+                                </button>
+                            )}
+
+                            {activeTab === "admins" && (
+                                <button
+                                    onClick={() => setShowCreateAdminModal(true)}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all hover:opacity-90"
+                                    style={{ background: '#014287' }}
+                                >
+                                    <UserPlus className="w-5 h-5" strokeWidth={2} />
+                                    Nuevo Administrador
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Barra de búsqueda y filtros - Solo para estudiantes y credenciales */}
+                        {(activeTab === "students" || activeTab === "credentials") && (
+                            <div className="flex flex-wrap gap-4 mb-6 p-4 rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
+                                {/* Búsqueda */}
+                                <div className="flex-1 min-w-[200px]">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-tertiary)' }} strokeWidth={2} />
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar por número o nombre..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full pl-10 pr-4 py-2 rounded-lg focus:outline-none transition-all"
+                                            style={{
+                                                background: 'var(--input-bg)',
+                                                border: '1px solid var(--input-border)',
+                                                color: 'var(--text-primary)'
+                                            }}
+                                            onFocus={(e) => e.target.style.borderColor = '#2596be'}
+                                            onBlur={(e) => e.target.style.borderColor = 'var(--input-border)'}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Filtro por nivel */}
+                                <select
+                                    value={filterLevel}
+                                    onChange={(e) => setFilterLevel(e.target.value)}
+                                    className="px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-white font-medium cursor-pointer"
+                                    style={{ background: '#014287', border: 'none' }}
+                                >
+                                    <option value="all" className="bg-gray-800 text-white">Todos los niveles</option>
+                                    <option value="Beginner" className="bg-gray-800 text-white">Beginner</option>
+                                    <option value="Intermediate" className="bg-gray-800 text-white">Intermediate</option>
+                                    <option value="Advanced" className="bg-gray-800 text-white">Advanced</option>
+                                </select>
+
+                                {/* Filtro por estado */}
+                                <select
+                                    value={filterStatus}
+                                    onChange={(e) => setFilterStatus(e.target.value)}
+                                    className="px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-white font-medium cursor-pointer"
+                                    style={{ background: '#014287', border: 'none' }}
+                                >
+                                    <option value="all" className="bg-gray-800 text-white">Todos los estados</option>
+                                    <option value="active" className="bg-gray-800 text-white">Activos</option>
+                                    <option value="inactive" className="bg-gray-800 text-white">Inactivos</option>
+                                </select>
+
+                                {/* Limpiar filtros */}
+                                {(searchTerm || filterLevel !== "all" || filterStatus !== "all") && (
+                                    <button
+                                        onClick={() => {
+                                            setSearchTerm("");
+                                            setFilterLevel("all");
+                                            setFilterStatus("all");
+                                        }}
+                                        className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                        style={{ background: '#ea242e', color: 'white' }}
+                                    >
+                                        Limpiar filtros
+                                    </button>
+                                )}
+                            </div>
                         )}
-                    </div>
-                )}
-                </>
+
+                        {/* Content - Reports Tab */}
+                        {activeTab === "reports" ? (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* Reporte de Ingresos Mensuales */}
+                                <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                                            <CircleDollarSign className="w-5 h-5 text-green-500" strokeWidth={2} />
+                                        </div>
+                                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Ingresos del Mes</h3>
+                                    </div>
+                                    <p className="text-4xl font-bold text-green-500 mb-2">${getMonthlyIncome().toLocaleString()}</p>
+                                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                        {new Date().toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
+                                    </p>
+                                    <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
+                                        <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                                            Total acumulado: <span className="font-semibold text-green-500">${payments.filter(p => p.status === "paid").reduce((acc, p) => acc + p.amount, 0).toLocaleString()}</span>
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Estudiantes por Nivel */}
+                                <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                                            <Users className="w-5 h-5 text-blue-500" strokeWidth={2} />
+                                        </div>
+                                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Estudiantes por Nivel</h3>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <div className="flex justify-between mb-1">
+                                                <span className="text-sm font-medium text-blue-500">Beginner</span>
+                                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{getStudentsByLevel().Beginner}</span>
+                                            </div>
+                                            <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-alt)' }}>
+                                                <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${students.length > 0 ? (getStudentsByLevel().Beginner / students.length) * 100 : 0}%` }} />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between mb-1">
+                                                <span className="text-sm font-medium text-yellow-500">Intermediate</span>
+                                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{getStudentsByLevel().Intermediate}</span>
+                                            </div>
+                                            <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-alt)' }}>
+                                                <div className="h-full bg-yellow-500 rounded-full transition-all" style={{ width: `${students.length > 0 ? (getStudentsByLevel().Intermediate / students.length) * 100 : 0}%` }} />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between mb-1">
+                                                <span className="text-sm font-medium text-green-500">Advanced</span>
+                                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{getStudentsByLevel().Advanced}</span>
+                                            </div>
+                                            <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-alt)' }}>
+                                                <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${students.length > 0 ? (getStudentsByLevel().Advanced / students.length) * 100 : 0}%` }} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Tasa de Deserción */}
+                                <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+                                            <TrendingDown className="w-5 h-5 text-red-500" strokeWidth={2} />
+                                        </div>
+                                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Tasa de Deserción</h3>
+                                    </div>
+                                    <p className="text-4xl font-bold mb-2" style={{ color: Number(getDropoutRate()) > 20 ? '#ef4444' : Number(getDropoutRate()) > 10 ? '#f59e0b' : '#22c55e' }}>
+                                        {getDropoutRate()}%
+                                    </p>
+                                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                        {students.filter(s => s.status === "inactive").length} de {students.length} estudiantes inactivos
+                                    </p>
+                                    <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
+                                        <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                                            {Number(getDropoutRate()) <= 10 ? "✅ Excelente retención" : Number(getDropoutRate()) <= 20 ? "⚠️ Atención moderada" : "🚨 Requiere acción"}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Resumen General */}
+                                <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                                            <FileText className="w-5 h-5 text-blue-500" strokeWidth={2} />
+                                        </div>
+                                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Resumen General</h3>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
+                                            <span style={{ color: 'var(--text-secondary)' }}>Total Estudiantes</span>
+                                            <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{students.length}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
+                                            <span style={{ color: 'var(--text-secondary)' }}>Estudiantes Activos</span>
+                                            <span className="font-bold text-green-500">{students.filter(s => s.status === "active").length}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
+                                            <span style={{ color: 'var(--text-secondary)' }}>Administradores</span>
+                                            <span className="font-bold text-blue-500">{admins.length}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
+                                            <span style={{ color: 'var(--text-secondary)' }}>Pagos Registrados</span>
+                                            <span className="font-bold text-blue-500">{payments.filter(p => p.status === "paid").length}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : activeTab === "payments" ? (
+                            <PaymentsPanel
+                                students={students}
+                                payments={payments}
+                                onPaymentConfirm={handlePaymentConfirm}
+                                onPaymentRevoke={handlePaymentRevoke}
+                                socket={socket}
+                            />
+                        ) : activeTab === "admins" ? (
+                            /* Content - Admins Tab */
+                            <div className="data-table rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
+                                <div className="p-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                    <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                        Gestión de Administradores
+                                    </h2>
+                                    <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+                                        Los administradores pueden gestionar estudiantes, credenciales y pagos
+                                    </p>
+                                </div>
+
+                                <div className="grid gap-4 p-6">
+                                    {admins.map((admin) => (
+                                        <div
+                                            key={admin.id}
+                                            className="flex items-center justify-between p-4 rounded-xl transition-colors"
+                                            style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg">
+                                                    {admin.name.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>{admin.name}</h3>
+                                                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{admin.email}</p>
+                                                    <div className="flex items-center gap-3 mt-1">
+                                                        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                                            Creado: {new Date(admin.createdAt).toLocaleDateString()}
+                                                        </span>
+                                                        {admin.lastLogin && (
+                                                            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                                                • Último acceso: {admin.lastLogin}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-3">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${admin.status === "active"
+                                                    ? "bg-green-500/20 text-green-500"
+                                                    : "bg-gray-500/20 text-gray-500"
+                                                    }`}>
+                                                    {admin.status === "active" ? "Activo" : "Inactivo"}
+                                                </span>
+
+                                                <button
+                                                    onClick={() => handleToggleAdminStatus(admin.id)}
+                                                    className="p-2 rounded-lg transition-colors hover:bg-amber-500/20"
+                                                    title={admin.status === "active" ? "Desactivar" : "Activar"}
+                                                >
+                                                    {admin.status === "active" ? (
+                                                        <Ban className="w-5 h-5 text-amber-500" strokeWidth={2} />
+                                                    ) : (
+                                                        <CheckCircle className="w-5 h-5 text-amber-500" strokeWidth={2} />
+                                                    )}
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDeleteAdmin(admin)}
+                                                    className="p-2 rounded-lg transition-colors hover:bg-red-500/20"
+                                                    title="Eliminar"
+                                                >
+                                                    <Trash2 className="w-5 h-5 text-red-500" strokeWidth={2} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {admins.length === 0 && (
+                                        <div className="text-center py-12">
+                                            <Users className="w-16 h-16 mx-auto mb-4 opacity-50" style={{ color: 'var(--text-tertiary)' }} strokeWidth={1.5} />
+                                            <p style={{ color: 'var(--text-secondary)' }}>No hay administradores registrados</p>
+                                            <button
+                                                onClick={() => setShowCreateAdminModal(true)}
+                                                className="mt-4 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-colors"
+                                                style={{ background: '#014287' }}
+                                            >
+                                                Crear primer administrador
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : activeTab === "credentials" ? (
+                            <CredentialsPanel students={students} />
+                        ) : (
+                            /* Content - Students Tab (Default) */
+                            <div className="data-table rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
+                                <div className="p-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                    <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                        Seguimiento de Estudiantes
+                                    </h2>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                                    No.
+                                                </th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                                    Estudiante
+                                                </th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                                    Nivel
+                                                </th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                                    Tel. Emergencia
+                                                </th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                                    Inscripción
+                                                </th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                                    Estado
+                                                </th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                                    Acciones
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {paginatedStudents.map((student) => (
+                                                <tr key={student.id} className="table-row-hover transition-colors" style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                                    <td className="px-3 py-3 whitespace-nowrap">
+                                                        <span className="text-sm font-mono text-cyan-500">{student.studentNumber}</span>
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap">
+                                                        <div>
+                                                            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{student.name}</p>
+                                                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{student.email}</p>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap">
+                                                        <span className={`inline-flex items-center justify-center w-24 px-2 py-0.5 rounded-full text-xs font-medium border ${getLevelBadge(student.level)}`}>
+                                                            {student.level}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                                        {student.emergencyPhone || ""}
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                                        {formatDate(student.createdAt)}
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap">
+                                                        <button
+                                                            onClick={() => handleToggleStatusClick(student)}
+                                                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium cursor-pointer transition-all hover:scale-105 ${student.status === "active"
+                                                                ? "bg-green-500/20 text-green-500 hover:bg-green-500/30"
+                                                                : "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
+                                                                }`}
+                                                            title={student.status === "active" ? "Clic para desactivar" : "Clic para activar"}
+                                                        >
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${student.status === "active" ? "bg-green-500" : "bg-gray-500"}`} />
+                                                            {student.status === "active" ? "Activo" : "Inactivo"}
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap">
+                                                        <div className="flex items-center gap-1">
+                                                            <button
+                                                                onClick={() => handleEditStudent(student)}
+                                                                className="p-1.5 text-blue-500 hover:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-colors"
+                                                                title="Editar Estudiante"
+                                                            >
+                                                                <Pencil className="w-4 h-4" strokeWidth={2} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Paginación */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-between p-4" style={{ borderTop: '1px solid var(--border-color)' }}>
+                                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                            Mostrando {((currentPage - 1) * studentsPerPage) + 1} - {Math.min(currentPage * studentsPerPage, filteredStudents.length)} de {filteredStudents.length} estudiantes
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                                disabled={currentPage === 1}
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                style={{ background: '#014287', color: 'white' }}
+                                            >
+                                                Anterior
+                                            </button>
+                                            <div className="flex items-center gap-1">
+                                                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                                                    let pageNum;
+                                                    if (totalPages <= 5) {
+                                                        pageNum = i + 1;
+                                                    } else if (currentPage <= 3) {
+                                                        pageNum = i + 1;
+                                                    } else if (currentPage >= totalPages - 2) {
+                                                        pageNum = totalPages - 4 + i;
+                                                    } else {
+                                                        pageNum = currentPage - 2 + i;
+                                                    }
+                                                    return (
+                                                        <button
+                                                            key={pageNum}
+                                                            onClick={() => setCurrentPage(pageNum)}
+                                                            className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === pageNum ? 'text-white' : ''}`}
+                                                            style={currentPage === pageNum
+                                                                ? { background: '#014287' }
+                                                                : { background: 'var(--surface)', color: 'var(--text-secondary)' }
+                                                            }
+                                                        >
+                                                            {pageNum}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            <button
+                                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                                disabled={currentPage === totalPages}
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                style={{ background: '#014287', color: 'white' }}
+                                            >
+                                                Siguiente
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </>
                 )}
             </main>
 
             {/* Modal: Crear Estudiante */}
-            {showCreateModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Estudiante</h3>
-                            <button onClick={() => setShowCreateModal(false)} style={{ color: 'var(--text-secondary)' }}>
-                                <X className="w-5 h-5" strokeWidth={2} />
-                            </button>
-                        </div>
-
-                        <div className="space-y-3">
-                            {/* Nombre */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
-                                <input
-                                    type="text"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    placeholder="Juan Pérez García"
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                />
-                                {formErrors.name && <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>}
+            {
+                showCreateModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Estudiante</h3>
+                                <button onClick={() => setShowCreateModal(false)} style={{ color: 'var(--text-secondary)' }}>
+                                    <X className="w-5 h-5" strokeWidth={2} />
+                                </button>
                             </div>
 
-                            {/* Email */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
-                                <input
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    placeholder="estudiante@email.com"
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                />
-                                {formErrors.email && <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>}
-                            </div>
-
-                            {/* Teléfono de Emergencia */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Tel. Emergencia (Papás)</label>
-                                <input
-                                    type="tel"
-                                    value={formData.emergencyPhone}
-                                    onChange={(e) => setFormData({ ...formData, emergencyPhone: e.target.value })}
-                                    placeholder="55 1234 5678"
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
-                                />
-                            </div>
-
-                            {/* Nivel */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nivel</label>
-                                <select
-                                    value={formData.level}
-                                    onChange={(e) => setFormData({ ...formData, level: e.target.value as NewStudentForm["level"] })}
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
-                                >
-                                    <option value="Beginner" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner</option>
-                                    <option value="Intermediate" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate</option>
-                                    <option value="Advanced" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced</option>
-                                </select>
-                            </div>
-
-                            {/* Mensualidad */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Mensualidad</label>
-                                <select
-                                    value={formData.priceOption}
-                                    onChange={(e) => setFormData({ ...formData, priceOption: e.target.value, customPrice: "" })}
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
-                                >
-                                    {PRICE_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value} style={{ background: '#1f2937', color: '#ffffff' }}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Campo de precio personalizado */}
-                            {formData.priceOption === "custom" && (
+                            <div className="space-y-3">
+                                {/* Nombre */}
                                 <div>
-                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Precio Personalizado</label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            value={formData.customPrice}
-                                            onChange={(e) => setFormData({ ...formData, customPrice: e.target.value })}
-                                            placeholder="0.00"
-                                            className={`w-full pl-7 pr-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.customPrice ? "border-red-500" : ""}`}
-                                            style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.customPrice ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                        />
-                                    </div>
-                                    {formErrors.customPrice && <p className="mt-1 text-sm text-red-500">{formErrors.customPrice}</p>}
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
+                                    <input
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        placeholder="Juan Pérez García"
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                    />
+                                    {formErrors.name && <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>}
                                 </div>
-                            )}
-                        </div>
 
-                        <div className="flex gap-3 mt-5">
-                            <button
-                                onClick={handleCreateStudent}
-                                disabled={isCreating}
-                                className="flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm"
-                                style={{ background: '#014287' }}
-                            >
-                                {isCreating ? "Creando..." : "Crear y Generar Credencial"}
-                            </button>
-                            <button
-                                onClick={() => setShowCreateModal(false)}
-                                className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
-                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
-                            >
-                                Cancelar
-                            </button>
+                                {/* Email */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
+                                    <input
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        placeholder="estudiante@email.com"
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                    />
+                                    {formErrors.email && <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>}
+                                </div>
+
+                                {/* Teléfono de Emergencia */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Tel. Emergencia (Papás)</label>
+                                    <input
+                                        type="tel"
+                                        value={formData.emergencyPhone}
+                                        onChange={(e) => setFormData({ ...formData, emergencyPhone: e.target.value })}
+                                        placeholder="55 1234 5678"
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                    />
+                                </div>
+
+                                {/* Nivel */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nivel</label>
+                                    <select
+                                        value={formData.level}
+                                        onChange={(e) => setFormData({ ...formData, level: e.target.value as NewStudentForm["level"] })}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                    >
+                                        <option value="Beginner" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner</option>
+                                        <option value="Intermediate" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate</option>
+                                        <option value="Advanced" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced</option>
+                                    </select>
+                                </div>
+
+                                {/* Esquema de Pago */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Esquema de Pago</label>
+                                    <select
+                                        value={formData.paymentScheme}
+                                        onChange={(e) => setFormData({ ...formData, paymentScheme: e.target.value as any })}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                    >
+                                        <option value="monthly_28">Cada 28 días</option>
+                                        <option value="biweekly">Quincenal (Catorcenal)</option>
+                                        <option value="weekly">Semanal</option>
+                                        <option value="daily">Diario</option>
+                                    </select>
+                                </div>
+
+                                {/* Selección de días (Solo para Diario) */}
+                                {formData.paymentScheme === "daily" && (
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                                            Días de Clase
+                                        </label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {[
+                                                { id: 1, label: "Lun" },
+                                                { id: 2, label: "Mar" },
+                                                { id: 3, label: "Mié" },
+                                                { id: 4, label: "Jue" },
+                                                { id: 5, label: "Vie" },
+                                                { id: 6, label: "Sáb" },
+                                                { id: 0, label: "Dom" },
+                                            ].map((day) => (
+                                                <button
+                                                    key={day.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const currentDays = formData.classDays || [];
+                                                        const isSelected = currentDays.includes(day.id);
+
+                                                        // Si ya está seleccionado, lo quitamos
+                                                        if (isSelected) {
+                                                            setFormData({ ...formData, classDays: currentDays.filter(d => d !== day.id) });
+                                                        } else {
+                                                            // Si no está seleccionado, verificamos límite (máximo 2)
+                                                            if (currentDays.length < 2) {
+                                                                setFormData({ ...formData, classDays: [...currentDays, day.id] });
+                                                            }
+                                                        }
+                                                    }}
+                                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${formData.classDays?.includes(day.id)
+                                                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                                                        : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                                                        }`}
+                                                >
+                                                    {day.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Mensualidad */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Mensualidad</label>
+                                    <select
+                                        value={formData.priceOption}
+                                        onChange={(e) => setFormData({ ...formData, priceOption: e.target.value, customPrice: "" })}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                    >
+                                        {PRICE_OPTIONS.map((option) => (
+                                            <option key={option.value} value={option.value} style={{ background: '#1f2937', color: '#ffffff' }}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Campo de precio personalizado */}
+                                {formData.priceOption === "custom" && (
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Precio Personalizado</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={formData.customPrice}
+                                                onChange={(e) => setFormData({ ...formData, customPrice: e.target.value })}
+                                                placeholder="0.00"
+                                                className={`w-full pl-7 pr-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.customPrice ? "border-red-500" : ""}`}
+                                                style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.customPrice ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                            />
+                                        </div>
+                                        {formErrors.customPrice && <p className="mt-1 text-sm text-red-500">{formErrors.customPrice}</p>}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex gap-3 mt-5">
+                                <button
+                                    onClick={handleCreateStudent}
+                                    disabled={isCreating}
+                                    className="flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm"
+                                    style={{ background: '#014287' }}
+                                >
+                                    {isCreating ? "Creando..." : "Crear y Generar Credencial"}
+                                </button>
+                                <button
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
+                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Modal: Crear Admin */}
-            {showCreateAdminModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
-                                    <UserPlus className="w-5 h-5 text-white" strokeWidth={2} />
+            {
+                showCreateAdminModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
+                                        <UserPlus className="w-5 h-5 text-white" strokeWidth={2} />
+                                    </div>
+                                    <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Administrador</h3>
                                 </div>
-                                <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Administrador</h3>
-                            </div>
-                            <button onClick={() => setShowCreateAdminModal(false)} style={{ color: 'var(--text-secondary)' }}>
-                                <X className="w-5 h-5" strokeWidth={2} />
-                            </button>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
-                                <input
-                                    type="text"
-                                    value={adminFormData.name}
-                                    onChange={(e) => setAdminFormData({ ...adminFormData, name: e.target.value })}
-                                    placeholder="Carlos Administrador"
-                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                />
-                                {adminFormErrors.name && <p className="mt-1 text-sm text-red-500">{adminFormErrors.name}</p>}
+                                <button onClick={() => setShowCreateAdminModal(false)} style={{ color: 'var(--text-secondary)' }}>
+                                    <X className="w-5 h-5" strokeWidth={2} />
+                                </button>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Email</label>
-                                <input
-                                    type="email"
-                                    value={adminFormData.email}
-                                    onChange={(e) => setAdminFormData({ ...adminFormData, email: e.target.value })}
-                                    placeholder="admin@academia.com"
-                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                />
-                                {adminFormErrors.email && <p className="mt-1 text-sm text-red-500">{adminFormErrors.email}</p>}
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
+                                    <input
+                                        type="text"
+                                        value={adminFormData.name}
+                                        onChange={(e) => setAdminFormData({ ...adminFormData, name: e.target.value })}
+                                        placeholder="Carlos Administrador"
+                                        className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                    />
+                                    {adminFormErrors.name && <p className="mt-1 text-sm text-red-500">{adminFormErrors.name}</p>}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Email</label>
+                                    <input
+                                        type="email"
+                                        value={adminFormData.email}
+                                        onChange={(e) => setAdminFormData({ ...adminFormData, email: e.target.value })}
+                                        placeholder="admin@academia.com"
+                                        className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                    />
+                                    {adminFormErrors.email && <p className="mt-1 text-sm text-red-500">{adminFormErrors.email}</p>}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Contraseña</label>
+                                    <input
+                                        type="password"
+                                        value={adminFormData.password}
+                                        onChange={(e) => setAdminFormData({ ...adminFormData, password: e.target.value })}
+                                        placeholder="••••••••"
+                                        className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.password ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                    />
+                                    {adminFormErrors.password && <p className="mt-1 text-sm text-red-500">{adminFormErrors.password}</p>}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Confirmar Contraseña</label>
+                                    <input
+                                        type="password"
+                                        value={adminFormData.confirmPassword}
+                                        onChange={(e) => setAdminFormData({ ...adminFormData, confirmPassword: e.target.value })}
+                                        placeholder="••••••••"
+                                        className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.confirmPassword ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                    />
+                                    {adminFormErrors.confirmPassword && <p className="mt-1 text-sm text-red-500">{adminFormErrors.confirmPassword}</p>}
+                                </div>
+
+                                <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                                    <p className="text-sm text-blue-500">
+                                        <span className="font-medium">Permisos:</span> Este administrador podrá gestionar estudiantes, credenciales y pagos.
+                                    </p>
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Contraseña</label>
-                                <input
-                                    type="password"
-                                    value={adminFormData.password}
-                                    onChange={(e) => setAdminFormData({ ...adminFormData, password: e.target.value })}
-                                    placeholder="••••••••"
-                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.password ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                />
-                                {adminFormErrors.password && <p className="mt-1 text-sm text-red-500">{adminFormErrors.password}</p>}
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={handleCreateAdmin}
+                                    disabled={isCreating}
+                                    className="flex-1 px-4 py-3 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90"
+                                    style={{ background: '#014287' }}
+                                >
+                                    {isCreating ? "Creando..." : "Crear Administrador"}
+                                </button>
+                                <button
+                                    onClick={() => setShowCreateAdminModal(false)}
+                                    className="px-4 py-3 font-medium rounded-lg transition-colors"
+                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                                >
+                                    Cancelar
+                                </button>
                             </div>
-
-                            <div>
-                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Confirmar Contraseña</label>
-                                <input
-                                    type="password"
-                                    value={adminFormData.confirmPassword}
-                                    onChange={(e) => setAdminFormData({ ...adminFormData, confirmPassword: e.target.value })}
-                                    placeholder="••••••••"
-                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.confirmPassword ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                />
-                                {adminFormErrors.confirmPassword && <p className="mt-1 text-sm text-red-500">{adminFormErrors.confirmPassword}</p>}
-                            </div>
-
-                            <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-                                <p className="text-sm text-blue-500">
-                                    <span className="font-medium">Permisos:</span> Este administrador podrá gestionar estudiantes, credenciales y pagos.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-6">
-                            <button
-                                onClick={handleCreateAdmin}
-                                disabled={isCreating}
-                                className="flex-1 px-4 py-3 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90"
-                                style={{ background: '#014287' }}
-                            >
-                                {isCreating ? "Creando..." : "Crear Administrador"}
-                            </button>
-                            <button
-                                onClick={() => setShowCreateAdminModal(false)}
-                                className="px-4 py-3 font-medium rounded-lg transition-colors"
-                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
-                            >
-                                Cancelar
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Modal: Ver Credencial */}
-            {selectedStudent && (
-                <CredentialModal
-                    student={selectedStudent}
-                    isOpen={showCredentialModal}
-                    onClose={() => setShowCredentialModal(false)}
-                />
-            )}
+            {
+                selectedStudent && (
+                    <CredentialModal
+                        student={selectedStudent}
+                        isOpen={showCredentialModal}
+                        onClose={() => setShowCredentialModal(false)}
+                    />
+                )
+            }
 
             {/* Modal: Confirmar Eliminación de Administrador */}
-            {showDeleteAdminModal && adminToDelete && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                        {/* Header con icono de advertencia */}
-                        <div className="flex flex-col items-center text-center mb-6">
-                            <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
-                                <AlertTriangle className="w-8 h-8 text-red-500" strokeWidth={2} />
-                            </div>
-                            <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-                                Eliminar Administrador
-                            </h3>
-                            <p style={{ color: 'var(--text-secondary)' }}>
-                                ¿Estás seguro de eliminar a <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{adminToDelete.name}</span>?
-                            </p>
-                            <p className="text-sm mt-2" style={{ color: 'var(--text-tertiary)' }}>
-                                Este administrador perderá acceso al sistema. Esta acción no se puede deshacer.
-                            </p>
-                        </div>
-
-                        {/* Info del administrador a eliminar */}
-                        <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold">
-                                    {adminToDelete.name.charAt(0).toUpperCase()}
+            {
+                showDeleteAdminModal && adminToDelete && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                            {/* Header con icono de advertencia */}
+                            <div className="flex flex-col items-center text-center mb-6">
+                                <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+                                    <AlertTriangle className="w-8 h-8 text-red-500" strokeWidth={2} />
                                 </div>
-                                <div>
-                                    <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{adminToDelete.name}</p>
-                                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{adminToDelete.email}</p>
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-500 mt-1">
-                                        <ShieldCheck className="w-3 h-3" strokeWidth={2} />
-                                        {adminToDelete.role === "admin" ? "Administrador" : "Super Admin"}
-                                    </span>
+                                <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+                                    Eliminar Administrador
+                                </h3>
+                                <p style={{ color: 'var(--text-secondary)' }}>
+                                    ¿Estás seguro de eliminar a <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{adminToDelete.name}</span>?
+                                </p>
+                                <p className="text-sm mt-2" style={{ color: 'var(--text-tertiary)' }}>
+                                    Este administrador perderá acceso al sistema. Esta acción no se puede deshacer.
+                                </p>
+                            </div>
+
+                            {/* Info del administrador a eliminar */}
+                            <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold">
+                                        {adminToDelete.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{adminToDelete.name}</p>
+                                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{adminToDelete.email}</p>
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-500 mt-1">
+                                            <ShieldCheck className="w-3 h-3" strokeWidth={2} />
+                                            {adminToDelete.role === "admin" ? "Administrador" : "Super Admin"}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Botones */}
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    setShowDeleteAdminModal(false);
-                                    setAdminToDelete(null);
-                                }}
-                                className="flex-1 px-4 py-3 font-medium rounded-lg transition-colors"
-                                style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={confirmDeleteAdmin}
-                                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg transition-all"
-                            >
-                                Sí, Eliminar
-                            </button>
+                            {/* Botones */}
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        setShowDeleteAdminModal(false);
+                                        setAdminToDelete(null);
+                                    }}
+                                    className="flex-1 px-4 py-3 font-medium rounded-lg transition-colors"
+                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={confirmDeleteAdmin}
+                                    className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg transition-all"
+                                >
+                                    Sí, Eliminar
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Modal: QR de Pago */}
-            {showQRModal && selectedStudent && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                        {/* Header */}
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                                QR de Pago
-                            </h3>
-                            <button
-                                onClick={() => setShowQRModal(false)}
-                                className="p-2 rounded-lg hover:bg-gray-500/20 transition-colors"
-                                style={{ color: 'var(--text-secondary)' }}
-                            >
-                                <X className="w-5 h-5" strokeWidth={2} />
-                            </button>
-                        </div>
+            {
+                showQRModal && selectedStudent && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                            {/* Header */}
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                                    QR de Pago
+                                </h3>
+                                <button
+                                    onClick={() => setShowQRModal(false)}
+                                    className="p-2 rounded-lg hover:bg-gray-500/20 transition-colors"
+                                    style={{ color: 'var(--text-secondary)' }}
+                                >
+                                    <X className="w-5 h-5" strokeWidth={2} />
+                                </button>
+                            </div>
 
-                        {/* Info del estudiante */}
-                        <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg">
-                                    {selectedStudent.name.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                    <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{selectedStudent.name}</p>
-                                    <p className="text-sm font-mono text-cyan-500">#{selectedStudent.studentNumber}</p>
+                            {/* Info del estudiante */}
+                            <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg">
+                                        {selectedStudent.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{selectedStudent.name}</p>
+                                        <p className="text-sm font-mono text-cyan-500">#{selectedStudent.studentNumber}</p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* QR Code */}
-                        <div className="flex flex-col items-center p-6 bg-white rounded-xl mb-6">
-                            <QRCodeSVG
-                                value={`${typeof window !== 'undefined' ? window.location.origin : ''}/pay/scan/${selectedStudent.id}`}
-                                size={200}
-                                level="H"
-                                includeMargin={true}
-                            />
-                            <p className="text-xs text-gray-500 mt-3 text-center">
-                                Escanea este código para registrar el pago
-                            </p>
-                        </div>
+                            {/* QR Code */}
+                            <div className="flex flex-col items-center p-6 bg-white rounded-xl mb-6">
+                                <QRCodeSVG
+                                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/pay/scan/${selectedStudent.id}`}
+                                    size={200}
+                                    level="H"
+                                    includeMargin={true}
+                                />
+                                <p className="text-xs text-gray-500 mt-3 text-center">
+                                    Escanea este código para registrar el pago
+                                </p>
+                            </div>
 
-                        {/* URL de pago */}
-                        <div className="p-3 rounded-lg mb-6 overflow-hidden" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
-                            <p className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>URL de pago:</p>
-                            <p className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
-                                {typeof window !== 'undefined' ? `${window.location.origin}/pay/scan/${selectedStudent.id}` : ''}
-                            </p>
-                        </div>
+                            {/* URL de pago */}
+                            <div className="p-3 rounded-lg mb-6 overflow-hidden" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
+                                <p className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>URL de pago:</p>
+                                <p className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
+                                    {typeof window !== 'undefined' ? `${window.location.origin}/pay/scan/${selectedStudent.id}` : ''}
+                                </p>
+                            </div>
 
-                        {/* Botones */}
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    const url = `${window.location.origin}/pay/scan/${selectedStudent.id}`;
-                                    navigator.clipboard.writeText(url);
-                                    alert('URL copiada al portapapeles');
-                                }}
-                                className="flex-1 px-4 py-3 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-                                style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
-                            >
-                                <Copy className="w-4 h-4" strokeWidth={2} />
-                                Copiar URL
-                            </button>
-                            <button
-                                onClick={() => setShowQRModal(false)}
-                                className="flex-1 px-4 py-3 text-white font-medium rounded-lg transition-all hover:opacity-90"
-                                style={{ background: '#014287' }}
-                            >
-                                Cerrar
-                            </button>
+                            {/* Botones */}
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        const url = `${window.location.origin}/pay/scan/${selectedStudent.id}`;
+                                        navigator.clipboard.writeText(url);
+                                        alert('URL copiada al portapapeles');
+                                    }}
+                                    className="flex-1 px-4 py-3 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
+                                >
+                                    <Copy className="w-4 h-4" strokeWidth={2} />
+                                    Copiar URL
+                                </button>
+                                <button
+                                    onClick={() => setShowQRModal(false)}
+                                    className="flex-1 px-4 py-3 text-white font-medium rounded-lg transition-all hover:opacity-90"
+                                    style={{ background: '#014287' }}
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Modal: Editar Estudiante */}
-            {showEditStudentModal && studentToEdit && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                        {/* Header */}
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
-                                    <Pencil className="w-4 h-4 text-white" strokeWidth={2} />
+            {
+                showEditStudentModal && studentToEdit && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
+                                        <Pencil className="w-4 h-4 text-white" strokeWidth={2} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Editar Estudiante</h3>
+                                        <p className="text-xs font-mono text-cyan-500">#{studentToEdit.studentNumber}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Editar Estudiante</h3>
-                                    <p className="text-xs font-mono text-cyan-500">#{studentToEdit.studentNumber}</p>
-                                </div>
-                            </div>
-                            <button 
-                                onClick={() => {
-                                    setShowEditStudentModal(false);
-                                    setStudentToEdit(null);
-                                }} 
-                                style={{ color: 'var(--text-secondary)' }}
-                            >
-                                <X className="w-5 h-5" strokeWidth={2} />
-                            </button>
-                        </div>
-
-                        <div className="space-y-3">
-                            {/* Nombre */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
-                                <input
-                                    type="text"
-                                    value={editFormData.name}
-                                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                                    placeholder="Nombre del estudiante"
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                />
-                                {editFormErrors.name && <p className="mt-1 text-xs text-red-500">{editFormErrors.name}</p>}
-                            </div>
-
-                            {/* Email */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
-                                <input
-                                    type="email"
-                                    value={editFormData.email}
-                                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                                    placeholder="correo@ejemplo.com"
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                />
-                                {editFormErrors.email && <p className="mt-1 text-xs text-red-500">{editFormErrors.email}</p>}
-                            </div>
-
-                            {/* Teléfono de Emergencia */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Tel. Emergencia (Papás)</label>
-                                <input
-                                    type="tel"
-                                    value={editFormData.emergencyPhone}
-                                    onChange={(e) => {
-                                        const value = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                        setEditFormData({ ...editFormData, emergencyPhone: value });
+                                <button
+                                    onClick={() => {
+                                        setShowEditStudentModal(false);
+                                        setStudentToEdit(null);
                                     }}
-                                    placeholder="5512345678"
-                                    maxLength={10}
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
-                                />
-                            </div>
-
-                            {/* Nivel */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nivel</label>
-                                <select
-                                    value={editFormData.level}
-                                    onChange={(e) => setEditFormData({ ...editFormData, level: e.target.value as EditStudentForm["level"] })}
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                    style={{ color: 'var(--text-secondary)' }}
                                 >
-                                    <option value="Beginner" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner</option>
-                                    <option value="Intermediate" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate</option>
-                                    <option value="Advanced" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced</option>
-                                </select>
+                                    <X className="w-5 h-5" strokeWidth={2} />
+                                </button>
                             </div>
-                        </div>
 
-                        <div className="flex gap-3 mt-5">
-                            <button
-                                onClick={handleSaveEditStudent}
-                                disabled={isEditing}
-                                className="flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm"
-                                style={{ background: '#014287' }}
-                            >
-                                {isEditing ? "Guardando..." : "Guardar Cambios"}
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowEditStudentModal(false);
-                                    setStudentToEdit(null);
-                                }}
-                                className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
-                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
-                            >
-                                Cancelar
-                            </button>
+                            <div className="space-y-3">
+                                {/* Nombre */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
+                                    <input
+                                        type="text"
+                                        value={editFormData.name}
+                                        onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                        placeholder="Nombre del estudiante"
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                    />
+                                    {editFormErrors.name && <p className="mt-1 text-xs text-red-500">{editFormErrors.name}</p>}
+                                </div>
+
+                                {/* Email */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
+                                    <input
+                                        type="email"
+                                        value={editFormData.email}
+                                        onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                                        placeholder="correo@ejemplo.com"
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                    />
+                                    {editFormErrors.email && <p className="mt-1 text-xs text-red-500">{editFormErrors.email}</p>}
+                                </div>
+
+                                {/* Teléfono de Emergencia */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Tel. Emergencia (Papás)</label>
+                                    <input
+                                        type="tel"
+                                        value={editFormData.emergencyPhone}
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                            setEditFormData({ ...editFormData, emergencyPhone: value });
+                                        }}
+                                        placeholder="5512345678"
+                                        maxLength={10}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                    />
+                                </div>
+
+                                {/* Nivel */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nivel</label>
+                                    <select
+                                        value={editFormData.level}
+                                        onChange={(e) => setEditFormData({ ...editFormData, level: e.target.value as EditStudentForm["level"] })}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                    >
+                                        <option value="Beginner" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner</option>
+                                        <option value="Intermediate" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate</option>
+                                        <option value="Advanced" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 mt-5">
+                                <button
+                                    onClick={handleSaveEditStudent}
+                                    disabled={isEditing}
+                                    className="flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm"
+                                    style={{ background: '#014287' }}
+                                >
+                                    {isEditing ? "Guardando..." : "Guardar Cambios"}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowEditStudentModal(false);
+                                        setStudentToEdit(null);
+                                    }}
+                                    className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
+                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Modal de confirmación para activar/desactivar estudiante */}
-            {showStatusModal && studentToToggle && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'var(--modal-overlay)' }}>
-                    <div className="rounded-xl shadow-2xl max-w-sm w-full p-5" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${studentToToggle.status === "active" ? "bg-red-500/20" : "bg-green-500/20"}`}>
-                                {studentToToggle.status === "active" ? (
-                                    <UserX className="w-5 h-5 text-red-500" strokeWidth={2} />
-                                ) : (
-                                    <UserCheck className="w-5 h-5 text-green-500" strokeWidth={2} />
-                                )}
+            {
+                showStatusModal && studentToToggle && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'var(--modal-overlay)' }}>
+                        <div className="rounded-xl shadow-2xl max-w-sm w-full p-5" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${studentToToggle.status === "active" ? "bg-red-500/20" : "bg-green-500/20"}`}>
+                                    {studentToToggle.status === "active" ? (
+                                        <UserX className="w-5 h-5 text-red-500" strokeWidth={2} />
+                                    ) : (
+                                        <UserCheck className="w-5 h-5 text-green-500" strokeWidth={2} />
+                                    )}
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
+                                        {studentToToggle.status === "active" ? "Desactivar Estudiante" : "Activar Estudiante"}
+                                    </h3>
+                                    <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>#{studentToToggle.studentNumber}</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
-                                    {studentToToggle.status === "active" ? "Desactivar Estudiante" : "Activar Estudiante"}
-                                </h3>
-                                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>#{studentToToggle.studentNumber}</p>
+
+                            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                                {studentToToggle.status === "active"
+                                    ? `¿Estás seguro de que deseas desactivar a "${studentToToggle.name}"?`
+                                    : `¿Estás seguro de que deseas activar a "${studentToToggle.name}"?`
+                                }
+                            </p>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleConfirmToggleStatus}
+                                    disabled={isTogglingStatus}
+                                    className={`flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm ${studentToToggle.status === "active" ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"}`}
+                                >
+                                    {isTogglingStatus ? (
+                                        <span className="inline-flex items-center justify-center gap-2">
+                                            <Loader2 className="animate-spin h-4 w-4" strokeWidth={2} />
+                                            Procesando...
+                                        </span>
+                                    ) : (
+                                        studentToToggle.status === "active" ? "Sí, Desactivar" : "Sí, Activar"
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowStatusModal(false);
+                                        setStudentToToggle(null);
+                                    }}
+                                    className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
+                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                                >
+                                    Cancelar
+                                </button>
                             </div>
-                        </div>
-
-                        <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                            {studentToToggle.status === "active" 
-                                ? `¿Estás seguro de que deseas desactivar a "${studentToToggle.name}"?`
-                                : `¿Estás seguro de que deseas activar a "${studentToToggle.name}"?`
-                            }
-                        </p>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={handleConfirmToggleStatus}
-                                disabled={isTogglingStatus}
-                                className={`flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm ${studentToToggle.status === "active" ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"}`}
-                            >
-                                {isTogglingStatus ? (
-                                    <span className="inline-flex items-center justify-center gap-2">
-                                        <Loader2 className="animate-spin h-4 w-4" strokeWidth={2} />
-                                        Procesando...
-                                    </span>
-                                ) : (
-                                    studentToToggle.status === "active" ? "Sí, Desactivar" : "Sí, Activar"
-                                )}
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowStatusModal(false);
-                                    setStudentToToggle(null);
-                                }}
-                                className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
-                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
-                            >
-                                Cancelar
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

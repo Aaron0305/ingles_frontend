@@ -2,11 +2,11 @@
 // API CLIENT - Conexión con el Backend
 // ============================================
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 
-    (typeof window !== 'undefined' && 
-     window.location.hostname !== 'localhost' && 
-     window.location.hostname !== '127.0.0.1'
-        ? 'https://ingles-backend-bk4n.onrender.com' 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ||
+    (typeof window !== 'undefined' &&
+        window.location.hostname !== 'localhost' &&
+        window.location.hostname !== '127.0.0.1'
+        ? 'https://ingles-backend-bk4n.onrender.com'
         : 'http://127.0.0.1:3001');
 
 // ============================================
@@ -25,6 +25,9 @@ export interface Student {
     createdAt: string;
     expiresAt?: string;
     lastAccess?: string;
+    paymentScheme?: "daily" | "weekly" | "biweekly" | "monthly_28";
+    classDays?: number[];
+    enrollmentDate?: string;
 }
 
 export interface Admin {
@@ -68,11 +71,11 @@ export interface ApiError {
 
 async function handleResponse<T>(response: Response): Promise<T> {
     const data = await response.json();
-    
+
     if (!response.ok) {
         throw new Error(data.error || "Error en la petición");
     }
-    
+
     return data as T;
 }
 
@@ -95,7 +98,7 @@ export const authApi = {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password }),
         });
-        
+
         return handleResponse<LoginResponse>(response);
     },
 
@@ -127,7 +130,7 @@ export const studentsApi = {
         const response = await fetch(`${API_URL}/api/students`, {
             headers: getAuthHeaders(),
         });
-        
+
         return handleResponse<Student[]>(response);
     },
 
@@ -135,7 +138,7 @@ export const studentsApi = {
         const response = await fetch(`${API_URL}/api/students/${id}`, {
             headers: getAuthHeaders(),
         });
-        
+
         return handleResponse<Student>(response);
     },
 
@@ -145,13 +148,15 @@ export const studentsApi = {
         level: "Beginner" | "Intermediate" | "Advanced";
         monthlyFee?: number;
         emergencyPhone?: string;
+        paymentScheme?: "daily" | "weekly" | "biweekly" | "monthly_28";
+        classDays?: number[];
     }): Promise<Student> {
         const response = await fetch(`${API_URL}/api/students`, {
             method: "POST",
             headers: getAuthHeaders(),
             body: JSON.stringify(data),
         });
-        
+
         return handleResponse<Student>(response);
     },
 
@@ -161,7 +166,7 @@ export const studentsApi = {
             headers: getAuthHeaders(),
             body: JSON.stringify(data),
         });
-        
+
         return handleResponse<Student>(response);
     },
 
@@ -170,7 +175,7 @@ export const studentsApi = {
             method: "DELETE",
             headers: getAuthHeaders(),
         });
-        
+
         return handleResponse<{ success: boolean }>(response);
     },
 
@@ -189,7 +194,7 @@ export const adminsApi = {
         const response = await fetch(`${API_URL}/api/admins`, {
             headers: getAuthHeaders(),
         });
-        
+
         return handleResponse<Admin[]>(response);
     },
 
@@ -204,7 +209,7 @@ export const adminsApi = {
             headers: getAuthHeaders(),
             body: JSON.stringify(data),
         });
-        
+
         return handleResponse<Admin>(response);
     },
 
@@ -214,7 +219,7 @@ export const adminsApi = {
             headers: getAuthHeaders(),
             body: JSON.stringify(data),
         });
-        
+
         return handleResponse<Admin>(response);
     },
 
@@ -223,7 +228,7 @@ export const adminsApi = {
             method: "DELETE",
             headers: getAuthHeaders(),
         });
-        
+
         return handleResponse<{ success: boolean }>(response);
     },
 };
@@ -237,7 +242,7 @@ export const paymentsApi = {
         const response = await fetch(`${API_URL}/api/payments`, {
             headers: getAuthHeaders(),
         });
-        
+
         return handleResponse<Payment[]>(response);
     },
 
@@ -245,7 +250,7 @@ export const paymentsApi = {
         const response = await fetch(`${API_URL}/api/payments?studentId=${studentId}`, {
             headers: getAuthHeaders(),
         });
-        
+
         return handleResponse<Payment[]>(response);
     },
 
@@ -260,7 +265,7 @@ export const paymentsApi = {
             headers: getAuthHeaders(),
             body: JSON.stringify(data),
         });
-        
+
         return handleResponse<Payment>(response);
     },
 
@@ -270,7 +275,7 @@ export const paymentsApi = {
             headers: getAuthHeaders(),
             body: JSON.stringify({ studentId, month, year, action: "revoke" }),
         });
-        
+
         return handleResponse<Payment>(response);
     },
 };
