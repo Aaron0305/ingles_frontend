@@ -92,14 +92,29 @@ const MONTHS_SHORT = [
 
 // Días festivos oficiales y comunes de México (YYYY-MM-DD)
 // Se deben actualizar anualmente o mover a backend
+// Días festivos oficiales y comunes de México (YYYY-MM-DD)
+// Se deben actualizar anualmente o mover a backend
 const MEXICAN_HOLIDAYS = [
-    "2025-01-01", "2025-02-03", "2025-03-17", "2025-04-17", "2025-04-18", "2025-05-01", "2025-09-16", "2025-11-17", "2025-12-25",
-    "2026-01-01", "2026-02-02", "2026-03-16", "2026-04-02", "2026-04-03", "2026-05-01", "2026-09-16", "2026-11-16", "2026-12-25",
+    "2025-01-01", "2025-02-03", "2025-03-17", "2025-04-17", "2025-04-18", "2025-05-01", "2025-09-15", "2025-09-16", "2025-11-17", "2025-12-25",
+    "2026-01-01", "2026-02-02", "2026-03-16", "2026-04-02", "2026-04-03", "2026-05-01", "2026-09-15", "2026-09-16", "2026-11-16", "2026-12-25",
 ];
 
 const isHoliday = (date: Date): boolean => {
     const dateString = date.toISOString().split('T')[0];
-    return MEXICAN_HOLIDAYS.includes(dateString);
+    const isOfficialHoliday = MEXICAN_HOLIDAYS.includes(dateString);
+    if (isOfficialHoliday) return true;
+
+    // Verificar vacaciones: Última semana de diciembre y primera de enero
+    const month = date.getMonth(); // 0-11
+    const day = date.getDate();
+
+    // Diciembre (11): día 20 en adelante (para cubrir ultima semana aprox) o especificamente 22-31?
+    // User said "ultima semana". Let's say 23-31 (approx last week) or allow broad range like server (16-31).
+    // Server logic: Month 11, Day >= 16; Month 0, Day <= 7. I will match server logic.
+    if (month === 11 && day >= 16) return true;
+    if (month === 0 && day <= 7) return true;
+
+    return false;
 };
 
 const getNextClassDay = (date: Date, classDays: number[]): Date => {
@@ -171,6 +186,108 @@ const getStudentScheme = (student: Student): PaymentScheme => {
     return student.paymentScheme || "monthly_28";
 };
 
+const isStudentOverdue = (student: Student, allPayments: PaymentRecord[]): boolean => {
+    const studentPayments = allPayments.filter(p => p.studentId === student.id);
+    const paidPeriods = studentPayments.map(p => p.month);
+    const scheme = getStudentScheme(student);
+    const enrollmentDate = student.enrollmentDate ? new Date(student.enrollmentDate) : new Date(new Date().getFullYear(), 0, 1);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of day to only catch past days as overdue
+
+    const year = today.getFullYear();
+
+    if (scheme === 'daily') {
+        let current = new Date(enrollmentDate);
+        current.setHours(0, 0, 0, 0);
+
+        // Si la inscripción es del año pasado, empezamos desde el 1 de enero de este año
+        if (current.getFullYear() < year) {
+            current = new Date(year, 0, 1);
+        }
+
+        // Solo consideramos días estrictamente PASADOS para marcar como "vencido" (rojo)
+        // El día de hoy se considera "pendiente" (naranja) hasta que termina
+        while (current < today) {
+            if (isHoliday(current)) {
+                current.setDate(current.getDate() + 1);
+                continue;
+            }
+            const dayOfWeek = current.getDay();
+            const classDays = student.classDays && student.classDays.length > 0 ? student.classDays : [];
+
+            if (classDays.includes(dayOfWeek)) {
+                const dayOfYear = getDayOfYear(current);
+                const hasPayment = studentPayments.some(p => p.year === current.getFullYear() && p.month === dayOfYear);
+                if (!hasPayment) return true;
+            }
+            current.setDate(current.getDate() + 1);
+        }
+    } else {
+        // Para otros esquemas, lógica simplificada de periodos vencidos
+        // Podríamos expandir esto, pero el usuario se enfoca más en diarios.
+    }
+    return false;
+};
+
+// Helper para descripción de pagos
+const getPaymentDescription = (student: Student, scheme: PaymentScheme, periodIndex: number, year: number) => {
+    const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+    if (scheme === "daily") {
+        // periodIndex representa el Día del Año (1-366)
+        // No necesitamos iterar classDays, la fecha es fija
+        const date = new Date(year, 0, periodIndex);
+
+        const dayName = days[date.getDay()];
+        const dayNum = date.getDate();
+        const monthName = months[date.getMonth()];
+
+        return `Pago del día ${dayName} ${dayNum} de ${monthName}`;
+    }
+
+    if (scheme === "biweekly") {
+        // Catorcenal: 1-14 y 15-Fin
+        const monthIndex = Math.floor((periodIndex - 1) / 2);
+        const isFirstFortnight = (periodIndex % 2) !== 0;
+        const monthName = months[monthIndex % 12];
+        const nextMonthName = months[(monthIndex + (isFirstFortnight ? 0 : 1)) % 12];
+        const yearStr = (monthIndex >= 12) ? ` ${year + 1}` : ""; // Manejo básico de desborde de año
+
+        if (isFirstFortnight) {
+            return `Pago catorcenal del día 1 al 14 de ${monthName}${yearStr}. Próximo pago el 28 de ${monthName}.`;
+        } else {
+            return `Pago catorcenal del día 15 al final de ${monthName}${yearStr}. Próximo pago el 14 de ${nextMonthName}.`;
+        }
+    }
+
+    if (scheme === "weekly") {
+        const startDayOfYear = (periodIndex - 1) * 7;
+        const date = new Date(year, 0, 1 + startDayOfYear);
+        const endDate = new Date(date);
+        endDate.setDate(date.getDate() + 6);
+
+        const nextDate = new Date(date);
+        nextDate.setDate(date.getDate() + 7); // Próximo pago en 1 semana
+
+        const d1 = date.getDate();
+        const m1 = months[date.getMonth()];
+        const d2 = endDate.getDate();
+        const m2 = months[endDate.getMonth()];
+        const nextD = nextDate.getDate();
+        const nextM = months[nextDate.getMonth()];
+
+        return `Pago semanal del ${d1} de ${m1} al ${d2} de ${m2}. Próximo pago el ${nextD} de ${nextM}.`;
+    }
+
+    if (scheme === "monthly_28") {
+        const monthName = months[(periodIndex - 1) % 12];
+        return `Pago del mes de ${monthName} ${year}`;
+    }
+
+    return `Pago #${periodIndex} - ${year}`;
+};
+
 // ============================================
 // MODAL DE CONFIRMACIÓN DE PAGO
 // ============================================
@@ -182,6 +299,7 @@ function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, on
 
     const scheme = getStudentScheme(student);
     const config = SCHEME_CONFIGS[scheme];
+    const description = getPaymentDescription(student, scheme, periodIndex, year);
 
     const handleConfirm = async () => {
         setIsConfirming(true);
@@ -205,35 +323,34 @@ function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, on
                     Confirmar Pago
                 </h3>
 
-                {/* Info del estudiante */}
-                <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--surface-alt)' }}>
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg">
+                {/* Card de Información */}
+                <div className="mt-4 p-4 rounded-xl bg-gray-50 dark:bg-slate-700/50 border border-gray-100 dark:border-gray-600">
+                    <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200 dark:border-gray-600">
+                        <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
                             {student.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                            <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{student.name}</p>
-                            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>#{student.studentNumber}</p>
+                            <p className="font-bold text-sm text-gray-800 dark:text-white">{student.name}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">#{student.studentNumber}</p>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className="rounded-lg p-2 text-center" style={{ background: 'var(--surface)' }}>
-                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{config.label}</p>
-                            <p className="font-bold" style={{ color: 'var(--text-primary)' }}>{config.getPeriodFullName(periodIndex)}</p>
-                        </div>
-                        <div className="rounded-lg p-2 text-center" style={{ background: 'var(--surface)' }}>
-                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Año</p>
-                            <p className="font-bold" style={{ color: 'var(--text-primary)' }}>{year}</p>
-                        </div>
+                    <div className="text-center">
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Concepto</p>
+                        <p className="text-base font-bold text-blue-600 dark:text-blue-400 px-2 leading-tight">
+                            {description}
+                        </p>
                     </div>
                 </div>
 
-                {/* Monto */}
-                <div className="text-center mb-5">
-                    <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Monto a pagar</p>
-                    <p className="text-3xl font-bold text-green-500">${student.monthlyFee}</p>
-                    <p className="text-xs text-gray-500 mt-1">Esquema: {config.label}</p>
+                <div className="text-center mt-6 mb-6">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Monto a pagar</p>
+                    <p className="text-3xl font-black text-emerald-500">
+                        ${student.monthlyFee}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1 capitalize">
+                        Esquema: {config.label}
+                    </p>
                 </div>
 
                 {/* Indicador de escaneo QR */}
@@ -485,8 +602,11 @@ function PeriodCell({
     if (isPaid) {
         statusColor = "bg-green-500/15 hover:bg-red-500/15 border-green-500/40 hover:border-red-500/40";
     } else if (isOverdue) {
-        // Estilo para pagos vencidos/pendientes
+        // Estilo para pagos vencidos (Rojo)
         statusColor = "bg-red-500/10 hover:bg-red-500/20 border-red-500/30 hover:border-red-500/50 animate-pulse-slow";
+    } else if (isCurrentPeriod) {
+        // Estilo para el día de hoy pendiente (Naranja/Ámbar)
+        statusColor = "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 hover:border-amber-500/50";
     }
 
     const handleClick = () => {
@@ -517,13 +637,18 @@ function PeriodCell({
                 </div>
             ) : isOverdue ? (
                 <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500/70 group-hover:text-red-500" strokeWidth={1.5} />
+            ) : isCurrentPeriod ? (
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500/70 group-hover:text-amber-500" strokeWidth={1.5} />
             ) : (
                 <CircleDollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-blue-400" strokeWidth={1.5} />
             )}
 
             {/* Tooltip */}
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                {isPaid ? "Revocar" : `Pagar ${config.getPeriodFullName(periodIndex)}`}
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                {isPaid ? "Revocar" :
+                    isOverdue ? `¡Vencido! Pagar ${config.getPeriodFullName(periodIndex)}` :
+                        isCurrentPeriod ? `Pendiente hoy - Pagar ${config.getPeriodFullName(periodIndex)}` :
+                            `Pagar ${config.getPeriodFullName(periodIndex)}`}
             </div>
         </button>
     );
@@ -591,6 +716,37 @@ function StudentPaymentCard({
     const canGoPrev = selectedYear > enrollmentYear;
     const canGoNext = selectedYear < maxYear;
 
+    // Para daily: identificar el primer día pendiente futuro/no vencido
+    let firstFuturePendingDayOfYear: number | null = null;
+    if (scheme === 'daily') {
+        const daysInMonth = 31; // Máximo posible, solo para iterar
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const enrollmentDate = student.enrollmentDate
+            ? new Date(student.enrollmentDate)
+            : (student.createdAt ? new Date(student.createdAt) : new Date(currentYear, 0, 1));
+        enrollmentDate.setHours(0, 0, 0, 0);
+        let found = false;
+        for (let m = 0; m < 12 && !found; m++) {
+            const dim = new Date(selectedYear, m + 1, 0).getDate();
+            for (let d = 1; d <= dim && !found; d++) {
+                const date = new Date(selectedYear, m, d);
+                if (date < enrollmentDate) continue;
+                if (isHoliday(date)) continue;
+                const dayOfWeek = date.getDay();
+                if (student.classDays && student.classDays.length > 0 && !student.classDays.includes(dayOfWeek)) continue;
+                const dayOfYear = getDayOfYear(date);
+                const payment = payments.find(p => p.studentId === student.id && p.year === selectedYear && p.month === dayOfYear);
+                if (!payment) {
+                    if (date >= today) {
+                        firstFuturePendingDayOfYear = dayOfYear;
+                        found = true;
+                    }
+                }
+            }
+        }
+    }
+
     return (
         <div className="rounded-2xl overflow-hidden transition-shadow hover:shadow-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
             {/* Header compacto del estudiante */}
@@ -617,6 +773,15 @@ function StudentPaymentCard({
                             </span>
                             <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>•</span>
                             <span className="text-[11px] font-medium text-green-500">${student.monthlyFee}/{config.shortLabel}</span>
+                            {/* Mostrar días de clase solo para esquema diario */}
+                            {scheme === 'daily' && student.classDays && student.classDays.length > 0 && (
+                                <>
+                                    <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>•</span>
+                                    <span className="text-[11px] font-medium text-blue-500 capitalize">
+                                        {student.classDays.map(d => ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][d]).join(", ")}
+                                    </span>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -765,15 +930,8 @@ function StudentPaymentCard({
 
                                 // Es un día de clase
                                 if (isHoliday(date)) {
-                                    // Si es festivo, encontrar el siguiente día de clase válido
-                                    const nextDate = getNextClassDay(date, student.classDays || []);
-                                    // Verificar que el siguiente día esté dentro del mismo año (opcional, pero dashboard es por año)
-                                    // Agregamos la obligación con fecha efectiva modificada
-                                    obligations.push({
-                                        originalDate: date,
-                                        effectiveDate: nextDate,
-                                        isShifted: true
-                                    });
+                                    // Si es festivo, NO se genera cobro (el usuario pidió no duplicar ni mover días)
+                                    continue;
                                 } else {
                                     // Día normal
                                     obligations.push({
@@ -790,36 +948,38 @@ function StudentPaymentCard({
                             return obligations.map((ob) => {
                                 const { originalDate, effectiveDate, isShifted } = ob;
                                 const originalDayOfYear = getDayOfYear(originalDate);
+                                const payment = yearPayments.find(p => p.month === originalDayOfYear);
+                                const todayNormalized = new Date(today);
+                                todayNormalized.setHours(0, 0, 0, 0);
+                                const isPast = effectiveDate < todayNormalized;
+                                const isOverdue = isPast && !payment;
 
-                                const payment = yearPayments.find(p => p.month === originalDayOfYear); // Usamos ID original para trackear el pago
-
-                                // Calcular Overdue basado en la fecha EFECTIVA (cuando realmente debía pagar)
-                                const isPastOrToday = effectiveDate <= today;
-                                const isOverdue = isPastOrToday && !payment;
+                                // Nuevo: marcar el siguiente día pendiente como "pendiente" (ámbar)
+                                let isCurrentPeriod = false;
+                                if (!payment && !isOverdue && firstFuturePendingDayOfYear === originalDayOfYear) {
+                                    isCurrentPeriod = true;
+                                } else if (effectiveDate.toDateString() === today.toDateString() && !payment && !isOverdue) {
+                                    // fallback para el día de hoy si no hay pagos
+                                    isCurrentPeriod = true;
+                                }
 
                                 // Formatear label
                                 const dayNum = originalDate.getDate();
                                 let label = `${dayNum}`;
                                 if (isShifted) {
-                                    // Mostrar fecha original flecha nueva? o solo nueva?
-                                    // El usuario dijo "solo deben ver los dias que hace el pago"
-                                    // Pero es confuso si desaparece el 10 y aparece doble el 12.
-                                    // Mostremos: "10 ➔ 12" o similar si hay espacio, o simplemente la fecha de cobro actual con un indicador
                                     const effectiveDay = effectiveDate.getDate();
                                     const effectiveMonth = MONTHS_SHORT[effectiveDate.getMonth()];
-                                    // label = `${dayNum}→${effectiveDay}`; // Muy largo?
-                                    // Mejor: Mostrar el día EFECTIVO de pago, quizás con tooltip del original
                                     label = `${effectiveDay} ${effectiveMonth}`;
                                 }
 
                                 return (
                                     <PeriodCell
-                                        key={`${originalDayOfYear}-${isShifted ? 'S' : 'R'}`} // Key única compuesta
+                                        key={`${originalDayOfYear}-${isShifted ? 'S' : 'R'}`}
                                         periodIndex={originalDayOfYear}
                                         payment={payment}
                                         onClick={() => onPeriodClick(originalDayOfYear, selectedYear)}
                                         onRevoke={onPeriodRevoke ? () => onPeriodRevoke(originalDayOfYear, selectedYear) : undefined}
-                                        isCurrentPeriod={effectiveDate.toDateString() === today.toDateString()}
+                                        isCurrentPeriod={isCurrentPeriod}
                                         selectedYear={selectedYear}
                                         config={config}
                                         isOverdue={isOverdue}
@@ -829,11 +989,39 @@ function StudentPaymentCard({
                             });
                         }
 
-                        // Lógica estándar para otros esquemas
-                        return Array.from({ length: config.periods }, (_, i) => i + 1).map((periodIndex) => {
-                            const payment = yearPayments.find(p => p.month === periodIndex);
-                            const isCurrent = false;
+                        // Lógica especial para mensual: respetar fecha de inscripción.
+                        // Regla solicitada: si el alumno se registró (p.ej. Febrero), Enero NO debe aparecer como adeudo.
+                        // Por eso, para el año de inscripción, solo mostramos desde el mes de inscripción.
+                        const now = new Date();
+                        const currentMonth = now.getMonth() + 1; // 1-12
+                        const currentYearNow = now.getFullYear();
 
+                        const enrollmentDate = student.enrollmentDate
+                            ? new Date(student.enrollmentDate)
+                            : (student.createdAt ? new Date(student.createdAt) : new Date(selectedYear, 0, 1));
+                        enrollmentDate.setHours(0, 0, 0, 0);
+
+                        const isEnrollmentYear = enrollmentDate.getFullYear() === selectedYear;
+                        const startPeriodIndex = isEnrollmentYear ? (enrollmentDate.getMonth() + 1) : 1;
+
+                        return Array.from({ length: config.periods - startPeriodIndex + 1 }, (_, i) => startPeriodIndex + i).map((periodIndex) => {
+                            const payment = yearPayments.find(p => p.month === periodIndex);
+                            let isOverdue = false;
+                            let isCurrent = false;
+
+                            // Solo marcar vencido/pendiente para el año actual
+                            if (selectedYear === currentYearNow) {
+                                if (!payment) {
+                                    if (periodIndex < currentMonth) {
+                                        isOverdue = true;
+                                    } else if (periodIndex === currentMonth) {
+                                        isCurrent = true;
+                                    }
+                                }
+                            }
+
+                            // Si es el año de inscripción: el mes de inscripción debe mostrarse como pendiente si aún no está pagado.
+                            // (Esto ya ocurre porque payment es undefined y, si no es mes pasado, queda en gris/ámbar según corresponda).
                             return (
                                 <PeriodCell
                                     key={periodIndex}
@@ -844,6 +1032,7 @@ function StudentPaymentCard({
                                     isCurrentPeriod={isCurrent}
                                     selectedYear={selectedYear}
                                     config={config}
+                                    isOverdue={isOverdue}
                                 />
                             );
                         });
@@ -881,8 +1070,7 @@ export default function PaymentsPanel({
 
     // Filtros de búsqueda (igual que en StudentList, pero interno)
     const [searchTerm, setSearchTerm] = useState("");
-    const [filterLevel, setFilterLevel] = useState<string>("all");
-    const [filterStatus, setFilterStatus] = useState<string>("all");
+    const [filterPaymentStatus, setFilterPaymentStatus] = useState<'all' | 'overdue' | 'pending'>('all');
 
     // Estado para el escaneo QR en tiempo real
     const [scanRequest, setScanRequest] = useState<PaymentScanRequest | null>(null);
@@ -999,6 +1187,17 @@ export default function PaymentsPanel({
     };
 
     // Filtrar estudiantes por búsqueda
+    // Helper para saber si el estudiante tiene pagos pendientes (no pagados ni vencidos)
+    const hasPendingPayments = (student: Student, allPayments: PaymentRecord[]) => {
+        const scheme = getStudentScheme(student);
+        const config = SCHEME_CONFIGS[scheme];
+        const studentPayments = allPayments.filter(p => p.studentId === student.id);
+        // Pagos pagados
+        const paidPeriods = studentPayments.filter(p => p.status === "paid").length;
+        // Si no ha pagado todos los periodos y no está vencido, es pendiente
+        return paidPeriods < config.periods && !isStudentOverdue(student, allPayments);
+    };
+
     const filteredStudents = students.filter(student => {
         const search = searchTerm.toLowerCase().trim();
         const isNumeric = /^\d+$/.test(search);
@@ -1012,10 +1211,15 @@ export default function PaymentsPanel({
                 )
         );
 
-        const matchesLevel = filterLevel === "all" || student.level === filterLevel;
-        const matchesStatus = filterStatus === "all" || student.status === filterStatus;
+        const matchesPaymentStatus = (() => {
+            if (filterPaymentStatus === 'all') return true;
+            const isOverdue = isStudentOverdue(student, payments);
+            if (filterPaymentStatus === 'overdue') return isOverdue;
+            if (filterPaymentStatus === 'pending') return hasPendingPayments(student, payments);
+            return true;
+        })();
 
-        return matchesSearch && matchesLevel && matchesStatus;
+        return matchesSearch && matchesPaymentStatus;
     });
 
     return (
@@ -1044,68 +1248,61 @@ export default function PaymentsPanel({
                         </div>
                     </div>
 
-                    {/* Filtros Dropdown */}
-                    <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-                        <div className="relative min-w-[160px]">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Sparkles className="h-4 w-4 text-gray-400" />
-                            </div>
-                            <select
-                                value={filterLevel}
-                                onChange={(e) => setFilterLevel(e.target.value)}
-                                className="block w-full pl-10 pr-8 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700/50 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer appearance-none text-gray-700 dark:text-gray-200"
-                            >
-                                <option value="all">Nivel: Todos</option>
-                                <option value="Beginner">Beginner</option>
-                                <option value="Intermediate">Intermediate</option>
-                                <option value="Advanced">Advanced</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                                <Filter className="h-3 w-3 text-gray-400" />
-                            </div>
-                        </div>
-
-                        <div className="relative min-w-[160px]">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <IdCard className="h-4 w-4 text-gray-400" />
-                            </div>
-                            <select
-                                value={filterStatus}
-                                onChange={(e) => setFilterStatus(e.target.value)}
-                                className="block w-full pl-10 pr-8 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700/50 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer appearance-none text-gray-700 dark:text-gray-200"
-                            >
-                                <option value="all">Estado: Todos</option>
-                                <option value="active">Activos</option>
-                                <option value="inactive">Inactivos</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                                <Filter className="h-3 w-3 text-gray-400" />
-                            </div>
-                        </div>
-
+                    {/* Filtros de Estado de Pago */}
+                    <div className="flex bg-gray-100 dark:bg-slate-700/50 p-1 rounded-xl">
                         <button
-                            onClick={() => router.push('/pay/scan')}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20 whitespace-nowrap transform hover:-translate-y-0.5"
+                            onClick={() => setFilterPaymentStatus('all')}
+                            className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${filterPaymentStatus === 'all'
+                                ? 'bg-white dark:bg-slate-600 text-blue-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                }`}
                         >
-                            <QrCode className="w-5 h-5" />
-                            <span className="hidden sm:inline">Escanear QR</span>
+                            Todos
+                        </button>
+                        <button
+                            onClick={() => setFilterPaymentStatus('pending')}
+                            className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${filterPaymentStatus === 'pending'
+                                ? 'bg-white dark:bg-slate-600 text-amber-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                }`}
+                        >
+                            Pendientes
+                        </button>
+                        <button
+                            onClick={() => setFilterPaymentStatus('overdue')}
+                            className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${filterPaymentStatus === 'overdue'
+                                ? 'bg-white dark:bg-slate-600 text-red-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                }`}
+                        >
+                            Vencidos
                         </button>
                     </div>
+
+                    <button
+                        onClick={() => router.push('/pay/scan')}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20 whitespace-nowrap transform hover:-translate-y-0.5"
+                    >
+                        <QrCode className="w-5 h-5" />
+                        <span className="hidden sm:inline">Escanear QR</span>
+                    </button>
                 </div>
             </div>
 
             {/* Notificación de escaneo */}
-            {showScanNotification && (
-                <div className="fixed top-20 right-4 z-50 bg-blue-500 text-white px-6 py-4 rounded-xl shadow-2xl animate-in slide-in-from-right duration-300 flex items-center gap-3">
-                    <div className="p-2 bg-white/20 rounded-full animate-pulse">
-                        <QrCode className="w-6 h-6" />
+            {
+                showScanNotification && (
+                    <div className="fixed top-20 right-4 z-50 bg-blue-500 text-white px-6 py-4 rounded-xl shadow-2xl animate-in slide-in-from-right duration-300 flex items-center gap-3">
+                        <div className="p-2 bg-white/20 rounded-full animate-pulse">
+                            <QrCode className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="font-bold">¡Nueva solicitud de pago!</p>
+                            <p className="text-sm opacity-90">{scanRequest?.studentName}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="font-bold">¡Nueva solicitud de pago!</p>
-                        <p className="text-sm opacity-90">{scanRequest?.studentName}</p>
-                    </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Lista de Cards */}
             <div className="grid grid-cols-1 gap-6">
@@ -1159,40 +1356,42 @@ export default function PaymentsPanel({
 
 
             {/* Modal de confirmación de revocación */}
-            {showRevokeModal && selectedStudent && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
-                        <div className="flex justify-center mb-4">
-                            <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
-                                <AlertTriangle className="w-8 h-8 text-red-500" strokeWidth={2} />
+            {
+                showRevokeModal && selectedStudent && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+                            <div className="flex justify-center mb-4">
+                                <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
+                                    <AlertTriangle className="w-8 h-8 text-red-500" strokeWidth={2} />
+                                </div>
+                            </div>
+
+                            <h3 className="text-xl font-bold text-center mb-2 dark:text-white">
+                                ¿Revocar pago?
+                            </h3>
+
+                            <p className="text-center text-gray-500 dark:text-gray-400 text-sm mb-6">
+                                Esta acción marcará el pago de <span className="font-bold text-gray-700 dark:text-gray-300">{selectedStudent.name}</span> como pendiente nuevamente.
+                            </p>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowRevokeModal(false)}
+                                    className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 font-medium rounded-xl transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleConfirmRevoke}
+                                    className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-colors shadow-lg shadow-red-500/20"
+                                >
+                                    Revocar
+                                </button>
                             </div>
                         </div>
-
-                        <h3 className="text-xl font-bold text-center mb-2 dark:text-white">
-                            ¿Revocar pago?
-                        </h3>
-
-                        <p className="text-center text-gray-500 dark:text-gray-400 text-sm mb-6">
-                            Esta acción marcará el pago de <span className="font-bold text-gray-700 dark:text-gray-300">{selectedStudent.name}</span> como pendiente nuevamente.
-                        </p>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowRevokeModal(false)}
-                                className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 font-medium rounded-xl transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleConfirmRevoke}
-                                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-colors shadow-lg shadow-red-500/20"
-                            >
-                                Revocar
-                            </button>
-                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
