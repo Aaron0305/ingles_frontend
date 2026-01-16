@@ -20,8 +20,7 @@ export interface Student {
     progress: number;
     lastAccess: string;
     status: "active" | "inactive";
-    createdAt: string;
-    expiresAt?: string;
+    createdAt?: string;
     paymentScheme?: "daily" | "weekly" | "biweekly" | "monthly_28";
     classDays?: number[]; // Días de clase: 0=Dom, 1=Lun, ... 6=Sab
     enrollmentDate?: string;
@@ -47,7 +46,10 @@ function generateQRData(student: Student): string {
 }
 
 function formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString("es-MX", {
+    if (!dateString) return "";
+    // Reemplazar guiones por slashes para forzar interpretación como fecha local y evitar desfase de un día
+    const date = new Date(dateString.replace(/-/g, "/"));
+    return date.toLocaleDateString("es-MX", {
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -279,7 +281,7 @@ export default function CredentialModal({ student, isOpen, onClose }: Credential
                                         Fecha de Inscripción
                                     </div>
                                     <div style={{ fontSize: "11px", fontWeight: "700", color: "#014287" }}>
-                                        {formatDate(student.createdAt)}
+                                        {formatDate(student.enrollmentDate || student.createdAt || "")}
                                     </div>
                                 </div>
                             </div>

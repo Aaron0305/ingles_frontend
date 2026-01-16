@@ -26,6 +26,7 @@ interface NewStudentForm {
     priceOption: string;
     customPrice: string;
     classDays: number[];
+    enrollmentDate: string;
 }
 
 interface EditStudentForm {
@@ -42,11 +43,11 @@ interface EditStudentForm {
 // ============================================
 
 const PRICE_OPTIONS = [
-    { value: "149.50", label: "$149.50" },
-    { value: "650", label: "$650" },
-    { value: "750", label: "$750" },
     { value: "760", label: "$760" },
     { value: "790", label: "$790" },
+    { value: "750", label: "$750" },
+    { value: "650", label: "$650" },
+    { value: "149.50", label: "$149.50" },
     { value: "custom", label: "Otro (personalizado)" },
 ] as const;
 
@@ -87,9 +88,10 @@ export default function DashboardPage() {
         emergencyPhone: "",
         level: "Beginner",
         paymentScheme: "monthly_28",
-        priceOption: "149.50",
+        priceOption: "760",
         customPrice: "",
         classDays: [],
+        enrollmentDate: new Date().toLocaleDateString('en-CA'), // Formato YYYY-MM-DD
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [editFormData, setEditFormData] = useState<EditStudentForm>({ name: "", email: "", emergencyPhone: "", level: "Beginner", paymentScheme: "monthly_28", classDays: [] });
@@ -313,7 +315,7 @@ export default function DashboardPage() {
             setSelectedStudent(studentWithProgress);
             setShowCreateModal(false);
             setShowCredentialModal(true);
-            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [] });
+            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
         } catch (error) {
             console.error("Error creando estudiante:", error);
             const message = error instanceof Error ? error.message : "Error al crear estudiante";
@@ -508,7 +510,9 @@ export default function DashboardPage() {
     // Formatear fecha
     const formatDate = (dateString: string): string => {
         try {
-            const date = new Date(dateString);
+            if (!dateString) return "";
+            // Reemplazar guiones por slashes para evitar desfase de día
+            const date = new Date(dateString.replace(/-/g, "/"));
             return date.toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' });
         } catch {
             return dateString;
@@ -846,7 +850,7 @@ export default function DashboardPage() {
                                                         {student.emergencyPhone || ""}
                                                     </td>
                                                     <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                                        {formatDate(student.createdAt)}
+                                                        {formatDate(student.enrollmentDate || "")}
                                                     </td>
                                                     <td className="px-3 py-3 whitespace-nowrap">
                                                         <button
@@ -945,218 +949,232 @@ export default function DashboardPage() {
             </main>
 
             {/* Modal: Crear Estudiante */}
-            {showCreateModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Estudiante</h3>
-                            <button
-                                onClick={() => setShowCreateModal(false)}
-                                style={{ color: 'var(--text-secondary)' }}
-                            >
-                                <X className="w-5 h-5" strokeWidth={2} />
-                            </button>
-                        </div>
-
-                        <div className="space-y-3">
-                            {/* Nombre */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                                    Nombre Completo
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    placeholder="Juan Pérez García"
-                                    className={`w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.name ? "border-red-500" : ""}`}
-                                    style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                />
-                                {formErrors.name && <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>}
+            {
+                showCreateModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Estudiante</h3>
+                                <button onClick={() => setShowCreateModal(false)} style={{ color: 'var(--text-secondary)' }}>
+                                    <X className="w-5 h-5" strokeWidth={2} />
+                                </button>
                             </div>
 
-                            {/* Email */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                                    Email
-                                </label>
-                                <input
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    placeholder="estudiante@email.com"
-                                    className={`w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.email ? "border-red-500" : ""}`}
-                                    style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                />
-                                {formErrors.email && <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>}
-                            </div>
-
-                            {/* Teléfono de Emergencia */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                                    Tel. Emergencia (Tutor)
-                                </label>
-                                <input
-                                    type="tel"
-                                    value={formData.emergencyPhone}
-                                    onChange={(e) => setFormData({ ...formData, emergencyPhone: e.target.value })}
-                                    placeholder="55 1234 5678"
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
-                                />
-                            </div>
-
-                            {/* Nivel */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                                    Nivel
-                                </label>
-                                <select
-                                    value={formData.level}
-                                    onChange={(e) => setFormData({ ...formData, level: e.target.value as NewStudentForm["level"] })}
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
-                                >
-                                    <option value="Beginner">Beginner</option>
-                                    <option value="Intermediate">Intermediate</option>
-                                    <option value="Advanced">Advanced</option>
-                                </select>
-                            </div>
-
-                            {/* Tipo de Pago */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                                    Tipo de Pago
-                                </label>
-                                <select
-                                    value={formData.paymentScheme}
-                                    onChange={(e) => setFormData({ ...formData, paymentScheme: e.target.value as NewStudentForm["paymentScheme"] })}
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
-                                >
-                                    {PAYMENT_SCHEME_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Selección de días (Solo para Diario) */}
-                            {formData.paymentScheme === "daily" && (
-                                <div className="col-span-1 md:col-span-2">
-                                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
-                                        Días de Clase
-                                    </label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {[
-                                            { id: 1, label: "Lun" },
-                                            { id: 2, label: "Mar" },
-                                            { id: 3, label: "Mié" },
-                                            { id: 4, label: "Jue" },
-                                            { id: 5, label: "Vie" },
-                                            { id: 6, label: "Sáb" },
-                                            { id: 0, label: "Dom" },
-                                        ].map((day) => (
-                                            <button
-                                                key={day.id}
-                                                type="button"
-                                                onClick={() => {
-                                                    const currentDays = formData.classDays || [];
-                                                    const isSelected = currentDays.includes(day.id);
-
-                                                    if (isSelected) {
-                                                        setFormData({ ...formData, classDays: currentDays.filter(d => d !== day.id) });
-                                                    } else {
-                                                        if (currentDays.length < 2) {
-                                                            setFormData({ ...formData, classDays: [...currentDays, day.id] });
-                                                        }
-                                                    }
-                                                }}
-                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${formData.classDays?.includes(day.id)
-                                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
-                                                    : "bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700"
-                                                    }`}
-                                            >
-                                                {day.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    {formData.classDays && formData.classDays.length === 0 && (
-                                        <p className="text-xs text-yellow-500 mt-1">Selecciona al menos un día</p>
-                                    )}
+                            <div className="space-y-3">
+                                {/* Nombre */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
+                                    <input
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        placeholder="Juan Pérez García"
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                    />
+                                    {formErrors.name && <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>}
                                 </div>
-                            )}
 
-                            {/* Precio/Mensualidad */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                                    Mensualidad
-                                </label>
-                                <select
-                                    value={formData.priceOption}
-                                    onChange={(e) => setFormData({ ...formData, priceOption: e.target.value, customPrice: "" })}
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
-                                >
-                                    {PRICE_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                                {/* Email */}
 
-                            {/* Campo de precio personalizado */}
-                            {formData.priceOption === "custom" && (
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
+                                    <div className="flex items-center">
+                                        <input
+                                            type="text"
+                                            value={formData.email.replace('@gmail.com', '')}
+                                            onChange={(e) => setFormData({ ...formData, email: e.target.value.replace(/@.*/, '') + '@gmail.com' })}
+                                            placeholder="usuario"
+                                            className="w-full px-3 py-2 rounded-l-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            style={{
+                                                background: 'var(--input-bg)',
+                                                border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`,
+                                                color: 'var(--text-primary)',
+                                                borderRight: 'none'
+                                            }}
+                                        />
+                                        <span
+                                            className="px-3 py-2 rounded-r-lg bg-gray-100 dark:bg-gray-800 border border-l-0"
+                                            style={{
+                                                borderColor: formErrors.email ? '#ef4444' : 'var(--input-border)',
+                                                color: 'var(--text-secondary)'
+                                            }}
+                                        >
+                                            @gmail.com
+                                        </span>
+                                    </div>
+                                    {formErrors.email && <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>}
+                                </div>
+
+                                {/* Teléfono de Emergencia */}
                                 <div>
                                     <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                                        Precio Personalizado
+                                        Tel. Emergencia (Papás)
                                     </label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            value={formData.customPrice}
-                                            onChange={(e) => setFormData({ ...formData, customPrice: e.target.value })}
-                                            placeholder="0.00"
-                                            className={`w-full pl-7 pr-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.customPrice ? "border-red-500" : ""}`}
-                                            style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.customPrice ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                        />
-                                    </div>
-                                    {formErrors.customPrice && <p className="mt-1 text-sm text-red-500">{formErrors.customPrice}</p>}
+                                    <input
+                                        type="tel"
+                                        value={formData.emergencyPhone}
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, ''); // Solo números
+                                            if (value.length <= 10) { // Máximo 10 dígitos
+                                                setFormData({ ...formData, emergencyPhone: value });
+                                            }
+                                        }}
+                                        placeholder="5512345678"
+                                        maxLength={10}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                    />
                                 </div>
-                            )}
-                        </div>
 
-                        <div className="flex gap-3 mt-5">
-                            <button
-                                onClick={handleCreateStudent}
-                                disabled={isCreating}
-                                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-medium rounded-lg transition-all disabled:opacity-50 text-sm"
-                            >
-                                {isCreating ? (
-                                    <span className="inline-flex items-center justify-center gap-2">
-                                        <Loader2 className="animate-spin h-4 w-4" strokeWidth={2} />
-                                        Creando...
-                                    </span>
-                                ) : (
-                                    "Crear y Generar Credencial"
+                                {/* Nivel */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nivel</label>
+                                    <select
+                                        value={formData.level}
+                                        onChange={(e) => setFormData({ ...formData, level: e.target.value as NewStudentForm["level"] })}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{
+                                            background: 'var(--input-bg)',
+                                            border: '1px solid var(--input-border)',
+                                            color: 'var(--text-primary)'
+                                        }}
+                                    >
+                                        <option value="Beginner" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Beginner</option>
+                                        <option value="Intermediate" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Intermediate</option>
+                                        <option value="Advanced" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Advanced</option>
+                                    </select>
+                                </div>
+
+                                {/* Esquema de Pago */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Esquema de Pago</label>
+                                    <select
+                                        value={formData.paymentScheme}
+                                        onChange={(e) => setFormData({ ...formData, paymentScheme: e.target.value as any })}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{
+                                            background: 'var(--input-bg)',
+                                            border: '1px solid var(--input-border)',
+                                            color: 'var(--text-primary)',
+                                            colorScheme: 'dark'
+                                        }}
+                                    >
+                                        <option value="monthly_28">Cada 28 días</option>
+                                        <option value="biweekly">Catorcenal (14 días)</option>
+                                        <option value="weekly">Semanal</option>
+                                        <option value="daily">Diario</option>
+                                    </select>
+                                </div>
+
+                                {/* Selección de días (Solo para Diario) */}
+                                {formData.paymentScheme === "daily" && (
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                                            Días de Clase
+                                        </label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {[
+                                                { id: 1, label: "Lun" },
+                                                { id: 2, label: "Mar" },
+                                                { id: 3, label: "Mié" },
+                                                { id: 4, label: "Jue" },
+                                                { id: 5, label: "Vie" },
+                                                { id: 6, label: "Sáb" },
+                                                { id: 0, label: "Dom" },
+                                            ].map((day) => (
+                                                <button
+                                                    key={day.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const currentDays = formData.classDays || [];
+                                                        const isSelected = currentDays.includes(day.id);
+
+                                                        if (isSelected) {
+                                                            setFormData({ ...formData, classDays: currentDays.filter(d => d !== day.id) });
+                                                        } else {
+                                                            if (currentDays.length < 2) {
+                                                                setFormData({ ...formData, classDays: [...currentDays, day.id] });
+                                                            }
+                                                        }
+                                                    }}
+                                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${formData.classDays?.includes(day.id)
+                                                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                                                        : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                                                        }`}
+                                                >
+                                                    {day.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 )}
-                            </button>
-                            <button
-                                onClick={() => setShowCreateModal(false)}
-                                className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
-                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
-                            >
-                                Cancelar
-                            </button>
+
+                                {/* Mensualidad */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Mensualidad</label>
+                                    <select
+                                        value={formData.priceOption}
+                                        onChange={(e) => setFormData({ ...formData, priceOption: e.target.value, customPrice: "" })}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{
+                                            background: 'var(--input-bg)',
+                                            border: '1px solid var(--input-border)',
+                                            color: 'var(--text-primary)',
+                                            colorScheme: 'dark'
+                                        }}
+                                    >
+                                        {PRICE_OPTIONS.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Campo de precio personalizado */}
+                                {formData.priceOption === "custom" && (
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Precio Personalizado</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={formData.customPrice}
+                                                onChange={(e) => setFormData({ ...formData, customPrice: e.target.value })}
+                                                placeholder="0.00"
+                                                className={`w-full pl-7 pr-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.customPrice ? "border-red-500" : ""}`}
+                                                style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.customPrice ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                            />
+                                        </div>
+                                        {formErrors.customPrice && <p className="mt-1 text-sm text-red-500">{formErrors.customPrice}</p>}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex gap-3 mt-5">
+                                <button
+                                    onClick={handleCreateStudent}
+                                    disabled={isCreating}
+                                    className="flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm"
+                                    style={{ background: '#014287' }}
+                                >
+                                    {isCreating ? "Creando..." : "Crear y Generar Credencial"}
+                                </button>
+                                <button
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
+                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Modal: Ver Credencial - Componente separado */}
             {selectedStudent && (
@@ -1250,7 +1268,7 @@ export default function DashboardPage() {
                                     <option value="monthly_28">Mensual (28 Días)</option>
                                     <option value="daily">Diario (Pago por clase)</option>
                                     <option value="weekly">Semanal</option>
-                                    <option value="biweekly">Quincenal</option>
+                                    <option value="biweekly">Catorcenal</option>
                                 </select>
                             </div>
 

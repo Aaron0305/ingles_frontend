@@ -1,3 +1,24 @@
+/* Fix para selects: que el dropdown se vea bien en ambos temas */
+select {
+  background-color: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+select option {
+  background-color: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  select {
+    background-color: #181e29 !important;
+    color: #f1f5f9 !important;
+  }
+  select option {
+    background-color: #181e29 !important;
+    color: #f1f5f9 !important;
+  }
+}
 @import "tailwindcss";
 
 /* ============================================

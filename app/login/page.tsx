@@ -147,26 +147,6 @@ export default function LoginPage() {
 
             {/* 
               =======================================================================
-              THEME TOGGLE
-              ======================================================================= 
-            */}
-            <div className="absolute top-6 right-6 z-50 flex gap-2 p-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-lg">
-                <button
-                    onClick={() => setTheme('light')}
-                    className={`p-2 rounded-full transition-all ${theme === 'light' ? (isDark ? 'bg-white/20 text-white' : 'bg-white shadow-sm text-amber-500') : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
-                >
-                    <Sun className="w-4 h-4" />
-                </button>
-                <button
-                    onClick={() => setTheme('dark')}
-                    className={`p-2 rounded-full transition-all ${theme === 'dark' ? (isDark ? 'bg-white/20 text-white' : 'bg-slate-800 text-white') : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
-                >
-                    <Moon className="w-4 h-4" />
-                </button>
-            </div>
-
-            {/* 
-              =======================================================================
               MAIN CONTAINER
               ======================================================================= 
             */}
@@ -225,7 +205,7 @@ export default function LoginPage() {
                                     {/* Email */}
                                     <div className="group relative">
                                         <label className={`text-[10px] uppercase font-bold tracking-wider mb-1.5 block ml-4 opacity-0 group-focus-within:opacity-100 transition-all transform translate-y-2 group-focus-within:translate-y-0 ${labelColorClass}`}>
-                                            Correo Institucional
+                                            Correo
                                         </label>
                                         <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                             <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${iconColorClass}`}>
@@ -236,7 +216,7 @@ export default function LoginPage() {
                                                 value={formData.email}
                                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                                 className={`w-full pl-12 pr-4 py-4 rounded-2xl border focus:ring-1 focus:ring-cyan-500/50 transition-all outline-none font-medium ${inputBgClass} ${isDark ? 'focus:border-cyan-500/50' : 'focus:border-blue-400'}`}
-                                                placeholder="usuario@institucion.edu"
+                                                placeholder="email"
                                             />
                                         </div>
                                     </div>

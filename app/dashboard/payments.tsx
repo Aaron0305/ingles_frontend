@@ -90,29 +90,117 @@ const MONTHS_SHORT = [
     "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
 ];
 
-// Días festivos oficiales y comunes de México (YYYY-MM-DD)
-// Se deben actualizar anualmente o mover a backend
-// Días festivos oficiales y comunes de México (YYYY-MM-DD)
-// Se deben actualizar anualmente o mover a backend
-const MEXICAN_HOLIDAYS = [
-    "2025-01-01", "2025-02-03", "2025-03-17", "2025-04-17", "2025-04-18", "2025-05-01", "2025-09-15", "2025-09-16", "2025-11-17", "2025-12-25",
-    "2026-01-01", "2026-02-02", "2026-03-16", "2026-04-02", "2026-04-03", "2026-05-01", "2026-09-15", "2026-09-16", "2026-11-16", "2026-12-25",
-];
+// ============================================
+// CÁLCULO DINÁMICO DE DÍAS FESTIVOS MEXICANOS
+// ============================================
+
+// Obtener el N-ésimo día de la semana de un mes (ej: primer lunes, tercer lunes)
+const getNthDayOfWeekInMonth = (year: number, month: number, dayOfWeek: number, n: number): Date => {
+    const firstDay = new Date(year, month, 1);
+    const firstDayOfWeek = firstDay.getDay();
+
+    // Calcular cuántos días hay que avanzar para llegar al primer día de la semana deseado
+    let daysToAdd = dayOfWeek - firstDayOfWeek;
+    if (daysToAdd < 0) daysToAdd += 7;
+
+    // Avanzar (n-1) semanas más
+    daysToAdd += (n - 1) * 7;
+
+    return new Date(year, month, 1 + daysToAdd);
+};
+
+// Algoritmo de Computus para calcular la fecha de Pascua 
+const getEasterSunday = (year: number): Date => {
+    const a = year % 19;
+    const b = Math.floor(year / 100);
+    const c = year % 100;
+    const d = Math.floor(b / 4);
+    const e = b % 4;
+    const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4);
+    const k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31) - 1; // 0-indexed
+    const day = ((h + l - 7 * m + 114) % 31) + 1;
+
+    return new Date(year, month, day);
+};
+
+// Obtener Jueves y Viernes Santo basados en Pascua
+const getHolyWeekDays = (year: number): Date[] => {
+    const easter = getEasterSunday(year);
+    const dates: Date[] = [];
+
+    // Jueves Santo (3 días antes de Pascua)
+    const holyThursday = new Date(easter);
+    holyThursday.setDate(easter.getDate() - 3);
+    dates.push(holyThursday);
+
+    // Viernes Santo (2 días antes de Pascua)
+    const goodFriday = new Date(easter);
+    goodFriday.setDate(easter.getDate() - 2);
+    dates.push(goodFriday);
+
+    return dates;
+};
+
+// Formato de fecha YYYY-MM-DD
+const formatDateStr = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+// Generar todos los feriados de un año (FECHAS REALES, no lunes cívicos)
+const getHolidaysForYear = (year: number): Set<string> => {
+    const holidays = new Set<string>();
+
+    // Días fijos (fechas reales)
+    holidays.add(`${year}-01-01`); // Año Nuevo
+    holidays.add(`${year}-02-05`); // Día de la Constitución (fecha real)
+    holidays.add(`${year}-03-21`); // Natalicio de Benito Juárez (fecha real)
+    holidays.add(`${year}-05-01`); // Día del Trabajo
+    holidays.add(`${year}-09-16`); // Independencia
+    holidays.add(`${year}-11-20`); // Día de la Revolución (fecha real)
+    holidays.add(`${year}-12-25`); // Navidad
+
+    // Jueves y Viernes Santo (calculados dinámicamente)
+    const holyWeek = getHolyWeekDays(year);
+    holyWeek.forEach(d => holidays.add(formatDateStr(d)));
+
+    return holidays;
+};
+
+// Cache de feriados por año para mayor eficiencia
+const holidaysCache: Map<number, Set<string>> = new Map();
+
+const getHolidaysSet = (year: number): Set<string> => {
+    if (!holidaysCache.has(year)) {
+        holidaysCache.set(year, getHolidaysForYear(year));
+    }
+    return holidaysCache.get(year)!;
+};
 
 const isHoliday = (date: Date): boolean => {
-    const dateString = date.toISOString().split('T')[0];
-    const isOfficialHoliday = MEXICAN_HOLIDAYS.includes(dateString);
-    if (isOfficialHoliday) return true;
+    // Forzamos mediodía en una copia para evitar desfases de zona horaria
+    const dCopy = new Date(date);
+    dCopy.setHours(12, 0, 0, 0);
 
-    // Verificar vacaciones: Última semana de diciembre y primera de enero
-    const month = date.getMonth(); // 0-11
-    const day = date.getDate();
+    const year = dCopy.getFullYear();
+    const dateStr = formatDateStr(dCopy);
 
-    // Diciembre (11): día 20 en adelante (para cubrir ultima semana aprox) o especificamente 22-31?
-    // User said "ultima semana". Let's say 23-31 (approx last week) or allow broad range like server (16-31).
-    // Server logic: Month 11, Day >= 16; Month 0, Day <= 7. I will match server logic.
-    if (month === 11 && day >= 16) return true;
-    if (month === 0 && day <= 7) return true;
+    // Verificar si es un feriado calculado
+    if (getHolidaysSet(year).has(dateStr)) return true;
+
+    // Vacaciones invierno: 23-31 dic, 1-12 ene (segunda semana)
+    const mIdx = dCopy.getMonth();
+    const dIdx = dCopy.getDate();
+    if (mIdx === 11 && dIdx >= 23) return true;
+    if (mIdx === 0 && dIdx <= 12) return true;
 
     return false;
 };
@@ -157,11 +245,11 @@ const SCHEME_CONFIGS: Record<PaymentScheme, SchemeConfig> = {
         cols: "grid-cols-6 sm:grid-cols-12"
     },
     biweekly: {
-        periods: 24, // 2 quincenas por mes aprox
-        label: "Catorcenal",
-        shortLabel: "Q",
-        getPeriodLabel: (i) => `Q${i}`,
-        getPeriodFullName: (i) => `Quincena ${i}`,
+        periods: 26, // 26 catorcenas por año (365/14 ≈ 26)
+        label: "Catorcena",
+        shortLabel: "C",
+        getPeriodLabel: (i) => `C${i}`,
+        getPeriodFullName: (i) => `Catorcena ${i}`,
         cols: "grid-cols-8 sm:grid-cols-12"
     },
     weekly: {
@@ -187,26 +275,29 @@ const getStudentScheme = (student: Student): PaymentScheme => {
 };
 
 const isStudentOverdue = (student: Student, allPayments: PaymentRecord[]): boolean => {
-    const studentPayments = allPayments.filter(p => p.studentId === student.id);
-    const paidPeriods = studentPayments.map(p => p.month);
-    const scheme = getStudentScheme(student);
-    const enrollmentDate = student.enrollmentDate ? new Date(student.enrollmentDate) : new Date(new Date().getFullYear(), 0, 1);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Start of day to only catch past days as overdue
+    // Si el estudiante está inactivo, no considerarlo
+    if (student.status === "inactive") return false;
 
-    const year = today.getFullYear();
+    const studentPayments = allPayments.filter(p => p.studentId === student.id && p.status === 'paid');
+    const scheme = getStudentScheme(student);
+
+    const enrollmentDate = student.enrollmentDate
+        ? new Date(student.enrollmentDate.replace(/-/g, "/"))
+        : new Date(new Date().getFullYear(), 0, 1);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     if (scheme === 'daily') {
+        // Para diario: usar lógica existente
         let current = new Date(enrollmentDate);
         current.setHours(0, 0, 0, 0);
+        const year = today.getFullYear();
 
-        // Si la inscripción es del año pasado, empezamos desde el 1 de enero de este año
         if (current.getFullYear() < year) {
             current = new Date(year, 0, 1);
         }
 
-        // Solo consideramos días estrictamente PASADOS para marcar como "vencido" (rojo)
-        // El día de hoy se considera "pendiente" (naranja) hasta que termina
         while (current < today) {
             if (isHoliday(current)) {
                 current.setDate(current.getDate() + 1);
@@ -215,17 +306,69 @@ const isStudentOverdue = (student: Student, allPayments: PaymentRecord[]): boole
             const dayOfWeek = current.getDay();
             const classDays = student.classDays && student.classDays.length > 0 ? student.classDays : [];
 
-            if (classDays.includes(dayOfWeek)) {
+            if (classDays.length === 0 || classDays.includes(dayOfWeek)) {
                 const dayOfYear = getDayOfYear(current);
                 const hasPayment = studentPayments.some(p => p.year === current.getFullYear() && p.month === dayOfYear);
                 if (!hasPayment) return true;
             }
             current.setDate(current.getDate() + 1);
         }
-    } else {
-        // Para otros esquemas, lógica simplificada de periodos vencidos
-        // Podríamos expandir esto, pero el usuario se enfoca más en diarios.
+        return false;
     }
+
+    // Para esquemas continuos (weekly, biweekly, monthly_28)
+    // Usar la MISMA lógica que el grid visual
+    const enrollment = new Date(enrollmentDate);
+    enrollment.setHours(12, 0, 0, 0);
+
+    const cycleDays = scheme === 'weekly' ? 7 : (scheme === 'biweekly' ? 14 : 28);
+    const pPerYear = scheme === 'weekly' ? 52 : (scheme === 'biweekly' ? 26 : 13);
+
+    // Generar schedule igual que el grid
+    const schedule: { date: Date; cycleMonth: number; cycleYear: number }[] = [];
+    let pDate = new Date(enrollment);
+
+    // El primer pago es el día de inscripción (ciclo 1)
+    schedule.push({
+        date: new Date(enrollment),
+        cycleMonth: 1,
+        cycleYear: enrollment.getFullYear()
+    });
+
+    // Generar suficientes ciclos
+    for (let i = 0; i < pPerYear * 3; i++) {
+        const baseDate = new Date(pDate);
+        baseDate.setDate(pDate.getDate() + cycleDays);
+
+        let holidays = 0;
+        const checkDate = new Date(pDate);
+        for (let d = 0; d < cycleDays; d++) {
+            checkDate.setDate(checkDate.getDate() + 1);
+            if (isHoliday(checkDate)) holidays++;
+        }
+
+        let next = new Date(baseDate);
+        next.setDate(baseDate.getDate() + holidays);
+        while (isHoliday(next)) next.setDate(next.getDate() + 1);
+
+        const cMonth = i + 2;
+        const cYear = next.getFullYear();
+
+        schedule.push({ date: next, cycleMonth: cMonth, cycleYear: cYear });
+
+        // Salir si ya pasamos mucho del día actual
+        if (cYear > today.getFullYear() + 1) break;
+        pDate = next;
+    }
+
+    // Verificar si algún período pasado no está pagado
+    for (const s of schedule) {
+        if (s.date < today) {
+            const hasPayment = studentPayments.some(p => p.year === s.cycleYear && p.month === s.cycleMonth);
+            if (!hasPayment) return true;
+        }
+    }
+
     return false;
 };
 
@@ -234,9 +377,59 @@ const getPaymentDescription = (student: Student, scheme: PaymentScheme, periodIn
     const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
     const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
+    // Esquemas continuos: calcular fechas reales desde inscripción
+    if (["monthly_28", "weekly", "biweekly"].includes(scheme)) {
+        const enrollment = student.enrollmentDate
+            ? new Date(student.enrollmentDate.replace(/-/g, "/"))
+            : new Date(year, 0, 1);
+
+        // Normalizar inscripción a mediodía para evitar problemas de TZ
+        const startPoint = new Date(enrollment);
+        startPoint.setHours(12, 0, 0, 0);
+
+        const cycleDays = scheme === 'weekly' ? 7 : (scheme === 'biweekly' ? 14 : 28);
+        const typeLabel = scheme === 'weekly' ? 'Semanal' : (scheme === 'biweekly' ? 'Catorcenal' : 'Mensual');
+
+        // Función auxiliar para calcular siguiente fecha
+        const calculateNext = (pDate: Date) => {
+            const baseDate = new Date(pDate);
+            baseDate.setDate(pDate.getDate() + cycleDays);
+
+            let holidays = 0;
+            const checkDate = new Date(pDate);
+            for (let k = 0; k < cycleDays; k++) {
+                checkDate.setDate(checkDate.getDate() + 1);
+                // Contar TODOS los feriados (incluyendo fines de semana)
+                if (isHoliday(checkDate)) holidays++;
+            }
+
+            const next = new Date(baseDate);
+            next.setDate(baseDate.getDate() + holidays);
+            while (isHoliday(next)) next.setDate(next.getDate() + 1);
+            return next;
+        }
+
+        // Iterar desde inscripción hasta llegar al periodo deseado
+        // periodIndex 1 = inscripción.
+        let startDate = new Date(startPoint);
+
+        // Si periodIndex > 1, calculamos los pasos intermedios
+        for (let i = 1; i < periodIndex; i++) {
+            startDate = calculateNext(startDate);
+        }
+
+        const nextDate = calculateNext(startDate);
+
+        const d1 = startDate.getDate();
+        const m1 = months[startDate.getMonth()];
+        const d2 = nextDate.getDate();
+        const m2 = months[nextDate.getMonth()];
+
+        return `Pago ${typeLabel} del ${d1} de ${m1} al ${d2} de ${m2}. Próximo pago el ${d2} de ${m2}.`;
+    }
+
     if (scheme === "daily") {
         // periodIndex representa el Día del Año (1-366)
-        // No necesitamos iterar classDays, la fecha es fija
         const date = new Date(year, 0, periodIndex);
 
         const dayName = days[date.getDay()];
@@ -244,45 +437,6 @@ const getPaymentDescription = (student: Student, scheme: PaymentScheme, periodIn
         const monthName = months[date.getMonth()];
 
         return `Pago del día ${dayName} ${dayNum} de ${monthName}`;
-    }
-
-    if (scheme === "biweekly") {
-        // Catorcenal: 1-14 y 15-Fin
-        const monthIndex = Math.floor((periodIndex - 1) / 2);
-        const isFirstFortnight = (periodIndex % 2) !== 0;
-        const monthName = months[monthIndex % 12];
-        const nextMonthName = months[(monthIndex + (isFirstFortnight ? 0 : 1)) % 12];
-        const yearStr = (monthIndex >= 12) ? ` ${year + 1}` : ""; // Manejo básico de desborde de año
-
-        if (isFirstFortnight) {
-            return `Pago catorcenal del día 1 al 14 de ${monthName}${yearStr}. Próximo pago el 28 de ${monthName}.`;
-        } else {
-            return `Pago catorcenal del día 15 al final de ${monthName}${yearStr}. Próximo pago el 14 de ${nextMonthName}.`;
-        }
-    }
-
-    if (scheme === "weekly") {
-        const startDayOfYear = (periodIndex - 1) * 7;
-        const date = new Date(year, 0, 1 + startDayOfYear);
-        const endDate = new Date(date);
-        endDate.setDate(date.getDate() + 6);
-
-        const nextDate = new Date(date);
-        nextDate.setDate(date.getDate() + 7); // Próximo pago en 1 semana
-
-        const d1 = date.getDate();
-        const m1 = months[date.getMonth()];
-        const d2 = endDate.getDate();
-        const m2 = months[endDate.getMonth()];
-        const nextD = nextDate.getDate();
-        const nextM = months[nextDate.getMonth()];
-
-        return `Pago semanal del ${d1} de ${m1} al ${d2} de ${m2}. Próximo pago el ${nextD} de ${nextM}.`;
-    }
-
-    if (scheme === "monthly_28") {
-        const monthName = months[(periodIndex - 1) % 12];
-        return `Pago del mes de ${monthName} ${year}`;
     }
 
     return `Pago #${periodIndex} - ${year}`;
@@ -673,15 +827,23 @@ function StudentPaymentCard({
     const scheme = getStudentScheme(student);
     const config = SCHEME_CONFIGS[scheme];
 
-    // Calcular el año de inscripción del estudiante (usamos createdAt)
-    const enrollmentYear = student.createdAt
-        ? new Date(student.createdAt).getFullYear()
+    // Calcular el año de inscripción del estudiante
+    const enrollmentYear = student.enrollmentDate
+        ? new Date(student.enrollmentDate.replace(/-/g, "/")).getFullYear()
         : currentYear;
 
     // Función para verificar si un año tiene todos los periodos pagados
+    // Ajuste: solo contar meses desde el mes de inscripción en el año de inscripción
     const isYearFullyPaid = (year: number) => {
-        const yearPayments = payments.filter(p => p.year === year && p.status === "paid");
-        return yearPayments.length >= config.periods;
+        const enrollmentDate = student.enrollmentDate
+            ? new Date(student.enrollmentDate.replace(/-/g, "/"))
+            : new Date(year, 0, 1);
+        const isEnrollmentYear = enrollmentDate.getFullYear() === year;
+        const startPeriodIndex = isEnrollmentYear ? (enrollmentDate.getMonth() + 1) : 1;
+        const periodsInYear = config.periods - startPeriodIndex + 1;
+
+        const yearPayments = payments.filter(p => p.year === year && p.status === "paid" && (!isEnrollmentYear || p.month >= startPeriodIndex));
+        return yearPayments.length >= periodsInYear;
     };
 
     // Calcular el último año disponible
@@ -709,8 +871,67 @@ function StudentPaymentCard({
     const yearPayments = payments.filter(p => p.year === selectedYear);
     const paidPeriodsCount = yearPayments.filter(p => p.status === "paid").length;
 
+    // Calcular periodos totales y el índice de inicio para este estudiante en este año
+    const enrollmentDateObj = student.enrollmentDate
+        ? new Date(student.enrollmentDate.replace(/-/g, "/"))
+        : new Date(selectedYear, 0, 1);
+    const isEnrollmentYearActual = enrollmentDateObj.getFullYear() === selectedYear;
+
+
+
+    // GENERACIÓN DE SCHEDULE (Movido aquí para calcular totales dinámicos)
+    // Esto asegura que indicadores como "0/13" o "0/26" sean exactos según el año.
+    let dynamicSchedule: { date: Date; cycleMonth: number; cycleYear: number }[] = [];
+
+    if (scheme !== 'daily') {
+        const enrollment = new Date(enrollmentDateObj);
+        enrollment.setHours(12, 0, 0, 0);
+
+        let pDate = new Date(enrollment);
+        const cycleDays = scheme === 'weekly' ? 7 : (scheme === 'biweekly' ? 14 : 28);
+        const pPerYear = scheme === 'weekly' ? 52 : (scheme === 'biweekly' ? 26 : 13);
+
+        dynamicSchedule.push({
+            date: new Date(enrollment),
+            cycleMonth: 1,
+            cycleYear: enrollment.getFullYear()
+        });
+
+        // Generar suficinetes ciclos
+        for (let i = 0; i < pPerYear * 5; i++) {
+            // Lógica unificada: días calendario + feriados en periodo
+            const baseDate = new Date(pDate);
+            baseDate.setDate(pDate.getDate() + cycleDays);
+
+            let holidays = 0;
+            const checkDate = new Date(pDate);
+            for (let d = 0; d < cycleDays; d++) {
+                checkDate.setDate(checkDate.getDate() + 1);
+                // Contar TODOS los feriados (incluyendo fines de semana)
+                if (isHoliday(checkDate)) holidays++;
+            }
+
+            let next = new Date(baseDate);
+            next.setDate(baseDate.getDate() + holidays);
+            while (isHoliday(next)) next.setDate(next.getDate() + 1);
+
+            const cMonth = i + 2;
+            const cYear = next.getFullYear();
+
+            dynamicSchedule.push({ date: next, cycleMonth: cMonth, cycleYear: cYear });
+            if (cYear > selectedYear + 1) break;
+            pDate = next;
+        }
+    }
+
+    const periodsInSelectedYear = scheme === 'daily'
+        ? []
+        : dynamicSchedule.filter(s => s.cycleYear === selectedYear);
+
+    const totalPeriodsInYear = scheme === 'daily' ? 30 : periodsInSelectedYear.length;
+
     // Progreso
-    const progress = (paidPeriodsCount / config.periods) * 100;
+    const progress = (paidPeriodsCount / totalPeriodsInYear) * 100;
 
     // Navegación del carrusel
     const canGoPrev = selectedYear > enrollmentYear;
@@ -723,8 +944,8 @@ function StudentPaymentCard({
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const enrollmentDate = student.enrollmentDate
-            ? new Date(student.enrollmentDate)
-            : (student.createdAt ? new Date(student.createdAt) : new Date(currentYear, 0, 1));
+            ? new Date(student.enrollmentDate.replace(/-/g, "/"))
+            : new Date(currentYear, 0, 1);
         enrollmentDate.setHours(0, 0, 0, 0);
         let found = false;
         for (let m = 0; m < 12 && !found; m++) {
@@ -811,7 +1032,7 @@ function StudentPaymentCard({
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-[8px] font-bold" style={{ color: 'var(--text-primary)' }}>
-                                {paidPeriodsCount}/{config.periods}
+                                {paidPeriodsCount}/{totalPeriodsInYear}
                             </span>
                         </div>
                     </div>
@@ -907,8 +1128,8 @@ function StudentPaymentCard({
                             const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
                             const today = new Date();
                             const enrollmentDate = student.enrollmentDate
-                                ? new Date(student.enrollmentDate)
-                                : (student.createdAt ? new Date(student.createdAt) : new Date(selectedYear, 0, 1));
+                                ? new Date(student.enrollmentDate.replace(/-/g, "/"))
+                                : new Date(selectedYear, 0, 1);
                             // Normalizar enrollmentDate para ignorar horas
                             enrollmentDate.setHours(0, 0, 0, 0);
 
@@ -916,21 +1137,22 @@ function StudentPaymentCard({
                             const obligations: { originalDate: Date; effectiveDate: Date; isShifted: boolean }[] = [];
 
                             for (let day = 1; day <= daysInMonth; day++) {
-                                const date = new Date(selectedYear, selectedMonth, day);
+                                // Crear fecha al mediodía local para evitar que desfases de zona horaria cambien el GETDAY o DATE
+                                const date = new Date(selectedYear, selectedMonth, day, 12, 0, 0);
 
                                 // Ocultar días anteriores a la inscripción
                                 if (date < enrollmentDate) continue;
 
                                 const dayOfWeek = date.getDay();
 
-                                // Si NO es día de clase, ignorar (a menos que sea un día destino de un recorrido, pero eso se maneja en el push)
+                                // Si NO es día de clase, ignorar
                                 if (student.classDays && student.classDays.length > 0 && !student.classDays.includes(dayOfWeek)) {
                                     continue;
                                 }
 
                                 // Es un día de clase
                                 if (isHoliday(date)) {
-                                    // Si es festivo, NO se genera cobro (el usuario pidió no duplicar ni mover días)
+                                    // Si es festivo, NO se genera cobro
                                     continue;
                                 } else {
                                     // Día normal
@@ -989,50 +1211,49 @@ function StudentPaymentCard({
                             });
                         }
 
-                        // Lógica especial para mensual: respetar fecha de inscripción.
-                        // Regla solicitada: si el alumno se registró (p.ej. Febrero), Enero NO debe aparecer como adeudo.
-                        // Por eso, para el año de inscripción, solo mostramos desde el mes de inscripción.
-                        const now = new Date();
-                        const currentMonth = now.getMonth() + 1; // 1-12
-                        const currentYearNow = now.getFullYear();
+                        // Para esquemas no-daily (weekly, biweekly, monthly_28)
+                        // Usar el schedule generado dinámicamente arriba
+                        const schedule = dynamicSchedule;
 
-                        const enrollmentDate = student.enrollmentDate
-                            ? new Date(student.enrollmentDate)
-                            : (student.createdAt ? new Date(student.createdAt) : new Date(selectedYear, 0, 1));
-                        enrollmentDate.setHours(0, 0, 0, 0);
+                        const todayNormalized = new Date();
+                        todayNormalized.setHours(0, 0, 0, 0);
 
-                        const isEnrollmentYear = enrollmentDate.getFullYear() === selectedYear;
-                        const startPeriodIndex = isEnrollmentYear ? (enrollmentDate.getMonth() + 1) : 1;
 
-                        return Array.from({ length: config.periods - startPeriodIndex + 1 }, (_, i) => startPeriodIndex + i).map((periodIndex) => {
-                            const payment = yearPayments.find(p => p.month === periodIndex);
+                        // Encontrar el primer periodo no pagado que sea futuro (pendiente)
+                        let firstUnpFromNow = -1;
+                        for (const s of schedule) {
+                            const hasPayment = payments.some(p => p.year === s.cycleYear && p.month === s.cycleMonth && p.status === 'paid');
+                            if (!hasPayment && s.date >= todayNormalized) {
+                                if (s.cycleYear === selectedYear) firstUnpFromNow = s.cycleMonth;
+                                break;
+                            }
+                        }
+
+                        return periodsInSelectedYear.map((s) => {
+                            const payment = yearPayments.find(p => p.month === s.cycleMonth);
                             let isOverdue = false;
                             let isCurrent = false;
 
-                            // Solo marcar vencido/pendiente para el año actual
-                            if (selectedYear === currentYearNow) {
-                                if (!payment) {
-                                    if (periodIndex < currentMonth) {
-                                        isOverdue = true;
-                                    } else if (periodIndex === currentMonth) {
-                                        isCurrent = true;
-                                    }
-                                }
+                            if (!payment) {
+                                if (s.date < todayNormalized) isOverdue = true;
+                                else if (s.cycleMonth === firstUnpFromNow) isCurrent = true;
                             }
 
-                            // Si es el año de inscripción: el mes de inscripción debe mostrarse como pendiente si aún no está pagado.
-                            // (Esto ya ocurre porque payment es undefined y, si no es mes pasado, queda en gris/ámbar según corresponda).
+                            // Todas las etiquetas muestran la fecha específica: "12 Feb"
+                            const label = `${s.date.getDate()} ${MONTHS_SHORT[s.date.getMonth()]}`;
+
                             return (
                                 <PeriodCell
-                                    key={periodIndex}
-                                    periodIndex={periodIndex}
+                                    key={`${s.cycleYear}-${s.cycleMonth}`}
+                                    periodIndex={s.cycleMonth}
                                     payment={payment}
-                                    onClick={() => onPeriodClick(periodIndex, selectedYear)}
-                                    onRevoke={onPeriodRevoke ? () => onPeriodRevoke(periodIndex, selectedYear) : undefined}
+                                    onClick={() => onPeriodClick(s.cycleMonth, selectedYear)}
+                                    onRevoke={onPeriodRevoke ? () => onPeriodRevoke(s.cycleMonth, selectedYear) : undefined}
                                     isCurrentPeriod={isCurrent}
                                     selectedYear={selectedYear}
                                     config={config}
                                     isOverdue={isOverdue}
+                                    customLabel={label}
                                 />
                             );
                         });
@@ -1186,16 +1407,89 @@ export default function PaymentsPanel({
         }
     };
 
-    // Filtrar estudiantes por búsqueda
-    // Helper para saber si el estudiante tiene pagos pendientes (no pagados ni vencidos)
     const hasPendingPayments = (student: Student, allPayments: PaymentRecord[]) => {
+        // Si el estudiante está inactivo, no mostrar como pendiente
+        if (student.status === "inactive") return false;
+
         const scheme = getStudentScheme(student);
-        const config = SCHEME_CONFIGS[scheme];
-        const studentPayments = allPayments.filter(p => p.studentId === student.id);
-        // Pagos pagados
-        const paidPeriods = studentPayments.filter(p => p.status === "paid").length;
-        // Si no ha pagado todos los periodos y no está vencido, es pendiente
-        return paidPeriods < config.periods && !isStudentOverdue(student, allPayments);
+        const studentPayments = allPayments.filter(p => p.studentId === student.id && p.status === 'paid');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Si tiene vencidos, también tiene "pendientes"
+        if (isStudentOverdue(student, allPayments)) return true;
+
+        const enrollmentDate = student.enrollmentDate
+            ? new Date(student.enrollmentDate.replace(/-/g, "/"))
+            : new Date(new Date().getFullYear(), 0, 1);
+
+        if (scheme === 'daily') {
+            enrollmentDate.setHours(0, 0, 0, 0);
+            const classDays = student.classDays && student.classDays.length > 0 ? student.classDays : [];
+
+            // Verificar los próximos 7 días (incluyendo hoy)
+            // Si hay algún día de clase sin pagar, es pendiente
+            for (let i = 0; i < 7; i++) {
+                const checkDate = new Date(today);
+                checkDate.setDate(today.getDate() + i);
+
+                if (isHoliday(checkDate)) continue;
+                if (checkDate < enrollmentDate) continue;
+
+                const dayOfWeek = checkDate.getDay();
+                if (classDays.length === 0 || classDays.includes(dayOfWeek)) {
+                    const dayOfYear = getDayOfYear(checkDate);
+                    const hasPayment = studentPayments.some(p => p.year === checkDate.getFullYear() && p.month === dayOfYear);
+                    if (!hasPayment) return true;
+                }
+            }
+            return false;
+        }
+
+        // Para esquemas continuos: verificar el próximo período
+        const enrollment = new Date(enrollmentDate);
+        enrollment.setHours(12, 0, 0, 0);
+
+        const cycleDays = scheme === 'weekly' ? 7 : (scheme === 'biweekly' ? 14 : 28);
+        const pPerYear = scheme === 'weekly' ? 52 : (scheme === 'biweekly' ? 26 : 13);
+
+        let pDate = new Date(enrollment);
+
+        // Verificar inscripción
+        if (enrollment >= today) {
+            const hasPayment = studentPayments.some(p => p.year === enrollment.getFullYear() && p.month === 1);
+            return !hasPayment;
+        }
+
+        // Generar schedule y encontrar el próximo período pendiente
+        for (let i = 0; i < pPerYear * 3; i++) {
+            const baseDate = new Date(pDate);
+            baseDate.setDate(pDate.getDate() + cycleDays);
+
+            let holidays = 0;
+            const checkDate = new Date(pDate);
+            for (let d = 0; d < cycleDays; d++) {
+                checkDate.setDate(checkDate.getDate() + 1);
+                if (isHoliday(checkDate)) holidays++;
+            }
+
+            let next = new Date(baseDate);
+            next.setDate(baseDate.getDate() + holidays);
+            while (isHoliday(next)) next.setDate(next.getDate() + 1);
+
+            const cMonth = i + 2;
+            const cYear = next.getFullYear();
+
+            // Si es el próximo período (futuro cercano)
+            if (next >= today) {
+                const hasPayment = studentPayments.some(p => p.year === cYear && p.month === cMonth);
+                return !hasPayment;
+            }
+
+            pDate = next;
+        }
+
+        return false;
     };
 
     const filteredStudents = students.filter(student => {
@@ -1213,9 +1507,18 @@ export default function PaymentsPanel({
 
         const matchesPaymentStatus = (() => {
             if (filterPaymentStatus === 'all') return true;
-            const isOverdue = isStudentOverdue(student, payments);
-            if (filterPaymentStatus === 'overdue') return isOverdue;
-            if (filterPaymentStatus === 'pending') return hasPendingPayments(student, payments);
+
+            const hasOverdue = isStudentOverdue(student, payments);
+            const hasPending = hasPendingPayments(student, payments);
+
+            // "Vencidos": Mostrar si tiene AL MENOS UN pago vencido
+            // (sin importar si también tiene pagados o pendientes)
+            if (filterPaymentStatus === 'overdue') return hasOverdue;
+
+            // "Pendientes": Mostrar si tiene AL MENOS UN pago pendiente
+            // (incluyendo los que también tienen vencidos)
+            if (filterPaymentStatus === 'pending') return hasPending;
+
             return true;
         })();
 

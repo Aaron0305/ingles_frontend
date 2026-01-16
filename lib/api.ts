@@ -22,8 +22,7 @@ export interface Student {
     level: "Beginner" | "Intermediate" | "Advanced";
     monthlyFee: number;
     status: "active" | "inactive";
-    createdAt: string;
-    expiresAt?: string;
+    createdAt?: string;
     lastAccess?: string;
     paymentScheme?: "daily" | "weekly" | "biweekly" | "monthly_28";
     classDays?: number[];

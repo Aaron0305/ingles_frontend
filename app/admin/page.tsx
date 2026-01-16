@@ -46,6 +46,7 @@ interface NewStudentForm {
     customPrice: string;
     paymentScheme: "daily" | "weekly" | "biweekly" | "monthly_28";
     classDays: number[];
+    enrollmentDate: string;
 }
 
 interface EditStudentForm {
@@ -62,11 +63,11 @@ type TabType = "students" | "credentials" | "payments" | "admins" | "reports";
 // ============================================
 
 const PRICE_OPTIONS = [
-    { value: "149.50", label: "$149.50" },
-    { value: "650", label: "$650" },
-    { value: "750", label: "$750" },
     { value: "760", label: "$760" },
+    { value: "750", label: "$750" },
     { value: "790", label: "$790" },
+    { value: "650", label: "$650" },
+    { value: "149.50", label: "$149.50" },
     { value: "custom", label: "Otro (personalizado)" },
 ] as const;
 
@@ -93,6 +94,10 @@ export default function SuperAdminDashboard() {
     const [adminToDelete, setAdminToDelete] = useState<Admin | null>(null);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
+    // Modal y estado para borrar estudiante
+    const [showDeleteStudentModal, setShowDeleteStudentModal] = useState(false);
+    const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+
     // Filtros y búsqueda
     const [searchTerm, setSearchTerm] = useState("");
     const [filterLevel, setFilterLevel] = useState<string>("all");
@@ -106,11 +111,11 @@ export default function SuperAdminDashboard() {
         email: "",
         emergencyPhone: "",
         level: "Beginner",
-        priceOption: "149.50",
+        priceOption: "760",
         customPrice: "",
         paymentScheme: "monthly_28",
         classDays: [],
-
+        enrollmentDate: new Date().toLocaleDateString('en-CA'),
     });
     const [adminFormData, setAdminFormData] = useState<NewAdminForm>({
         name: "",
@@ -138,6 +143,26 @@ export default function SuperAdminDashboard() {
 
     // Socket para comunicación en tiempo real
     const [socket, setSocket] = useState<Socket | null>(null);
+
+    // Handlers for deleting student
+    const handleDeleteStudent = (student: Student) => {
+        setStudentToDelete(student);
+        setShowDeleteStudentModal(true);
+    };
+
+    const confirmDeleteStudent = async () => {
+        if (studentToDelete) {
+            try {
+                await studentsApi.delete(studentToDelete.id);
+                setStudents(prev => prev.filter(s => s.id !== studentToDelete.id));
+            } catch (error) {
+                console.error("Error eliminando estudiante:", error);
+            } finally {
+                setShowDeleteStudentModal(false);
+                setStudentToDelete(null);
+            }
+        }
+    };
 
     // ============================================
     // EFECTOS
@@ -268,7 +293,10 @@ export default function SuperAdminDashboard() {
         if (!formData.email.trim()) errors.email = "Email requerido";
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
             errors.email = "Email inválido";
+        } else if (students.some(s => s.email.toLowerCase() === formData.email.trim().toLowerCase())) {
+            errors.email = "Este correo ya está registrado con otro usuario";
         }
+
 
         // Validar precio personalizado
         if (formData.priceOption === "custom") {
@@ -314,7 +342,7 @@ export default function SuperAdminDashboard() {
             setSelectedStudent(studentWithProgress);
             setShowCreateModal(false);
             setShowCredentialModal(true);
-            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner", priceOption: "149.50", customPrice: "", paymentScheme: "monthly_28", classDays: [] });
+            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner", priceOption: "149.50", customPrice: "", paymentScheme: "monthly_28", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
         } catch (error) {
             console.error("Error creando estudiante:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
@@ -511,7 +539,7 @@ export default function SuperAdminDashboard() {
             setAdmins((prev) => [...prev, adminWithLastLogin]);
             setShowCreateAdminModal(false);
             setAdminFormData({ name: "", email: "", password: "", confirmPassword: "" });
-            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [] });
+            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
         } catch (error) {
             console.error("Error creando admin:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
@@ -591,7 +619,9 @@ export default function SuperAdminDashboard() {
     // Formatear fecha
     const formatDate = (dateString: string): string => {
         try {
-            const date = new Date(dateString);
+            if (!dateString) return "";
+            // Reemplazar guiones por slashes para evitar desfase de día
+            const date = new Date(dateString.replace(/-/g, "/"));
             return date.toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' });
         } catch {
             return dateString;
@@ -866,8 +896,6 @@ export default function SuperAdminDashboard() {
                                     <option value="Intermediate" className="bg-gray-800 text-white">Intermediate</option>
                                     <option value="Advanced" className="bg-gray-800 text-white">Advanced</option>
                                 </select>
-
-                                {/* Filtro por estado */}
                                 <select
                                     value={filterStatus}
                                     onChange={(e) => setFilterStatus(e.target.value)}
@@ -878,21 +906,17 @@ export default function SuperAdminDashboard() {
                                     <option value="active" className="bg-gray-800 text-white">Activos</option>
                                     <option value="inactive" className="bg-gray-800 text-white">Inactivos</option>
                                 </select>
-
-                                {/* Limpiar filtros */}
-                                {(searchTerm || filterLevel !== "all" || filterStatus !== "all") && (
-                                    <button
-                                        onClick={() => {
-                                            setSearchTerm("");
-                                            setFilterLevel("all");
-                                            setFilterStatus("all");
-                                        }}
-                                        className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                                        style={{ background: '#ea242e', color: 'white' }}
-                                    >
-                                        Limpiar filtros
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => {
+                                        setSearchTerm("");
+                                        setFilterLevel("all");
+                                        setFilterStatus("all");
+                                    }}
+                                    className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                    style={{ background: '#ea242e', color: 'white' }}
+                                >
+                                    Limpiar filtros
+                                </button>
                             </div>
                         )}
 
@@ -1157,7 +1181,7 @@ export default function SuperAdminDashboard() {
                                                         {student.emergencyPhone || ""}
                                                     </td>
                                                     <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                                        {formatDate(student.createdAt)}
+                                                        {formatDate(student.enrollmentDate || "")}
                                                     </td>
                                                     <td className="px-3 py-3 whitespace-nowrap">
                                                         <button
@@ -1181,7 +1205,57 @@ export default function SuperAdminDashboard() {
                                                             >
                                                                 <Pencil className="w-4 h-4" strokeWidth={2} />
                                                             </button>
+                                                            <button
+                                                                onClick={() => handleDeleteStudent(student)}
+                                                                className="p-1.5 text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors"
+                                                                title="Eliminar Estudiante"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" strokeWidth={2} />
+                                                            </button>
                                                         </div>
+                                                        {/* Modal de confirmación para borrar estudiante */}
+                                                        {showDeleteStudentModal && studentToDelete && (
+                                                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                                                                <div className="rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                                                                    <div className="flex items-center justify-between mb-4">
+                                                                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                                                            Eliminar Estudiante
+                                                                        </h3>
+                                                                        <button
+                                                                            onClick={() => setShowDeleteStudentModal(false)}
+                                                                            className="hover:opacity-70 transition-opacity"
+                                                                            style={{ color: 'var(--text-secondary)' }}
+                                                                        >
+                                                                            <X className="w-5 h-5" strokeWidth={2} />
+                                                                        </button>
+                                                                    </div>
+                                                                    <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                                                        ¿Estás seguro de eliminar a{' '}
+                                                                        <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                                                            {studentToDelete.name}
+                                                                        </span>
+                                                                        ?
+                                                                    </p>
+                                                                    <div className="flex justify-end gap-3">
+                                                                        <button
+                                                                            onClick={() => setShowDeleteStudentModal(false)}
+                                                                            className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-80"
+                                                                            style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
+                                                                        >
+                                                                            Cancelar
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={confirmDeleteStudent}
+                                                                            className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90 flex items-center gap-2"
+                                                                            style={{ background: '#ea242e', color: 'white' }}
+                                                                        >
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                            Sí, Eliminar
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -1276,27 +1350,52 @@ export default function SuperAdminDashboard() {
                                 </div>
 
                                 {/* Email */}
+
                                 <div>
                                     <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
-                                    <input
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        placeholder="estudiante@email.com"
-                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                    />
+                                    <div className="flex items-center">
+                                        <input
+                                            type="text"
+                                            value={formData.email.replace('@gmail.com', '')}
+                                            onChange={(e) => setFormData({ ...formData, email: e.target.value.replace(/@.*/, '') + '@gmail.com' })}
+                                            placeholder="usuario"
+                                            className="w-full px-3 py-2 rounded-l-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            style={{
+                                                background: 'var(--input-bg)',
+                                                border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`,
+                                                color: 'var(--text-primary)',
+                                                borderRight: 'none'
+                                            }}
+                                        />
+                                        <span
+                                            className="px-3 py-2 rounded-r-lg bg-gray-100 dark:bg-gray-800 border border-l-0"
+                                            style={{
+                                                borderColor: formErrors.email ? '#ef4444' : 'var(--input-border)',
+                                                color: 'var(--text-secondary)'
+                                            }}
+                                        >
+                                            @gmail.com
+                                        </span>
+                                    </div>
                                     {formErrors.email && <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>}
                                 </div>
 
                                 {/* Teléfono de Emergencia */}
                                 <div>
-                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Tel. Emergencia (Papás)</label>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                                        Tel. Emergencia (Papás)
+                                    </label>
                                     <input
                                         type="tel"
                                         value={formData.emergencyPhone}
-                                        onChange={(e) => setFormData({ ...formData, emergencyPhone: e.target.value })}
-                                        placeholder="55 1234 5678"
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, ''); // Solo números
+                                            if (value.length <= 10) { // Máximo 10 dígitos
+                                                setFormData({ ...formData, emergencyPhone: value });
+                                            }
+                                        }}
+                                        placeholder="5512345678"
+                                        maxLength={10}
                                         className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
                                     />
@@ -1309,11 +1408,15 @@ export default function SuperAdminDashboard() {
                                         value={formData.level}
                                         onChange={(e) => setFormData({ ...formData, level: e.target.value as NewStudentForm["level"] })}
                                         className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                        style={{
+                                            background: 'var(--input-bg)',
+                                            border: '1px solid var(--input-border)',
+                                            color: 'var(--text-primary)'
+                                        }}
                                     >
-                                        <option value="Beginner" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner</option>
-                                        <option value="Intermediate" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate</option>
-                                        <option value="Advanced" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced</option>
+                                        <option value="Beginner" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Beginner</option>
+                                        <option value="Intermediate" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Intermediate</option>
+                                        <option value="Advanced" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Advanced</option>
                                     </select>
                                 </div>
 
@@ -1324,14 +1427,20 @@ export default function SuperAdminDashboard() {
                                         value={formData.paymentScheme}
                                         onChange={(e) => setFormData({ ...formData, paymentScheme: e.target.value as any })}
                                         className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                        style={{
+                                            background: 'var(--input-bg)',
+                                            border: '1px solid var(--input-border)',
+                                            color: 'var(--text-primary)',
+                                            colorScheme: 'dark'
+                                        }}
                                     >
                                         <option value="monthly_28">Cada 28 días</option>
-                                        <option value="biweekly">Quincenal (Catorcenal)</option>
+                                        <option value="biweekly">Catorcenal (14 días)</option>
                                         <option value="weekly">Semanal</option>
                                         <option value="daily">Diario</option>
                                     </select>
                                 </div>
+
 
                                 {/* Selección de días (Solo para Diario) */}
                                 {formData.paymentScheme === "daily" && (
@@ -1356,11 +1465,9 @@ export default function SuperAdminDashboard() {
                                                         const currentDays = formData.classDays || [];
                                                         const isSelected = currentDays.includes(day.id);
 
-                                                        // Si ya está seleccionado, lo quitamos
                                                         if (isSelected) {
                                                             setFormData({ ...formData, classDays: currentDays.filter(d => d !== day.id) });
                                                         } else {
-                                                            // Si no está seleccionado, verificamos límite (máximo 2)
                                                             if (currentDays.length < 2) {
                                                                 setFormData({ ...formData, classDays: [...currentDays, day.id] });
                                                             }
@@ -1385,10 +1492,15 @@ export default function SuperAdminDashboard() {
                                         value={formData.priceOption}
                                         onChange={(e) => setFormData({ ...formData, priceOption: e.target.value, customPrice: "" })}
                                         className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                        style={{
+                                            background: 'var(--input-bg)',
+                                            border: '1px solid var(--input-border)',
+                                            color: 'var(--text-primary)',
+                                            colorScheme: 'dark'
+                                        }}
                                     >
                                         {PRICE_OPTIONS.map((option) => (
-                                            <option key={option.value} value={option.value} style={{ background: '#1f2937', color: '#ffffff' }}>
+                                            <option key={option.value} value={option.value}>
                                                 {option.label}
                                             </option>
                                         ))}
@@ -1438,7 +1550,6 @@ export default function SuperAdminDashboard() {
                     </div>
                 )
             }
-
             {/* Modal: Crear Admin */}
             {
                 showCreateAdminModal && (

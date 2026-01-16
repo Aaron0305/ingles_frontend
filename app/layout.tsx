@@ -8,11 +8,11 @@ import "./globals.css";
 // });
 
 export const metadata: Metadata = {
-  title: "English Learning App",
+  title: "What time is it? - Idiomas",
   description: "Plataforma de aprendizaje de inglés",
 };
 
-// Script para detectar tema antes del renderizado (evita flash)
+// Script para detectar tema antes del renderizado 
 const themeScript = `
   (function() {
     try {
