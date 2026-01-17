@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import CredentialModal, { Student } from "./credential";
 import PaymentsPanel, { PaymentRecord } from "./payments";
+import ReportsPanel from "./reports-panel";
 import { studentsApi, paymentsApi, authApi } from "@/lib/api";
 import {
     Users, DollarSign, Plus, Search, X,
-    Loader2, Pencil, UserX, UserCheck, Shield, LogOut, Trash2
+    Loader2, Pencil, UserX, UserCheck, Shield, LogOut, Trash2,
+    Download, Calendar, CircleDollarSign, BarChart3, AlertTriangle, History,
+    ChevronLeft, ChevronRight
 } from "lucide-react";
 import Image from "next/image";
 import CredentialsPanel from "./credentials-panel";
+import * as XLSX from "xlsx";
 
 // ============================================
 // TIPOS
@@ -66,7 +70,7 @@ export default function DashboardPage() {
     const router = useRouter();
 
     // Estados
-    const [activeTab, setActiveTab] = useState<"students" | "credentials" | "payments">("students");
+    const [activeTab, setActiveTab] = useState<"students" | "credentials" | "payments" | "reports">("students");
     const [students, setStudents] = useState<Student[]>([]);
     const [payments, setPayments] = useState<PaymentRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -530,6 +534,8 @@ export default function DashboardPage() {
         return labels[scheme] || scheme || "28 días";
     };
 
+
+
     // Paginación
     const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
     const paginatedStudents = filteredStudents.slice(
@@ -699,9 +705,20 @@ export default function DashboardPage() {
                                     <Shield className="w-4 h-4" strokeWidth={2} />
                                     Credenciales
                                 </button>
+                                <button
+                                    onClick={() => setActiveTab("reports")}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "reports"
+                                        ? "text-white"
+                                        : ""
+                                        }`}
+                                    style={activeTab === "reports" ? { background: '#014287' } : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
+                                >
+                                    <BarChart3 className="w-4 h-4" strokeWidth={2} />
+                                    Reportes
+                                </button>
                             </div>
 
-                            {activeTab !== "payments" && (
+                            {activeTab !== "payments" && activeTab !== "reports" && (
                                 <button
                                     onClick={() => setShowCreateModal(true)}
                                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-all"
@@ -786,6 +803,8 @@ export default function DashboardPage() {
                             />
                         ) : activeTab === "credentials" ? (
                             <CredentialsPanel students={students} />
+                        ) : activeTab === "reports" ? (
+                            <ReportsPanel students={students} payments={payments} />
                         ) : (
                             /* Content - Students Tab (Default) */
                             <div className="data-table rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
@@ -943,10 +962,11 @@ export default function DashboardPage() {
                                     </div>
                                 )}
                             </div>
-                        )}
+                        )
+                        }
                     </>
                 )}
-            </main>
+            </main >
 
             {/* Modal: Crear Estudiante */}
             {
@@ -1177,304 +1197,312 @@ export default function DashboardPage() {
             }
 
             {/* Modal: Ver Credencial - Componente separado */}
-            {selectedStudent && (
-                <CredentialModal
-                    student={selectedStudent}
-                    isOpen={showCredentialModal}
-                    onClose={() => setShowCredentialModal(false)}
-                />
-            )}
+            {
+                selectedStudent && (
+                    <CredentialModal
+                        student={selectedStudent}
+                        isOpen={showCredentialModal}
+                        onClose={() => setShowCredentialModal(false)}
+                    />
+                )
+            }
 
             {/* Modal: Editar Estudiante */}
-            {showEditStudentModal && studentToEdit && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                        {/* Header */}
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
-                                    <Pencil className="w-4 h-4 text-white" strokeWidth={2} />
+            {
+                showEditStudentModal && studentToEdit && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
+                                        <Pencil className="w-4 h-4 text-white" strokeWidth={2} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Editar Estudiante</h3>
+                                        <p className="text-xs font-mono text-cyan-500">#{studentToEdit.studentNumber}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Editar Estudiante</h3>
-                                    <p className="text-xs font-mono text-cyan-500">#{studentToEdit.studentNumber}</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => {
-                                    setShowEditStudentModal(false);
-                                    setStudentToEdit(null);
-                                }}
-                                style={{ color: 'var(--text-secondary)' }}
-                            >
-                                <X className="w-5 h-5" strokeWidth={2} />
-                            </button>
-                        </div>
-
-                        <div className="space-y-3">
-                            {/* Nombre */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
-                                <input
-                                    type="text"
-                                    value={editFormData.name}
-                                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                                    placeholder="Nombre del estudiante"
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                />
-                                {editFormErrors.name && <p className="mt-1 text-xs text-red-500">{editFormErrors.name}</p>}
-                            </div>
-
-                            {/* Email */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
-                                <input
-                                    type="email"
-                                    value={editFormData.email}
-                                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                                    placeholder="correo@ejemplo.com"
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                />
-                                {editFormErrors.email && <p className="mt-1 text-xs text-red-500">{editFormErrors.email}</p>}
-                            </div>
-
-                            {/* Teléfono de Emergencia */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Tel. Emergencia (Tutor)</label>
-                                <input
-                                    type="tel"
-                                    value={editFormData.emergencyPhone}
-                                    onChange={(e) => {
-                                        const value = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                        setEditFormData({ ...editFormData, emergencyPhone: value });
+                                <button
+                                    onClick={() => {
+                                        setShowEditStudentModal(false);
+                                        setStudentToEdit(null);
                                     }}
-                                    placeholder="Solo números (10 dígitos)"
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
-                                />
-                            </div>
-
-                            {/* Esquema de Pago */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Esquema de Pago</label>
-                                <select
-                                    value={editFormData.paymentScheme}
-                                    onChange={(e) => setEditFormData({ ...editFormData, paymentScheme: e.target.value as any })}
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                    style={{ color: 'var(--text-secondary)' }}
                                 >
-                                    <option value="monthly_28">Mensual (28 Días)</option>
-                                    <option value="daily">Diario (Pago por clase)</option>
-                                    <option value="weekly">Semanal</option>
-                                    <option value="biweekly">Catorcenal</option>
-                                </select>
+                                    <X className="w-5 h-5" strokeWidth={2} />
+                                </button>
                             </div>
 
-                            {/* Días de Clase (Solo para Daily) */}
-                            {editFormData.paymentScheme === 'daily' && (
-                                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
-                                        Días de Clase
-                                    </label>
-                                    <div className="flex flex-wrap gap-2 justify-center">
-                                        {[
-                                            { id: 1, label: "Lun" },
-                                            { id: 2, label: "Mar" },
-                                            { id: 3, label: "Mié" },
-                                            { id: 4, label: "Jue" },
-                                            { id: 5, label: "Vie" },
-                                            { id: 6, label: "Sáb" },
-                                            { id: 0, label: "Dom" } // 0 is Sunday in JS getDay()
-                                        ].map((day) => {
-                                            const isSelected = editFormData.classDays?.includes(day.id);
-                                            return (
-                                                <button
-                                                    key={day.id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const currentDays = editFormData.classDays || [];
+                            <div className="space-y-3">
+                                {/* Nombre */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
+                                    <input
+                                        type="text"
+                                        value={editFormData.name}
+                                        onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                        placeholder="Nombre del estudiante"
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                    />
+                                    {editFormErrors.name && <p className="mt-1 text-xs text-red-500">{editFormErrors.name}</p>}
+                                </div>
 
-                                                        if (isSelected) {
-                                                            setEditFormData({ ...editFormData, classDays: currentDays.filter(d => d !== day.id) });
-                                                        } else {
-                                                            if (currentDays.length < 2) {
-                                                                setEditFormData({ ...editFormData, classDays: [...currentDays, day.id] });
+                                {/* Email */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
+                                    <input
+                                        type="email"
+                                        value={editFormData.email}
+                                        onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                                        placeholder="correo@ejemplo.com"
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                    />
+                                    {editFormErrors.email && <p className="mt-1 text-xs text-red-500">{editFormErrors.email}</p>}
+                                </div>
+
+                                {/* Teléfono de Emergencia */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Tel. Emergencia (Tutor)</label>
+                                    <input
+                                        type="tel"
+                                        value={editFormData.emergencyPhone}
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                            setEditFormData({ ...editFormData, emergencyPhone: value });
+                                        }}
+                                        placeholder="Solo números (10 dígitos)"
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                    />
+                                </div>
+
+                                {/* Esquema de Pago */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Esquema de Pago</label>
+                                    <select
+                                        value={editFormData.paymentScheme}
+                                        onChange={(e) => setEditFormData({ ...editFormData, paymentScheme: e.target.value as any })}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                    >
+                                        <option value="monthly_28">Mensual (28 Días)</option>
+                                        <option value="daily">Diario (Pago por clase)</option>
+                                        <option value="weekly">Semanal</option>
+                                        <option value="biweekly">Catorcenal</option>
+                                    </select>
+                                </div>
+
+                                {/* Días de Clase (Solo para Daily) */}
+                                {editFormData.paymentScheme === 'daily' && (
+                                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                                            Días de Clase
+                                        </label>
+                                        <div className="flex flex-wrap gap-2 justify-center">
+                                            {[
+                                                { id: 1, label: "Lun" },
+                                                { id: 2, label: "Mar" },
+                                                { id: 3, label: "Mié" },
+                                                { id: 4, label: "Jue" },
+                                                { id: 5, label: "Vie" },
+                                                { id: 6, label: "Sáb" },
+                                                { id: 0, label: "Dom" } // 0 is Sunday in JS getDay()
+                                            ].map((day) => {
+                                                const isSelected = editFormData.classDays?.includes(day.id);
+                                                return (
+                                                    <button
+                                                        key={day.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const currentDays = editFormData.classDays || [];
+
+                                                            if (isSelected) {
+                                                                setEditFormData({ ...editFormData, classDays: currentDays.filter(d => d !== day.id) });
+                                                            } else {
+                                                                if (currentDays.length < 2) {
+                                                                    setEditFormData({ ...editFormData, classDays: [...currentDays, day.id] });
+                                                                }
                                                             }
-                                                        }
-                                                    }}
-                                                    className={`
+                                                        }}
+                                                        className={`
                                             w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all
                                             ${isSelected
-                                                            ? "bg-blue-500 text-white shadow-lg scale-110"
-                                                            : "bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                        }
+                                                                ? "bg-blue-500 text-white shadow-lg scale-110"
+                                                                : "bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                            }
                                         `}
-                                                >
-                                                    {day.label}
-                                                </button>
-                                            );
-                                        })}
+                                                    >
+                                                        {day.label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        {editFormData.classDays.length === 0 && (
+                                            <p className="mt-1 text-xs text-amber-500 text-center">Selecciona al menos un día</p>
+                                        )}
                                     </div>
-                                    {editFormData.classDays.length === 0 && (
-                                        <p className="mt-1 text-xs text-amber-500 text-center">Selecciona al menos un día</p>
-                                    )}
-                                </div>
-                            )}
+                                )}
 
-                            {/* Nivel */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nivel</label>
-                                <select
-                                    value={editFormData.level}
-                                    onChange={(e) => setEditFormData({ ...editFormData, level: e.target.value as EditStudentForm["level"] })}
-                                    className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                {/* Nivel */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nivel</label>
+                                    <select
+                                        value={editFormData.level}
+                                        onChange={(e) => setEditFormData({ ...editFormData, level: e.target.value as EditStudentForm["level"] })}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                    >
+                                        <option value="Beginner" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner</option>
+                                        <option value="Intermediate" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate</option>
+                                        <option value="Advanced" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 mt-5">
+                                <button
+                                    onClick={handleSaveEditStudent}
+                                    disabled={isEditing}
+                                    className="flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm"
+                                    style={{ background: '#014287' }}
                                 >
-                                    <option value="Beginner" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner</option>
-                                    <option value="Intermediate" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate</option>
-                                    <option value="Advanced" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced</option>
-                                </select>
+                                    {isEditing ? (
+                                        <span className="inline-flex items-center justify-center gap-2">
+                                            <Loader2 className="animate-spin h-4 w-4" strokeWidth={2} />
+                                            Guardando...
+                                        </span>
+                                    ) : (
+                                        "Guardar Cambios"
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowEditStudentModal(false);
+                                        setStudentToEdit(null);
+                                    }}
+                                    className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
+                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                                >
+                                    Cancelar
+                                </button>
                             </div>
                         </div>
-
-                        <div className="flex gap-3 mt-5">
-                            <button
-                                onClick={handleSaveEditStudent}
-                                disabled={isEditing}
-                                className="flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm"
-                                style={{ background: '#014287' }}
-                            >
-                                {isEditing ? (
-                                    <span className="inline-flex items-center justify-center gap-2">
-                                        <Loader2 className="animate-spin h-4 w-4" strokeWidth={2} />
-                                        Guardando...
-                                    </span>
-                                ) : (
-                                    "Guardar Cambios"
-                                )}
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowEditStudentModal(false);
-                                    setStudentToEdit(null);
-                                }}
-                                className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
-                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
-                            >
-                                Cancelar
-                            </button>
-                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Modal de confirmación para activar/desactivar estudiante */}
-            {showStatusModal && studentToToggle && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'var(--modal-overlay)' }}>
-                    <div className="rounded-xl shadow-2xl max-w-sm w-full p-5" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${studentToToggle.status === "active" ? "bg-red-500/20" : "bg-green-500/20"}`}>
-                                {studentToToggle.status === "active" ? (
-                                    <UserX className="w-5 h-5 text-red-500" strokeWidth={2} />
-                                ) : (
-                                    <UserCheck className="w-5 h-5 text-green-500" strokeWidth={2} />
-                                )}
+            {
+                showStatusModal && studentToToggle && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'var(--modal-overlay)' }}>
+                        <div className="rounded-xl shadow-2xl max-w-sm w-full p-5" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${studentToToggle.status === "active" ? "bg-red-500/20" : "bg-green-500/20"}`}>
+                                    {studentToToggle.status === "active" ? (
+                                        <UserX className="w-5 h-5 text-red-500" strokeWidth={2} />
+                                    ) : (
+                                        <UserCheck className="w-5 h-5 text-green-500" strokeWidth={2} />
+                                    )}
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
+                                        {studentToToggle.status === "active" ? "Desactivar Estudiante" : "Activar Estudiante"}
+                                    </h3>
+                                    <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>#{studentToToggle.studentNumber}</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
-                                    {studentToToggle.status === "active" ? "Desactivar Estudiante" : "Activar Estudiante"}
-                                </h3>
-                                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>#{studentToToggle.studentNumber}</p>
+
+                            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                                {studentToToggle.status === "active"
+                                    ? `¿Estás seguro de que deseas desactivar a "${studentToToggle.name}"?`
+                                    : `¿Estás seguro de que deseas activar a "${studentToToggle.name}"?`
+                                }
+                            </p>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleConfirmToggleStatus}
+                                    disabled={isTogglingStatus}
+                                    className={`flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm ${studentToToggle.status === "active" ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"}`}
+                                >
+                                    {isTogglingStatus ? (
+                                        <span className="inline-flex items-center justify-center gap-2">
+                                            <Loader2 className="animate-spin h-4 w-4" strokeWidth={2} />
+                                            Procesando...
+                                        </span>
+                                    ) : (
+                                        studentToToggle.status === "active" ? "Sí, Desactivar" : "Sí, Activar"
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowStatusModal(false);
+                                        setStudentToToggle(null);
+                                    }}
+                                    className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
+                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                                >
+                                    Cancelar
+                                </button>
                             </div>
-                        </div>
-
-                        <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                            {studentToToggle.status === "active"
-                                ? `¿Estás seguro de que deseas desactivar a "${studentToToggle.name}"?`
-                                : `¿Estás seguro de que deseas activar a "${studentToToggle.name}"?`
-                            }
-                        </p>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={handleConfirmToggleStatus}
-                                disabled={isTogglingStatus}
-                                className={`flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm ${studentToToggle.status === "active" ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"}`}
-                            >
-                                {isTogglingStatus ? (
-                                    <span className="inline-flex items-center justify-center gap-2">
-                                        <Loader2 className="animate-spin h-4 w-4" strokeWidth={2} />
-                                        Procesando...
-                                    </span>
-                                ) : (
-                                    studentToToggle.status === "active" ? "Sí, Desactivar" : "Sí, Activar"
-                                )}
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowStatusModal(false);
-                                    setStudentToToggle(null);
-                                }}
-                                className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
-                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
-                            >
-                                Cancelar
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
             {/* Modal: Confirmación de eliminar estudiante */}
-            {showDeleteStudentModal && studentToDelete && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl relative" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-                                <Trash2 className="w-5 h-5 text-red-500" strokeWidth={2} />
+            {
+                showDeleteStudentModal && studentToDelete && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl relative" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                                    <Trash2 className="w-5 h-5 text-red-500" strokeWidth={2} />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
+                                        Eliminar Estudiante
+                                    </h3>
+                                    <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>#{studentToDelete.studentNumber}</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
-                                    Eliminar Estudiante
-                                </h3>
-                                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>#{studentToDelete.studentNumber}</p>
+
+                            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                                ¿Estás seguro de que deseas eliminar a <strong>"{studentToDelete.name}"</strong>? Esta acción no se puede deshacer y borrará todos sus datos y pagos.
+                            </p>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleConfirmDeleteStudent}
+                                    disabled={isDeletingStudent}
+                                    className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition-all disabled:opacity-50 text-sm"
+                                >
+                                    {isDeletingStudent ? (
+                                        <span className="inline-flex items-center justify-center gap-2">
+                                            <Loader2 className="animate-spin h-4 w-4" strokeWidth={2} />
+                                            Eliminando...
+                                        </span>
+                                    ) : (
+                                        "Sí, Eliminar"
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowDeleteStudentModal(false);
+                                        setStudentToDelete(null);
+                                    }}
+                                    className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
+                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                                >
+                                    Cancelar
+                                </button>
                             </div>
-                        </div>
-
-                        <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                            ¿Estás seguro de que deseas eliminar a <strong>"{studentToDelete.name}"</strong>? Esta acción no se puede deshacer y borrará todos sus datos y pagos.
-                        </p>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={handleConfirmDeleteStudent}
-                                disabled={isDeletingStudent}
-                                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition-all disabled:opacity-50 text-sm"
-                            >
-                                {isDeletingStudent ? (
-                                    <span className="inline-flex items-center justify-center gap-2">
-                                        <Loader2 className="animate-spin h-4 w-4" strokeWidth={2} />
-                                        Eliminando...
-                                    </span>
-                                ) : (
-                                    "Sí, Eliminar"
-                                )}
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowDeleteStudentModal(false);
-                                    setStudentToDelete(null);
-                                }}
-                                className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
-                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
-                            >
-                                Cancelar
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

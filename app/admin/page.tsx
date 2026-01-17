@@ -6,14 +6,17 @@ import { io, Socket } from "socket.io-client";
 import CredentialModal, { Student } from "../dashboard/credential";
 import PaymentsPanel, { PaymentRecord } from "../dashboard/payments";
 import CredentialsPanel from "../dashboard/credentials-panel";
+import ReportsPanel from "../dashboard/reports-panel";
 import { studentsApi, adminsApi, paymentsApi, authApi } from "@/lib/api";
 import { QRCodeSVG } from "qrcode.react";
 import {
     ShieldCheck, Users, CheckCircle, CircleDollarSign,
     BarChart3, Plus, UserPlus, Search, X, Trash2, Ban,
     TrendingDown, FileText, Copy, AlertTriangle, Pencil,
-    UserX, UserCheck, Loader2, Shield, LogOut
+    UserX, UserCheck, Loader2, Shield, LogOut, Download, Calendar, History,
+    ChevronLeft, ChevronRight
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import Image from "next/image";
 
 // ============================================
@@ -596,25 +599,7 @@ export default function SuperAdminDashboard() {
         return matchesSearch && matchesLevel && matchesStatus;
     });
 
-    // Estadísticas para reportes
-    const getMonthlyIncome = () => {
-        const currentMonth = new Date().getMonth() + 1;
-        const currentYear = new Date().getFullYear();
-        return payments
-            .filter(p => p.status === "paid" && p.month === currentMonth && p.year === currentYear)
-            .reduce((acc, p) => acc + p.amount, 0);
-    };
 
-    const getStudentsByLevel = () => ({
-        Beginner: students.filter(s => s.level === "Beginner").length,
-        Intermediate: students.filter(s => s.level === "Intermediate").length,
-        Advanced: students.filter(s => s.level === "Advanced").length,
-    });
-
-    const getDropoutRate = () => {
-        const inactive = students.filter(s => s.status === "inactive").length;
-        return students.length > 0 ? ((inactive / students.length) * 100).toFixed(1) : "0";
-    };
 
     // Formatear fecha
     const formatDate = (dateString: string): string => {
@@ -860,8 +845,8 @@ export default function SuperAdminDashboard() {
                             )}
                         </div>
 
-                        {/* Barra de búsqueda y filtros - Solo para estudiantes y credenciales */}
-                        {(activeTab === "students" || activeTab === "credentials") && (
+                        {/* Barra de búsqueda y filtros - Solo para estudiantes */}
+                        {activeTab === "students" && (
                             <div className="flex flex-wrap gap-4 mb-6 p-4 rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
                                 {/* Búsqueda */}
                                 <div className="flex-1 min-w-[200px]">
@@ -922,114 +907,7 @@ export default function SuperAdminDashboard() {
 
                         {/* Content - Reports Tab */}
                         {activeTab === "reports" ? (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                {/* Reporte de Ingresos Mensuales */}
-                                <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                                            <CircleDollarSign className="w-5 h-5 text-green-500" strokeWidth={2} />
-                                        </div>
-                                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Ingresos del Mes</h3>
-                                    </div>
-                                    <p className="text-4xl font-bold text-green-500 mb-2">${getMonthlyIncome().toLocaleString()}</p>
-                                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                        {new Date().toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
-                                    </p>
-                                    <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
-                                        <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                                            Total acumulado: <span className="font-semibold text-green-500">${payments.filter(p => p.status === "paid").reduce((acc, p) => acc + p.amount, 0).toLocaleString()}</span>
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Estudiantes por Nivel */}
-                                <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                                            <Users className="w-5 h-5 text-blue-500" strokeWidth={2} />
-                                        </div>
-                                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Estudiantes por Nivel</h3>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <div className="flex justify-between mb-1">
-                                                <span className="text-sm font-medium text-blue-500">Beginner</span>
-                                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{getStudentsByLevel().Beginner}</span>
-                                            </div>
-                                            <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-alt)' }}>
-                                                <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${students.length > 0 ? (getStudentsByLevel().Beginner / students.length) * 100 : 0}%` }} />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between mb-1">
-                                                <span className="text-sm font-medium text-yellow-500">Intermediate</span>
-                                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{getStudentsByLevel().Intermediate}</span>
-                                            </div>
-                                            <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-alt)' }}>
-                                                <div className="h-full bg-yellow-500 rounded-full transition-all" style={{ width: `${students.length > 0 ? (getStudentsByLevel().Intermediate / students.length) * 100 : 0}%` }} />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between mb-1">
-                                                <span className="text-sm font-medium text-green-500">Advanced</span>
-                                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{getStudentsByLevel().Advanced}</span>
-                                            </div>
-                                            <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-alt)' }}>
-                                                <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${students.length > 0 ? (getStudentsByLevel().Advanced / students.length) * 100 : 0}%` }} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Tasa de Deserción */}
-                                <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-                                            <TrendingDown className="w-5 h-5 text-red-500" strokeWidth={2} />
-                                        </div>
-                                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Tasa de Deserción</h3>
-                                    </div>
-                                    <p className="text-4xl font-bold mb-2" style={{ color: Number(getDropoutRate()) > 20 ? '#ef4444' : Number(getDropoutRate()) > 10 ? '#f59e0b' : '#22c55e' }}>
-                                        {getDropoutRate()}%
-                                    </p>
-                                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                        {students.filter(s => s.status === "inactive").length} de {students.length} estudiantes inactivos
-                                    </p>
-                                    <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
-                                        <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                                            {Number(getDropoutRate()) <= 10 ? "✅ Excelente retención" : Number(getDropoutRate()) <= 20 ? "⚠️ Atención moderada" : "🚨 Requiere acción"}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Resumen General */}
-                                <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                                            <FileText className="w-5 h-5 text-blue-500" strokeWidth={2} />
-                                        </div>
-                                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Resumen General</h3>
-                                    </div>
-                                    <div className="space-y-3">
-                                        <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
-                                            <span style={{ color: 'var(--text-secondary)' }}>Total Estudiantes</span>
-                                            <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{students.length}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
-                                            <span style={{ color: 'var(--text-secondary)' }}>Estudiantes Activos</span>
-                                            <span className="font-bold text-green-500">{students.filter(s => s.status === "active").length}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
-                                            <span style={{ color: 'var(--text-secondary)' }}>Administradores</span>
-                                            <span className="font-bold text-blue-500">{admins.length}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'var(--surface-alt)' }}>
-                                            <span style={{ color: 'var(--text-secondary)' }}>Pagos Registrados</span>
-                                            <span className="font-bold text-blue-500">{payments.filter(p => p.status === "paid").length}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <ReportsPanel students={students} payments={payments} />
                         ) : activeTab === "payments" ? (
                             <PaymentsPanel
                                 students={students}

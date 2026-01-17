@@ -46,6 +46,7 @@ export interface Payment {
     amount: number;
     status: "paid" | "pending" | "overdue";
     paidAt?: string;
+    confirmedBy?: string;
     createdAt?: string;
 }
 
