@@ -43,7 +43,10 @@ export interface Payment {
     studentId: string;
     month: number;
     year: number;
-    amount: number;
+    amount: number;           // Monto que pagó
+    amountExpected?: number;  // Monto que debía pagar
+    amountPending?: number;   // Monto pendiente
+    paymentPercentage?: number; // Porcentaje pagado (0-100)
     status: "paid" | "pending" | "overdue";
     paidAt?: string;
     confirmedBy?: string;
@@ -259,6 +262,7 @@ export const paymentsApi = {
         month: number;
         year: number;
         amount: number;
+        amountExpected?: number;  // Para pagos parciales
     }): Promise<Payment> {
         const response = await fetch(`${API_URL}/api/payments`, {
             method: "POST",

@@ -351,14 +351,6 @@ export default function CredentialModal({ student, isOpen, onClose }: Credential
                         Cerrar
                     </button>
                 </div>
-
-                {/* Nota de seguridad */}
-                <div className="mt-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
-                    <p className="text-xs text-amber-700 dark:text-amber-400 text-center flex items-center justify-center gap-2">
-                        <Lock className="w-4 h-4" strokeWidth={2} />
-                        QR seguro - Los datos son verificados en el servidor
-                    </p>
-                </div>
             </div>
         </div>
     );

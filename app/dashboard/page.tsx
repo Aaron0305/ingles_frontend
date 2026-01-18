@@ -460,17 +460,22 @@ export default function DashboardPage() {
         }
     };
 
-    const handlePaymentConfirm = async (studentId: string, month: number, year: number) => {
+    const handlePaymentConfirm = async (studentId: string, month: number, year: number, amountPaid?: number) => {
+        console.log("💰 Confirmando pago:", { studentId, month, year, amountPaid });
         const student = students.find(s => s.id === studentId);
         if (!student) return;
 
+        // Si no se proporciona monto, usar el fee completo
+        const paymentAmount = amountPaid !== undefined ? amountPaid : student.monthlyFee;
+
         try {
-            // Llamada real al backend
+            // Llamada real al backend con los campos de pago parcial
             const newPayment = await paymentsApi.create({
                 studentId,
                 month,
                 year,
-                amount: student.monthlyFee,
+                amount: paymentAmount,
+                amountExpected: student.monthlyFee,
             });
 
             setPayments(prev => [...prev, newPayment]);

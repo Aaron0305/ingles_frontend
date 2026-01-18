@@ -49,8 +49,21 @@ interface ReportsPanelProps {
 
 export default function ReportsPanel({ students, payments }: ReportsPanelProps) {
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-    const [timeRange, setTimeRange] = useState<"6m" | "1y" | "2y" | "5y">("6m");
+    const [chartMonth, setChartMonth] = useState<Date>(new Date()); // Mes para la gráfica de ingresos
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    // Navegación de meses para la gráfica
+    const handlePrevMonth = () => {
+        const newDate = new Date(chartMonth);
+        newDate.setMonth(chartMonth.getMonth() - 1);
+        setChartMonth(newDate);
+    };
+
+    const handleNextMonth = () => {
+        const newDate = new Date(chartMonth);
+        newDate.setMonth(chartMonth.getMonth() + 1);
+        setChartMonth(newDate);
+    };
 
     // --- LÓGICA DE FILTRADO DIARIO ---
     const getFilteredPayments = () => {
@@ -152,42 +165,35 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
         advanced: { label: "Advanced", color: "#10b981" }, // Emerald-500
     } satisfies ChartConfig;
 
-    // 2. Datos para GRÁFICA DE ÁREA (Ingresos dinámicos)
+    // 2. Datos para GRÁFICA DE ÁREA (Ingresos diarios del mes seleccionado)
     const getChartData = () => {
-        const today = new Date();
-        const monthsMap = {
-            "6m": 6,
-            "1y": 12,
-            "2y": 24,
-            "5y": 60,
-        };
-        const totalMonths = monthsMap[timeRange];
+        const year = chartMonth.getFullYear();
+        const month = chartMonth.getMonth(); // 0-11
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
         const data = [];
 
-        for (let i = totalMonths - 1; i >= 0; i--) {
-            const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-            const monthIndex = d.getMonth() + 1; // 1-12
-            const year = d.getFullYear();
+        for (let day = 1; day <= daysInMonth; day++) {
+            const d = new Date(year, month, day);
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-            // Nombre corto del mes para el eje X
-            // Si es un rango muy largo (5y), mostramos solo la inicial o año en tooltip
-            const monthName = d.toLocaleDateString('es-MX', { month: 'short' });
-            const yearShort = d.getFullYear().toString().slice(2);
-
-            // Label combina Mes y Año si es rango largo para evitar confusión
-            const label = totalMonths > 12 ? `${monthName} ${yearShort}` : monthName;
-
-            // Sumar pagos de este mes/año
+            // Sumar pagos de este día específico
             const total = payments
-                .filter(p => p.status === 'paid' && p.month === monthIndex && p.year === year)
+                .filter(p => p.status === 'paid' && p.paidAt && p.paidAt.startsWith(dateStr))
                 .reduce((acc, p) => acc + p.amount, 0);
 
-            data.push({ month: label, total: total, fullDate: `${monthName} ${year}` });
+            data.push({
+                day: day.toString(),
+                total: total,
+                fullDate: d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
+            });
         }
         return data;
     };
 
     const chartData = getChartData();
+
+    // Calcular total del mes para mostrar en la gráfica
+    const monthlyTotal = chartData.reduce((acc, d) => acc + d.total, 0);
 
     const chartConfig = {
         total: { label: "Ingresos", color: "#3b82f6" }, // Blue-500
@@ -197,25 +203,25 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
     return (
         <div className="space-y-6 animate-fade-in">
             {/* --- SECCIÓN DE GRÁFICAS SUPERIOR --- */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
-                {/* 1. GRÁFICA RADIAL: Estudiantes por Nivel */}
-                <Card className="flex flex-col bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700">
-                    <CardHeader className="items-center pb-0">
-                        <CardTitle>Estudiantes por Nivel</CardTitle>
-                        <CardDescription>Distribución de alumnos activos</CardDescription>
+                {/* 1. GRÁFICA RADIAL: Estudiantes por Nivel (1/4 del espacio) */}
+                <Card className="flex flex-col bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 lg:col-span-1">
+                    <CardHeader className="items-center pb-2">
+                        <CardTitle className="text-sm font-semibold">Estudiantes por Nivel</CardTitle>
+                        <CardDescription className="text-xs">Alumnos activos</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex-1 pb-0">
+                    <CardContent className="flex-1 flex items-center justify-center py-2">
                         <ChartContainer
                             config={radialChartConfig}
-                            className="mx-auto aspect-square max-h-[250px]"
+                            className="mx-auto w-full max-w-[200px] aspect-square"
                         >
                             <RadialBarChart
                                 data={radialChartData}
                                 startAngle={-90}
                                 endAngle={380}
-                                innerRadius={30}
-                                outerRadius={110}
+                                innerRadius={25}
+                                outerRadius={80}
                             >
                                 <ChartTooltip
                                     cursor={false}
@@ -226,65 +232,76 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
                                         position="insideStart"
                                         dataKey="level"
                                         className="fill-white capitalize mix-blend-luminosity"
-                                        fontSize={11}
+                                        fontSize={9}
                                     />
                                 </RadialBar>
                             </RadialBarChart>
                         </ChartContainer>
                     </CardContent>
-                    <CardFooter className="flex-col gap-2 text-sm text-center">
-                        <div className="leading-none text-muted-foreground">
-                            Mostrando total de alumnos activos por nivel educativo
+                    <CardFooter className="pt-0 pb-3">
+                        <div className="w-full flex flex-col gap-1 text-xs">
+                            {radialChartData.map((item) => (
+                                <div key={item.level} className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
+                                        <span className="capitalize text-gray-600 dark:text-gray-400">{item.level}</span>
+                                    </div>
+                                    <span className="font-semibold text-gray-900 dark:text-gray-100">{item.students}</span>
+                                </div>
+                            ))}
                         </div>
                     </CardFooter>
                 </Card>
 
-                {/* 2. GRÁFICA DE ÁREA: Historial de Ingresos (Gradient) */}
-                <Card className="flex flex-col bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700">
+                {/* 2. GRÁFICA DE ÁREA: Ingresos Diarios del Mes (3/4 del espacio) */}
+                <Card className="flex flex-col bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 lg:col-span-3">
                     <CardHeader>
                         <div className="flex items-center justify-between flex-wrap gap-4">
                             <div>
-                                <CardTitle>Historial de Ingresos</CardTitle>
+                                <CardTitle>Ingresos Diarios</CardTitle>
                                 <CardDescription>
-                                    {timeRange === '6m' ? 'Últimos 6 meses' :
-                                        timeRange === '1y' ? 'Último año' :
-                                            timeRange === '2y' ? 'Últimos 2 años' : 'Últimos 5 años'}
+                                    {chartMonth.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
                                 </CardDescription>
                             </div>
-                            <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-700/50 p-1 rounded-lg">
-                                {(['6m', '1y', '2y', '5y'] as const).map((range) => (
-                                    <button
-                                        key={range}
-                                        onClick={() => setTimeRange(range)}
-                                        className={cn(
-                                            "px-3 py-1 text-xs font-medium rounded-md transition-all",
-                                            timeRange === range
-                                                ? "bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm"
-                                                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                                        )}
-                                    >
-                                        {range.toUpperCase()}
-                                    </button>
-                                ))}
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handlePrevMonth}
+                                    className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400"
+                                >
+                                    <ChevronLeft className="w-5 h-5" />
+                                </button>
+                                <span className="px-4 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg font-medium text-sm min-w-[120px] text-center">
+                                    {chartMonth.toLocaleDateString('es-MX', { month: 'short', year: 'numeric' }).toUpperCase()}
+                                </span>
+                                <button
+                                    onClick={handleNextMonth}
+                                    className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400"
+                                >
+                                    <ChevronRight className="w-5 h-5" />
+                                </button>
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={chartConfig}>
+                    <CardContent className="pb-2">
+                        <ChartContainer config={chartConfig} className="h-[200px] w-full">
                             <AreaChart
                                 accessibilityLayer
                                 data={chartData}
                                 margin={{
-                                    left: 12,
-                                    right: 12,
+                                    left: 0,
+                                    right: 0,
+                                    top: 10,
+                                    bottom: 0,
                                 }}
                             >
                                 <CartesianGrid vertical={false} />
                                 <XAxis
-                                    dataKey="month"
+                                    dataKey="day"
                                     tickLine={false}
-                                    tickMargin={8}
+                                    tickMargin={4}
                                     axisLine={false}
+                                    interval={0}
+                                    fontSize={9}
                                 />
                                 <ChartTooltip
                                     cursor={false}
@@ -317,7 +334,11 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
                     </CardContent>
                     <CardFooter className="flex-col gap-2 text-sm text-center">
                         <div className="flex items-center gap-2 font-medium leading-none">
-                            Tendencia de ingresos <TrendingUp className="h-4 w-4" />
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-lg">
+                                ${monthlyTotal.toLocaleString()}
+                            </span>
+                            <span className="text-gray-500">total del mes</span>
+                            <TrendingUp className="h-4 w-4 text-emerald-500" />
                         </div>
                     </CardFooter>
                 </Card>

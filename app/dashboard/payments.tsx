@@ -18,7 +18,10 @@ export interface PaymentRecord {
     studentId: string;
     month: number; // Esto ahora representará el "index" del periodo (1-12, 1-48, etc)
     year: number;
-    amount: number;
+    amount: number;  // Monto que pagó
+    amountExpected?: number;  // Monto que debía pagar
+    amountPending?: number;   // Monto que le falta
+    paymentPercentage?: number; // Porcentaje pagado (0-100)
     status: "paid" | "pending" | "overdue";
     paidAt?: string;
     confirmedBy?: string;
@@ -38,16 +41,17 @@ interface PaymentConfirmModalProps {
     student: Student | null;
     periodIndex: number; // Antes month
     year: number;
-    onConfirm: () => void;
+    onConfirm: (amountPaid: number) => void;  // Ahora recibe el monto pagado
     onCancel: () => void;
     onReject?: () => void;
     isFromScan?: boolean;
+    existingPayment?: PaymentRecord | null;  // Pago existente si hay uno
 }
 
 interface PaymentsPanelProps {
     students: Student[];
     payments: PaymentRecord[];
-    onPaymentConfirm: (studentId: string, month: number, year: number) => void;
+    onPaymentConfirm: (studentId: string, month: number, year: number, amountPaid?: number) => void;
     onPaymentRevoke?: (studentId: string, month: number, year: number) => void;
     socket?: Socket | null;
     pendingPaymentRequest?: {
@@ -446,8 +450,21 @@ const getPaymentDescription = (student: Student, scheme: PaymentScheme, periodIn
 // MODAL DE CONFIRMACIÓN DE PAGO
 // ============================================
 
-function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, onCancel, onReject, isFromScan }: PaymentConfirmModalProps) {
+function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, onCancel, onReject, isFromScan, existingPayment }: PaymentConfirmModalProps) {
     const [isConfirming, setIsConfirming] = useState(false);
+    const [amountPaid, setAmountPaid] = useState<string>("");
+
+    // Reset amount when modal opens
+    useEffect(() => {
+        if (isOpen && student) {
+            // Si hay un pago parcial existente, mostrar solo lo que falta
+            if (existingPayment && existingPayment.amountPending && existingPayment.amountPending > 0) {
+                setAmountPaid(existingPayment.amountPending.toString());
+            } else {
+                setAmountPaid(student.monthlyFee.toString());
+            }
+        }
+    }, [isOpen, student, existingPayment]);
 
     if (!isOpen || !student) return null;
 
@@ -455,26 +472,42 @@ function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, on
     const config = SCHEME_CONFIGS[scheme];
     const description = getPaymentDescription(student, scheme, periodIndex, year);
 
+    // Usar el pago existente si hay uno, sino usar el fee completo
+    const expectedAmount = existingPayment?.amountExpected || student.monthlyFee;
+    const currentPaidAmount = existingPayment?.amount || 0;
+    const currentPendingAmount = existingPayment?.amountPending || expectedAmount;
+    
+    const newPaidAmount = parseFloat(amountPaid) || 0;
+    const totalPaidAmount = currentPaidAmount + newPaidAmount;
+    const finalPendingAmount = Math.max(expectedAmount - totalPaidAmount, 0);
+    const percentage = Math.min(Math.round((totalPaidAmount / expectedAmount) * 100), 100);
+    const isPartialPayment = totalPaidAmount > 0 && totalPaidAmount < expectedAmount;
+    const hasExistingPartial = existingPayment && existingPayment.paymentPercentage !== undefined && existingPayment.paymentPercentage < 100;
+
     const handleConfirm = async () => {
+        if (newPaidAmount <= 0) return;
         setIsConfirming(true);
         await new Promise(resolve => setTimeout(resolve, 800));
-        onConfirm();
+        onConfirm(newPaidAmount);
         setIsConfirming(false);
     };
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
             <div className="rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200" style={{ background: 'var(--modal-bg)' }}>
-                {/* Icono de éxito */}
+                {/* Icono dinámico según tipo de pago */}
                 <div className="flex justify-center mb-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/30">
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg ${isPartialPayment
+                        ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/30'
+                        : 'bg-gradient-to-br from-green-400 to-emerald-500 shadow-green-500/30'
+                        }`}>
                         <CircleDollarSign className="w-8 h-8 text-white" strokeWidth={2} />
                     </div>
                 </div>
 
                 {/* Título */}
                 <h3 className="text-xl font-bold text-center mb-2" style={{ color: 'var(--text-primary)' }}>
-                    Confirmar Pago
+                    {isPartialPayment ? 'Pago Parcial' : 'Confirmar Pago'}
                 </h3>
 
                 {/* Card de Información */}
@@ -497,12 +530,72 @@ function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, on
                     </div>
                 </div>
 
-                <div className="text-center mt-6 mb-6">
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Monto a pagar</p>
-                    <p className="text-3xl font-black text-emerald-500">
-                        ${student.monthlyFee}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1 capitalize">
+                {/* Sección de Monto */}
+                <div className="mt-6 mb-4">
+                    <div className="flex justify-between items-center mb-2">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Monto esperado</p>
+                        <p className="text-lg font-bold text-gray-700 dark:text-gray-300">${expectedAmount}</p>
+                    </div>
+
+                    {/* Información de pago parcial existente */}
+                    {hasExistingPartial && existingPayment && (
+                        <div className="mb-3 p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
+                            <p className="text-xs text-green-600 dark:text-green-400 text-center">
+                                ✓ Ya pagaste <strong>${currentPaidAmount.toFixed(0)}</strong>, faltan <strong>${currentPendingAmount.toFixed(0)}</strong>
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Input de monto pagado */}
+                    <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-400">$</span>
+                        <input
+                            type="number"
+                            value={amountPaid}
+                            onChange={(e) => setAmountPaid(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 text-2xl font-bold text-center rounded-xl border-2 transition-all focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            style={{
+                                background: 'var(--input-bg)',
+                                color: 'var(--text-primary)',
+                                borderColor: isPartialPayment ? '#f59e0b' : totalPaidAmount >= expectedAmount ? '#22c55e' : '#e5e7eb'
+                            }}
+                            min="0"
+                            max={currentPendingAmount}
+                            step="50"
+                        />
+                    </div>
+
+                    {/* Barra de progreso */}
+                    <div className="mt-3 mb-2">
+                        <div className="h-3 bg-gray-200 dark:bg-slate-600 rounded-full overflow-hidden">
+                            <div
+                                className={`h-full transition-all duration-300 rounded-full ${percentage >= 100 ? 'bg-gradient-to-r from-green-400 to-emerald-500' :
+                                    percentage >= 50 ? 'bg-gradient-to-r from-amber-400 to-orange-500' :
+                                        'bg-gradient-to-r from-red-400 to-red-500'
+                                    }`}
+                                style={{ width: `${percentage}%` }}
+                            />
+                        </div>
+                        <div className="flex justify-between mt-1">
+                            <span className="text-xs text-gray-500">{percentage}% del pago</span>
+                            {isPartialPayment && (
+                                <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                                    Resta: ${finalPendingAmount.toFixed(0)}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Mensaje de pago parcial */}
+                    {isPartialPayment && (
+                        <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                            <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                                ⚠️ El estudiante deberá pagar <strong>${finalPendingAmount.toFixed(0)}</strong> en su próxima clase
+                            </p>
+                        </div>
+                    )}
+
+                    <p className="text-xs text-gray-400 mt-2 text-center capitalize">
                         Esquema: {config.label}
                     </p>
                 </div>
@@ -519,8 +612,11 @@ function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, on
                 <div className="flex gap-3">
                     <button
                         onClick={handleConfirm}
-                        disabled={isConfirming}
-                        className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-green-500/25 disabled:opacity-50 flex items-center justify-center gap-2"
+                        disabled={isConfirming || newPaidAmount <= 0}
+                        className={`flex-1 py-3 text-white font-semibold rounded-xl transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 ${isPartialPayment
+                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-amber-500/25'
+                            : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-green-500/25'
+                            }`}
                     >
                         {isConfirming ? (
                             <>
@@ -530,7 +626,7 @@ function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, on
                         ) : (
                             <>
                                 <Check className="w-5 h-5" strokeWidth={2} />
-                                Confirmar Pago
+                                {isPartialPayment ? `Confirmar $${newPaidAmount}` : 'Confirmar Pago'}
                             </>
                         )}
                     </button>
@@ -750,10 +846,17 @@ function PeriodCell({
 }) {
     const isPaid = payment?.status === "paid";
 
+    // Detectar pago parcial
+    const isPartialPayment = isPaid && payment?.paymentPercentage !== undefined && payment.paymentPercentage < 100;
+    const paymentPercentage = payment?.paymentPercentage ?? 100;
+
     // Status visual
     let statusColor = "bg-gray-500/10 hover:bg-blue-500/15 border-gray-500/20 hover:border-blue-500/30";
 
-    if (isPaid) {
+    if (isPartialPayment) {
+        // Estilo para pagos parciales (naranja)
+        statusColor = "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/40 hover:border-amber-500/60";
+    } else if (isPaid) {
         statusColor = "bg-green-500/15 hover:bg-red-500/15 border-green-500/40 hover:border-red-500/40";
     } else if (isOverdue) {
         // Estilo para pagos vencidos (Rojo)
@@ -764,7 +867,11 @@ function PeriodCell({
     }
 
     const handleClick = () => {
-        if (isPaid && onRevoke) {
+        // Si es pago parcial, permitir agregar el pago restante
+        if (isPartialPayment) {
+            onClick();
+        } else if (isPaid && onRevoke) {
+            // Solo revocar si está completamente pagado (no parcial)
             onRevoke();
         } else if (!isPaid) {
             onClick();
@@ -784,7 +891,40 @@ function PeriodCell({
                 {customLabel || config.getPeriodLabel(periodIndex)}
             </span>
 
-            {isPaid ? (
+            {isPartialPayment ? (
+                // Mostrar ícono con mitad verde/mitad naranja para pagos parciales usando SVG
+                <div className="relative w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
+                    <svg 
+                        className="w-full h-full transform -rotate-90" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        {/* Círculo de fondo (naranja) */}
+                        <circle
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="#f59e0b"
+                            strokeWidth="2"
+                            fill="none"
+                        />
+                        {/* Arco verde (porcentaje pagado) usando stroke-dasharray */}
+                        <circle
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="#22c55e"
+                            strokeWidth="2"
+                            fill="none"
+                            strokeDasharray={`${2 * Math.PI * 10 * (paymentPercentage / 100)} ${2 * Math.PI * 10}`}
+                            className="transition-all duration-300"
+                        />
+                    </svg>
+                    {/* Símbolo de dólar en el centro */}
+                    <DollarSign className="absolute w-2.5 h-2.5 sm:w-3 sm:h-3 text-white z-10" strokeWidth={3} />
+                </div>
+            ) : isPaid ? (
                 <div className="relative">
                     <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 group-hover:hidden" strokeWidth={2.5} />
                     <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 hidden group-hover:block" strokeWidth={2.5} />
@@ -799,10 +939,12 @@ function PeriodCell({
 
             {/* Tooltip */}
             <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                {isPaid ? "Revocar" :
-                    isOverdue ? `¡Vencido! Pagar ${config.getPeriodFullName(periodIndex)}` :
-                        isCurrentPeriod ? `Pendiente hoy - Pagar ${config.getPeriodFullName(periodIndex)}` :
-                            `Pagar ${config.getPeriodFullName(periodIndex)}`}
+                {isPartialPayment
+                    ? `Agregar pago restante: $${payment?.amountPending} (Ya pagado: $${payment?.amount})`
+                    : isPaid ? "Cancelar pago" :
+                        isOverdue ? `¡Vencido! Pagar ${config.getPeriodFullName(periodIndex)}` :
+                            isCurrentPeriod ? `Pendiente hoy - Pagar ${config.getPeriodFullName(periodIndex)}` :
+                                `Pagar ${config.getPeriodFullName(periodIndex)}`}
             </div>
         </button>
     );
@@ -1291,7 +1433,7 @@ export default function PaymentsPanel({
 
     // Filtros de búsqueda (igual que en StudentList, pero interno)
     const [searchTerm, setSearchTerm] = useState("");
-    const [filterPaymentStatus, setFilterPaymentStatus] = useState<'all' | 'overdue' | 'pending'>('all');
+    const [filterPaymentStatus, setFilterPaymentStatus] = useState<'all' | 'overdue' | 'pending' | 'partial'>('all');
 
     // Estado para el escaneo QR en tiempo real
     const [scanRequest, setScanRequest] = useState<PaymentScanRequest | null>(null);
@@ -1315,6 +1457,8 @@ export default function PaymentsPanel({
             }
         }
     }, [pendingPaymentRequest, students]);
+
+    // Filtrar estudiantes
 
     // Escuchar eventos de escaneo QR
     useEffect(() => {
@@ -1365,11 +1509,15 @@ export default function PaymentsPanel({
         setShowRevokeModal(false);
     };
 
-    const handleConfirmPayment = () => {
+    const handleConfirmPayment = (amountPaid: number) => {
+        console.log("💰 PaymentsPanel handleConfirmPayment", amountPaid);
         if (selectedStudent && selectedPeriod) {
-            onPaymentConfirm(selectedStudent.id, selectedPeriod, selectedYear);
+            onPaymentConfirm(selectedStudent.id, selectedPeriod, selectedYear, Number(amountPaid));
             setShowConfirmModal(false);
             setShowSuccessModal(true);
+            setScanRequest(null); // Clear scan request
+            // setPendingPaymentRequest(null); // Assuming this state setter exists in the parent or context
+            onPaymentRequestHandled?.(); // Clear pending request from parent
 
             // Notificar al estudiante a través del socket
             if (socket && scanRequest) {
@@ -1378,7 +1526,9 @@ export default function PaymentsPanel({
                     month: selectedPeriod,
                     year: selectedYear,
                     success: true,
-                    message: `Pago confirmado exitosamente`
+                    message: amountPaid < (selectedStudent.monthlyFee || 0)
+                        ? `Pago parcial de $${amountPaid} confirmado. Resta: $${(selectedStudent.monthlyFee || 0) - amountPaid}`
+                        : `Pago confirmado exitosamente`
                 });
                 setScanRequest(null);
             }
@@ -1493,11 +1643,9 @@ export default function PaymentsPanel({
     };
 
     const filteredStudents = students.filter(student => {
-        const search = searchTerm.toLowerCase().trim();
-        const isNumeric = /^\d+$/.test(search);
-
-        const matchesSearch = search === "" || (
-            isNumeric
+        const search = searchTerm.toLowerCase();
+        const matchesSearch = (
+            search === "" || !isNaN(Number(search))
                 ? student.studentNumber.toString().includes(search)
                 : (
                     student.name.toLowerCase().includes(search) ||
@@ -1510,14 +1658,11 @@ export default function PaymentsPanel({
 
             const hasOverdue = isStudentOverdue(student, payments);
             const hasPending = hasPendingPayments(student, payments);
+            const hasPartial = payments.some(p => p.studentId === student.id && p.year === selectedYear && p.status === 'paid' && p.paymentPercentage !== undefined && p.paymentPercentage < 100);
 
-            // "Vencidos": Mostrar si tiene AL MENOS UN pago vencido
-            // (sin importar si también tiene pagados o pendientes)
             if (filterPaymentStatus === 'overdue') return hasOverdue;
-
-            // "Pendientes": Mostrar si tiene AL MENOS UN pago pendiente
-            // (incluyendo los que también tienen vencidos)
             if (filterPaymentStatus === 'pending') return hasPending;
+            if (filterPaymentStatus === 'partial') return hasPartial;
 
             return true;
         })();
@@ -1570,6 +1715,15 @@ export default function PaymentsPanel({
                                 }`}
                         >
                             Pendientes
+                        </button>
+                        <button
+                            onClick={() => setFilterPaymentStatus('partial')}
+                            className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${filterPaymentStatus === 'partial'
+                                ? 'bg-white dark:bg-slate-600 text-amber-500 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                }`}
+                        >
+                            Parciales
                         </button>
                         <button
                             onClick={() => setFilterPaymentStatus('overdue')}
@@ -1647,6 +1801,9 @@ export default function PaymentsPanel({
                 onCancel={() => setShowConfirmModal(false)}
                 onReject={scanRequest ? handleRejectScanPayment : undefined}
                 isFromScan={!!scanRequest}
+                existingPayment={selectedStudent && selectedPeriod && selectedYear 
+                    ? payments.find(p => p.studentId === selectedStudent.id && p.month === selectedPeriod && p.year === selectedYear)
+                    : null}
             />
 
             <PaymentSuccessModal
@@ -1670,7 +1827,7 @@ export default function PaymentsPanel({
                             </div>
 
                             <h3 className="text-xl font-bold text-center mb-2 dark:text-white">
-                                ¿Revocar pago?
+                                ¿Cancelar pago?
                             </h3>
 
                             <p className="text-center text-gray-500 dark:text-gray-400 text-sm mb-6">
@@ -1682,13 +1839,13 @@ export default function PaymentsPanel({
                                     onClick={() => setShowRevokeModal(false)}
                                     className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 font-medium rounded-xl transition-colors"
                                 >
-                                    Cancelar
+                                    No, mantener
                                 </button>
                                 <button
                                     onClick={handleConfirmRevoke}
                                     className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-colors shadow-lg shadow-red-500/20"
                                 >
-                                    Revocar
+                                    Cancelar pago
                                 </button>
                             </div>
                         </div>
