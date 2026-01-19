@@ -333,6 +333,7 @@ export default function SuperAdminDashboard() {
                 emergencyPhone: formData.emergencyPhone || undefined,
                 paymentScheme: formData.paymentScheme,
                 classDays: formData.paymentScheme === 'daily' ? formData.classDays : undefined,
+                enrollmentDate: formData.enrollmentDate,
             });
 
             const studentWithProgress: Student = {
@@ -1277,6 +1278,28 @@ export default function SuperAdminDashboard() {
                                         className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
                                     />
+                                </div>
+
+                                {/* Día de Inscripción (Para migración) */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                                        Día de Inscripción
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={formData.enrollmentDate}
+                                        onChange={(e) => setFormData({ ...formData, enrollmentDate: e.target.value })}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{
+                                            background: 'var(--input-bg)',
+                                            border: '1px solid var(--input-border)',
+                                            color: 'var(--text-primary)',
+                                            colorScheme: 'dark'
+                                        }}
+                                    />
+                                    <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                        Por defecto es hoy. Cambia solo para migración de usuarios.
+                                    </p>
                                 </div>
 
                                 {/* Nivel */}

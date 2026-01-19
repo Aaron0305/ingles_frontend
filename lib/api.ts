@@ -153,6 +153,7 @@ export const studentsApi = {
         emergencyPhone?: string;
         paymentScheme?: "daily" | "weekly" | "biweekly" | "monthly_28";
         classDays?: number[];
+        enrollmentDate?: string;
     }): Promise<Student> {
         const response = await fetch(`${API_URL}/api/students`, {
             method: "POST",
