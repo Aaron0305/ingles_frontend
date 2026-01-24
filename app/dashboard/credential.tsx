@@ -11,7 +11,7 @@ export interface Student {
     name: string;
     email: string;
     emergencyPhone?: string;
-    level: "Beginner" | "Intermediate" | "Advanced";
+    level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
     monthlyFee: number;
     progress: number;
     lastAccess: string;
@@ -54,9 +54,12 @@ function formatDate(dateString: string): string {
 
 function getLevelColor(level: Student["level"]) {
     const colors = {
-        Beginner: { bg: "#3b82f6", light: "#dbeafe", text: "#1d4ed8" },
-        Intermediate: { bg: "#f59e0b", light: "#fef3c7", text: "#b45309" },
-        Advanced: { bg: "#10b981", light: "#d1fae5", text: "#047857" },
+        "Beginner 1": { bg: "#3b82f6", light: "#dbeafe", text: "#1d4ed8" },
+        "Beginner 2": { bg: "#60a5fa", light: "#dbeafe", text: "#1d4ed8" },
+        "Intermediate 1": { bg: "#f59e0b", light: "#fef3c7", text: "#b45309" },
+        "Intermediate 2": { bg: "#fbbf24", light: "#fef3c7", text: "#b45309" },
+        "Advanced 1": { bg: "#10b981", light: "#d1fae5", text: "#047857" },
+        "Advanced 2": { bg: "#34d399", light: "#d1fae5", text: "#047857" },
     };
     return colors[level];
 }

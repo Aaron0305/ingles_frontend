@@ -19,7 +19,7 @@ export interface Student {
     name: string;
     email: string;
     emergencyPhone?: string;
-    level: "Beginner" | "Intermediate" | "Advanced";
+    level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
     monthlyFee: number;
     status: "active" | "inactive";
     createdAt?: string;
@@ -148,7 +148,7 @@ export const studentsApi = {
     async create(data: {
         name: string;
         email: string;
-        level: "Beginner" | "Intermediate" | "Advanced";
+        level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
         monthlyFee?: number;
         emergencyPhone?: string;
         paymentScheme?: "daily" | "weekly" | "biweekly" | "monthly_28";

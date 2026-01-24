@@ -25,7 +25,7 @@ interface NewStudentForm {
     name: string;
     email: string;
     emergencyPhone: string;
-    level: "Beginner" | "Intermediate" | "Advanced";
+    level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
     paymentScheme: "daily" | "weekly" | "biweekly" | "monthly_28";
     priceOption: string;
     customPrice: string;
@@ -37,7 +37,7 @@ interface EditStudentForm {
     name: string;
     email: string;
     emergencyPhone: string;
-    level: "Beginner" | "Intermediate" | "Advanced";
+    level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
     paymentScheme?: "daily" | "weekly" | "biweekly" | "monthly_28";
     classDays: number[]; // Added classDays
 }
@@ -90,7 +90,7 @@ export default function DashboardPage() {
         name: "",
         email: "",
         emergencyPhone: "",
-        level: "Beginner",
+        level: "Beginner 1",
         paymentScheme: "monthly_28",
         priceOption: "760",
         customPrice: "",
@@ -98,7 +98,7 @@ export default function DashboardPage() {
         enrollmentDate: new Date().toLocaleDateString('en-CA'), // Formato YYYY-MM-DD
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-    const [editFormData, setEditFormData] = useState<EditStudentForm>({ name: "", email: "", emergencyPhone: "", level: "Beginner", paymentScheme: "monthly_28", classDays: [] });
+    const [editFormData, setEditFormData] = useState<EditStudentForm>({ name: "", email: "", emergencyPhone: "", level: "Beginner 1", paymentScheme: "monthly_28", classDays: [] });
     const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -320,7 +320,7 @@ export default function DashboardPage() {
             setSelectedStudent(studentWithProgress);
             setShowCreateModal(false);
             setShowCredentialModal(true);
-            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
+            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner 1", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
         } catch (error) {
             console.error("Error creando estudiante:", error);
             const message = error instanceof Error ? error.message : "Error al crear estudiante";
@@ -509,12 +509,15 @@ export default function DashboardPage() {
     });
 
     const getLevelBadge = (level: Student["level"]): string => {
-        const colors = {
-            Beginner: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-            Intermediate: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-            Advanced: "bg-green-500/20 text-green-400 border-green-500/30",
+        const colors: Record<string, string> = {
+            "Beginner 1": "bg-blue-500/20 text-blue-400 border-blue-500/30",
+            "Beginner 2": "bg-blue-400/20 text-blue-300 border-blue-400/30",
+            "Intermediate 1": "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+            "Intermediate 2": "bg-yellow-400/20 text-yellow-300 border-yellow-400/30",
+            "Advanced 1": "bg-green-500/20 text-green-400 border-green-500/30",
+            "Advanced 2": "bg-green-400/20 text-green-300 border-green-400/30",
         };
-        return colors[level];
+        return colors[level] || "bg-gray-500/20 text-gray-400 border-gray-500/30";
     };
 
     // Formatear fecha
@@ -658,17 +661,17 @@ export default function DashboardPage() {
                                     <div className="hidden md:block w-px h-16 bg-gradient-to-b from-transparent via-gray-500/30 to-transparent" />
 
                                     {/* Distribución por nivel */}
-                                    <div className="flex gap-3">
+                                    <div className="flex gap-3 flex-wrap">
                                         <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
-                                            <p className="text-2xl font-bold text-blue-500">{students.filter(s => s.level === "Beginner").length}</p>
+                                            <p className="text-2xl font-bold text-blue-500">{students.filter(s => s.level.startsWith("Beginner")).length}</p>
                                             <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Beginner</p>
                                         </div>
                                         <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
-                                            <p className="text-2xl font-bold text-amber-500">{students.filter(s => s.level === "Intermediate").length}</p>
+                                            <p className="text-2xl font-bold text-amber-500">{students.filter(s => s.level.startsWith("Intermediate")).length}</p>
                                             <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Intermediate</p>
                                         </div>
                                         <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
-                                            <p className="text-2xl font-bold text-emerald-500">{students.filter(s => s.level === "Advanced").length}</p>
+                                            <p className="text-2xl font-bold text-emerald-500">{students.filter(s => s.level.startsWith("Advanced")).length}</p>
                                             <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Advanced</p>
                                         </div>
                                     </div>
@@ -762,9 +765,12 @@ export default function DashboardPage() {
                                     style={{ background: '#014287', border: 'none' }}
                                 >
                                     <option value="all" className="bg-gray-800 text-white">Todos los niveles</option>
-                                    <option value="Beginner" className="bg-gray-800 text-white">Beginner</option>
-                                    <option value="Intermediate" className="bg-gray-800 text-white">Intermediate</option>
-                                    <option value="Advanced" className="bg-gray-800 text-white">Advanced</option>
+                                    <option value="Beginner 1" className="bg-gray-800 text-white">Beginner 1</option>
+                                    <option value="Beginner 2" className="bg-gray-800 text-white">Beginner 2</option>
+                                    <option value="Intermediate 1" className="bg-gray-800 text-white">Intermediate 1</option>
+                                    <option value="Intermediate 2" className="bg-gray-800 text-white">Intermediate 2</option>
+                                    <option value="Advanced 1" className="bg-gray-800 text-white">Advanced 1</option>
+                                    <option value="Advanced 2" className="bg-gray-800 text-white">Advanced 2</option>
                                 </select>
 
                                 {/* Filtro por estado */}
@@ -1088,9 +1094,12 @@ export default function DashboardPage() {
                                             color: 'var(--text-primary)'
                                         }}
                                     >
-                                        <option value="Beginner" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Beginner</option>
-                                        <option value="Intermediate" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Intermediate</option>
-                                        <option value="Advanced" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Advanced</option>
+                                        <option value="Beginner 1" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Beginner 1</option>
+                                        <option value="Beginner 2" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Beginner 2</option>
+                                        <option value="Intermediate 1" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Intermediate 1</option>
+                                        <option value="Intermediate 2" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Intermediate 2</option>
+                                        <option value="Advanced 1" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Advanced 1</option>
+                                        <option value="Advanced 2" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Advanced 2</option>
                                     </select>
                                 </div>
 
@@ -1383,9 +1392,12 @@ export default function DashboardPage() {
                                         className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
                                     >
-                                        <option value="Beginner" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner</option>
-                                        <option value="Intermediate" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate</option>
-                                        <option value="Advanced" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced</option>
+                                        <option value="Beginner 1" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner 1</option>
+                                        <option value="Beginner 2" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner 2</option>
+                                        <option value="Intermediate 1" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate 1</option>
+                                        <option value="Intermediate 2" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate 2</option>
+                                        <option value="Advanced 1" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced 1</option>
+                                        <option value="Advanced 2" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced 2</option>
                                     </select>
                                 </div>
                             </div>

@@ -153,16 +153,22 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
     }, {} as Record<string, number>);
 
     const radialChartData = [
-        { level: "beginner", students: studentsByLevel['Beginner'] || 0, fill: "var(--color-beginner)" },
-        { level: "intermediate", students: studentsByLevel['Intermediate'] || 0, fill: "var(--color-intermediate)" },
-        { level: "advanced", students: studentsByLevel['Advanced'] || 0, fill: "var(--color-advanced)" },
+        { level: "beginner1", students: studentsByLevel['Beginner 1'] || 0, fill: "var(--color-beginner1)" },
+        { level: "beginner2", students: studentsByLevel['Beginner 2'] || 0, fill: "var(--color-beginner2)" },
+        { level: "intermediate1", students: studentsByLevel['Intermediate 1'] || 0, fill: "var(--color-intermediate1)" },
+        { level: "intermediate2", students: studentsByLevel['Intermediate 2'] || 0, fill: "var(--color-intermediate2)" },
+        { level: "advanced1", students: studentsByLevel['Advanced 1'] || 0, fill: "var(--color-advanced1)" },
+        { level: "advanced2", students: studentsByLevel['Advanced 2'] || 0, fill: "var(--color-advanced2)" },
     ];
 
     const radialChartConfig = {
         students: { label: "Estudiantes" },
-        beginner: { label: "Beginner", color: "#3b82f6" }, // Blue-500
-        intermediate: { label: "Intermediate", color: "#f59e0b" }, // Amber-500
-        advanced: { label: "Advanced", color: "#10b981" }, // Emerald-500
+        beginner1: { label: "Beginner 1", color: "#3b82f6" }, // Blue-500
+        beginner2: { label: "Beginner 2", color: "#60a5fa" }, // Blue-400
+        intermediate1: { label: "Intermediate 1", color: "#f59e0b" }, // Amber-500
+        intermediate2: { label: "Intermediate 2", color: "#fbbf24" }, // Amber-400
+        advanced1: { label: "Advanced 1", color: "#10b981" }, // Emerald-500
+        advanced2: { label: "Advanced 2", color: "#34d399" }, // Emerald-400
     } satisfies ChartConfig;
 
     // 2. Datos para GRÁFICA DE ÁREA (Ingresos diarios del mes seleccionado)

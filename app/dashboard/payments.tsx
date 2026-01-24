@@ -476,7 +476,7 @@ function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, on
     const expectedAmount = existingPayment?.amountExpected || student.monthlyFee;
     const currentPaidAmount = existingPayment?.amount || 0;
     const currentPendingAmount = existingPayment?.amountPending || expectedAmount;
-    
+
     const newPaidAmount = parseFloat(amountPaid) || 0;
     const totalPaidAmount = currentPaidAmount + newPaidAmount;
     const finalPendingAmount = Math.max(expectedAmount - totalPaidAmount, 0);
@@ -894,10 +894,10 @@ function PeriodCell({
             {isPartialPayment ? (
                 // Mostrar ícono con mitad verde/mitad naranja para pagos parciales usando SVG
                 <div className="relative w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
-                    <svg 
-                        className="w-full h-full transform -rotate-90" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
+                    <svg
+                        className="w-full h-full transform -rotate-90"
+                        viewBox="0 0 24 24"
+                        fill="none"
                         xmlns="http://www.w3.org/2000/svg"
                     >
                         {/* Círculo de fondo (naranja) */}
@@ -1123,11 +1123,11 @@ function StudentPaymentCard({
                             <h3 className="font-bold truncate text-sm" style={{ color: 'var(--text-primary)' }}>
                                 {student.name}
                             </h3>
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${student.level === 'Beginner' ? 'bg-blue-500/20 text-blue-500' :
-                                student.level === 'Intermediate' ? 'bg-amber-500/20 text-amber-500' :
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${student.level.startsWith('Beginner') ? 'bg-blue-500/20 text-blue-500' :
+                                student.level.startsWith('Intermediate') ? 'bg-amber-500/20 text-amber-500' :
                                     'bg-emerald-500/20 text-emerald-500'
                                 }`}>
-                                {student.level === 'Beginner' ? 'B' : student.level === 'Intermediate' ? 'I' : 'A'}
+                                {student.level.startsWith('Beginner') ? 'B' : student.level.startsWith('Intermediate') ? 'I' : 'A'}{student.level.includes('1') ? '1' : '2'}
                             </span>
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
@@ -1801,7 +1801,7 @@ export default function PaymentsPanel({
                 onCancel={() => setShowConfirmModal(false)}
                 onReject={scanRequest ? handleRejectScanPayment : undefined}
                 isFromScan={!!scanRequest}
-                existingPayment={selectedStudent && selectedPeriod && selectedYear 
+                existingPayment={selectedStudent && selectedPeriod && selectedYear
                     ? payments.find(p => p.studentId === selectedStudent.id && p.month === selectedPeriod && p.year === selectedYear)
                     : null}
             />

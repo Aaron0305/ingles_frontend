@@ -43,18 +43,24 @@ export default function CredentialsPanel({ students }: CredentialsPanelProps) {
 
     const getLevelColor = (level: string) => {
         switch (level) {
-            case 'Beginner': return 'from-blue-500 to-cyan-500';
-            case 'Intermediate': return 'from-amber-500 to-orange-500';
-            case 'Advanced': return 'from-emerald-500 to-teal-500';
+            case 'Beginner 1': return 'from-blue-500 to-cyan-500';
+            case 'Beginner 2': return 'from-blue-400 to-cyan-400';
+            case 'Intermediate 1': return 'from-amber-500 to-orange-500';
+            case 'Intermediate 2': return 'from-amber-400 to-orange-400';
+            case 'Advanced 1': return 'from-emerald-500 to-teal-500';
+            case 'Advanced 2': return 'from-emerald-400 to-teal-400';
             default: return 'from-gray-500 to-slate-500';
         }
     };
 
     const getLevelBadgeColor = (level: string) => {
         switch (level) {
-            case 'Beginner': return 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
-            case 'Intermediate': return 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800';
-            case 'Advanced': return 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800';
+            case 'Beginner 1': return 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
+            case 'Beginner 2': return 'bg-blue-50 text-blue-500 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800';
+            case 'Intermediate 1': return 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800';
+            case 'Intermediate 2': return 'bg-amber-50 text-amber-500 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800';
+            case 'Advanced 1': return 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800';
+            case 'Advanced 2': return 'bg-emerald-50 text-emerald-500 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800';
             default: return 'bg-gray-50 text-gray-600 border-gray-200';
         }
     };
@@ -141,9 +147,12 @@ export default function CredentialsPanel({ students }: CredentialsPanelProps) {
                                 className="block w-full pl-10 pr-8 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700/50 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer appearance-none text-gray-700 dark:text-gray-200"
                             >
                                 <option value="all">Nivel: Todos</option>
-                                <option value="Beginner">Beginner</option>
-                                <option value="Intermediate">Intermediate</option>
-                                <option value="Advanced">Advanced</option>
+                                <option value="Beginner 1">Beginner 1</option>
+                                <option value="Beginner 2">Beginner 2</option>
+                                <option value="Intermediate 1">Intermediate 1</option>
+                                <option value="Intermediate 2">Intermediate 2</option>
+                                <option value="Advanced 1">Advanced 1</option>
+                                <option value="Advanced 2">Advanced 2</option>
                             </select>
                             <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                                 <Filter className="h-3 w-3 text-gray-400" />

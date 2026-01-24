@@ -44,7 +44,7 @@ interface NewStudentForm {
     name: string;
     email: string;
     emergencyPhone: string;
-    level: "Beginner" | "Intermediate" | "Advanced";
+    level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
     priceOption: string;
     customPrice: string;
     paymentScheme: "daily" | "weekly" | "biweekly" | "monthly_28";
@@ -56,7 +56,7 @@ interface EditStudentForm {
     name: string;
     email: string;
     emergencyPhone: string;
-    level: "Beginner" | "Intermediate" | "Advanced";
+    level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
 }
 
 type TabType = "students" | "credentials" | "payments" | "admins" | "reports";
@@ -113,7 +113,7 @@ export default function SuperAdminDashboard() {
         name: "",
         email: "",
         emergencyPhone: "",
-        level: "Beginner",
+        level: "Beginner 1",
         priceOption: "760",
         customPrice: "",
         paymentScheme: "monthly_28",
@@ -132,7 +132,7 @@ export default function SuperAdminDashboard() {
         name: "",
         email: "",
         emergencyPhone: "",
-        level: "Beginner",
+        level: "Beginner 1",
     });
     const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
     const [isCreating, setIsCreating] = useState(false);
@@ -346,7 +346,7 @@ export default function SuperAdminDashboard() {
             setSelectedStudent(studentWithProgress);
             setShowCreateModal(false);
             setShowCredentialModal(true);
-            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner", priceOption: "149.50", customPrice: "", paymentScheme: "monthly_28", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
+            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner 1", priceOption: "149.50", customPrice: "", paymentScheme: "monthly_28", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
         } catch (error) {
             console.error("Error creando estudiante:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
@@ -543,7 +543,7 @@ export default function SuperAdminDashboard() {
             setAdmins((prev) => [...prev, adminWithLastLogin]);
             setShowCreateAdminModal(false);
             setAdminFormData({ name: "", email: "", password: "", confirmPassword: "" });
-            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
+            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner 1", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
         } catch (error) {
             console.error("Error creando admin:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
@@ -632,12 +632,18 @@ export default function SuperAdminDashboard() {
 
     const getLevelBadge = (level: string) => {
         switch (level) {
-            case "Beginner":
+            case "Beginner 1":
                 return "bg-blue-500/20 text-blue-500 border-blue-500/30";
-            case "Intermediate":
+            case "Beginner 2":
+                return "bg-blue-400/20 text-blue-400 border-blue-400/30";
+            case "Intermediate 1":
                 return "bg-amber-500/20 text-amber-500 border-amber-500/30";
-            case "Advanced":
+            case "Intermediate 2":
+                return "bg-amber-400/20 text-amber-400 border-amber-400/30";
+            case "Advanced 1":
                 return "bg-emerald-500/20 text-emerald-500 border-emerald-500/30";
+            case "Advanced 2":
+                return "bg-emerald-400/20 text-emerald-400 border-emerald-400/30";
             default:
                 return "bg-gray-500/20 text-gray-500 border-gray-500/30";
         }
@@ -753,15 +759,15 @@ export default function SuperAdminDashboard() {
                                     {/* Distribución por nivel */}
                                     <div className="flex gap-3">
                                         <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
-                                            <p className="text-2xl font-bold text-blue-500">{students.filter(s => s.level === "Beginner").length}</p>
+                                            <p className="text-2xl font-bold text-blue-500">{students.filter(s => s.level.startsWith("Beginner")).length}</p>
                                             <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Beginner</p>
                                         </div>
                                         <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
-                                            <p className="text-2xl font-bold text-amber-500">{students.filter(s => s.level === "Intermediate").length}</p>
+                                            <p className="text-2xl font-bold text-amber-500">{students.filter(s => s.level.startsWith("Intermediate")).length}</p>
                                             <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Intermediate</p>
                                         </div>
                                         <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
-                                            <p className="text-2xl font-bold text-emerald-500">{students.filter(s => s.level === "Advanced").length}</p>
+                                            <p className="text-2xl font-bold text-emerald-500">{students.filter(s => s.level.startsWith("Advanced")).length}</p>
                                             <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Advanced</p>
                                         </div>
                                     </div>
@@ -878,9 +884,12 @@ export default function SuperAdminDashboard() {
                                     style={{ background: '#014287', border: 'none' }}
                                 >
                                     <option value="all" className="bg-gray-800 text-white">Todos los niveles</option>
-                                    <option value="Beginner" className="bg-gray-800 text-white">Beginner</option>
-                                    <option value="Intermediate" className="bg-gray-800 text-white">Intermediate</option>
-                                    <option value="Advanced" className="bg-gray-800 text-white">Advanced</option>
+                                    <option value="Beginner 1" className="bg-gray-800 text-white">Beginner 1</option>
+                                    <option value="Beginner 2" className="bg-gray-800 text-white">Beginner 2</option>
+                                    <option value="Intermediate 1" className="bg-gray-800 text-white">Intermediate 1</option>
+                                    <option value="Intermediate 2" className="bg-gray-800 text-white">Intermediate 2</option>
+                                    <option value="Advanced 1" className="bg-gray-800 text-white">Advanced 1</option>
+                                    <option value="Advanced 2" className="bg-gray-800 text-white">Advanced 2</option>
                                 </select>
                                 <select
                                     value={filterStatus}
@@ -1315,9 +1324,12 @@ export default function SuperAdminDashboard() {
                                             color: 'var(--text-primary)'
                                         }}
                                     >
-                                        <option value="Beginner" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Beginner</option>
-                                        <option value="Intermediate" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Intermediate</option>
-                                        <option value="Advanced" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Advanced</option>
+                                        <option value="Beginner 1" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Beginner 1</option>
+                                        <option value="Beginner 2" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Beginner 2</option>
+                                        <option value="Intermediate 1" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Intermediate 1</option>
+                                        <option value="Intermediate 2" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Intermediate 2</option>
+                                        <option value="Advanced 1" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Advanced 1</option>
+                                        <option value="Advanced 2" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Advanced 2</option>
                                     </select>
                                 </div>
 
@@ -1785,9 +1797,12 @@ export default function SuperAdminDashboard() {
                                         className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
                                     >
-                                        <option value="Beginner" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner</option>
-                                        <option value="Intermediate" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate</option>
-                                        <option value="Advanced" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced</option>
+                                        <option value="Beginner 1" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner 1</option>
+                                        <option value="Beginner 2" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner 2</option>
+                                        <option value="Intermediate 1" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate 1</option>
+                                        <option value="Intermediate 2" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate 2</option>
+                                        <option value="Advanced 1" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced 1</option>
+                                        <option value="Advanced 2" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced 2</option>
                                     </select>
                                 </div>
                             </div>
