@@ -150,6 +150,7 @@ export const studentsApi = {
         email: string;
         level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
         monthlyFee?: number;
+        studentPhone?: string;
         emergencyPhone?: string;
         paymentScheme?: "daily" | "weekly" | "biweekly" | "monthly_28";
         classDays?: number[];

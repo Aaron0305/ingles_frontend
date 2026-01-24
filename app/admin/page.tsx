@@ -14,7 +14,7 @@ import {
     BarChart3, Plus, UserPlus, Search, X, Trash2, Ban,
     TrendingDown, FileText, Copy, AlertTriangle, Pencil,
     UserX, UserCheck, Loader2, Shield, LogOut, Download, Calendar, History,
-    ChevronLeft, ChevronRight
+    ChevronLeft, ChevronRight, User, Phone, GraduationCap, CreditCard
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import Image from "next/image";
@@ -43,6 +43,7 @@ interface NewAdminForm {
 interface NewStudentForm {
     name: string;
     email: string;
+    studentPhone: string;
     emergencyPhone: string;
     level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
     priceOption: string;
@@ -101,6 +102,9 @@ export default function SuperAdminDashboard() {
     const [showDeleteStudentModal, setShowDeleteStudentModal] = useState(false);
     const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
 
+    // Estado del rol del usuario
+    const [userRole, setUserRole] = useState<"admin" | "superadmin">("admin");
+
     // Filtros y búsqueda
     const [searchTerm, setSearchTerm] = useState("");
     const [filterLevel, setFilterLevel] = useState<string>("all");
@@ -112,6 +116,7 @@ export default function SuperAdminDashboard() {
     const [formData, setFormData] = useState<NewStudentForm>({
         name: "",
         email: "",
+        studentPhone: "",
         emergencyPhone: "",
         level: "Beginner 1",
         priceOption: "760",
@@ -239,11 +244,17 @@ export default function SuperAdminDashboard() {
     }, []);
 
     useEffect(() => {
-        // Verificar autenticación de super admin
-        const userType = localStorage.getItem("userType");
-        if (userType !== "superadmin") {
+        // Verificar autenticación
+        const userTypeString = localStorage.getItem("userType");
+        const userType = userTypeString as "admin" | "superadmin" | null;
+
+        if (userType !== "superadmin" && userType !== "admin") {
             router.push("/login");
             return;
+        }
+
+        if (userType) {
+            setUserRole(userType);
         }
 
         // Cargar datos del backend
@@ -252,21 +263,33 @@ export default function SuperAdminDashboard() {
 
     const loadData = async () => {
         setIsLoading(true);
+        const userType = localStorage.getItem("userType");
+
         try {
-            const [studentsData, adminsData, paymentsData] = await Promise.all([
+            const promises = [
                 studentsApi.getAll(),
-                adminsApi.getAll(),
                 paymentsApi.getAll(),
-            ]);
+            ];
+
+            // Solo cargar admins si es superadmin
+            if (userType === 'superadmin') {
+                promises.push(adminsApi.getAll());
+            }
+
+            const results = await Promise.all(promises);
+            const studentsData = results[0];
+            const paymentsData = results[1];
+            const adminsData = userType === 'superadmin' ? results[2] : [];
 
             // Transformar datos para compatibilidad con el componente
-            const transformedStudents: Student[] = studentsData.map(s => ({
+            const transformedStudents: Student[] = studentsData.map((s: any) => ({
                 ...s,
                 progress: 0,
                 lastAccess: s.lastAccess || "Nunca",
+                level: s.level
             }));
 
-            const transformedAdmins: Admin[] = adminsData.map(a => ({
+            const transformedAdmins: Admin[] = adminsData.map((a: any) => ({
                 ...a,
                 lastLogin: undefined,
             }));
@@ -330,6 +353,7 @@ export default function SuperAdminDashboard() {
                 email: formData.email,
                 level: formData.level,
                 monthlyFee: finalPrice,
+                studentPhone: formData.studentPhone || undefined,
                 emergencyPhone: formData.emergencyPhone || undefined,
                 paymentScheme: formData.paymentScheme,
                 classDays: formData.paymentScheme === 'daily' ? formData.classDays : undefined,
@@ -346,7 +370,7 @@ export default function SuperAdminDashboard() {
             setSelectedStudent(studentWithProgress);
             setShowCreateModal(false);
             setShowCredentialModal(true);
-            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner 1", priceOption: "149.50", customPrice: "", paymentScheme: "monthly_28", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
+            setFormData({ name: "", email: "", studentPhone: "", emergencyPhone: "", level: "Beginner 1", priceOption: "149.50", customPrice: "", paymentScheme: "monthly_28", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
         } catch (error) {
             console.error("Error creando estudiante:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
@@ -543,7 +567,7 @@ export default function SuperAdminDashboard() {
             setAdmins((prev) => [...prev, adminWithLastLogin]);
             setShowCreateAdminModal(false);
             setAdminFormData({ name: "", email: "", password: "", confirmPassword: "" });
-            setFormData({ name: "", email: "", emergencyPhone: "", level: "Beginner 1", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
+            setFormData({ name: "", email: "", studentPhone: "", emergencyPhone: "", level: "Beginner 1", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
         } catch (error) {
             console.error("Error creando admin:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
@@ -739,19 +763,23 @@ export default function SuperAdminDashboard() {
                                         </div>
                                     </div>
 
-                                    {/* Separador visual */}
-                                    <div className="hidden lg:block w-px h-16 bg-gradient-to-b from-transparent via-gray-500/30 to-transparent" />
+                                    {/* Separador visual - Solo si se muestran administradores */}
+                                    {userRole === "superadmin" && (
+                                        <div className="hidden lg:block w-px h-16 bg-gradient-to-b from-transparent via-gray-500/30 to-transparent" />
+                                    )}
 
                                     {/* Administradores */}
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-                                            <ShieldCheck className="w-7 h-7 text-white" strokeWidth={2} />
+                                    {userRole === "superadmin" && (
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                                                <ShieldCheck className="w-7 h-7 text-white" strokeWidth={2} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Administradores</p>
+                                                <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{admins.length}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Administradores</p>
-                                            <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{admins.length}</p>
-                                        </div>
-                                    </div>
+                                    )}
 
                                     {/* Separador visual */}
                                     <div className="hidden lg:block w-px h-16 bg-gradient-to-b from-transparent via-gray-500/30 to-transparent" />
@@ -807,16 +835,18 @@ export default function SuperAdminDashboard() {
                                     <Shield className="w-4 h-4" strokeWidth={2} />
                                     Credenciales
                                 </button>
-                                <button
-                                    onClick={() => setActiveTab("admins")}
-                                    className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "admins" ? "text-white" : ""}`}
-                                    style={activeTab === "admins"
-                                        ? { background: '#014287', color: 'white' }
-                                        : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
-                                >
-                                    <Users className="w-4 h-4" strokeWidth={2} />
-                                    Administradores
-                                </button>
+                                {userRole === "superadmin" && (
+                                    <button
+                                        onClick={() => setActiveTab("admins")}
+                                        className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "admins" ? "text-white" : ""}`}
+                                        style={activeTab === "admins"
+                                            ? { background: '#014287', color: 'white' }
+                                            : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
+                                    >
+                                        <Users className="w-4 h-4" strokeWidth={2} />
+                                        Administradores
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => setActiveTab("reports")}
                                     className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "reports" ? "text-white" : ""}`}
@@ -840,7 +870,7 @@ export default function SuperAdminDashboard() {
                                 </button>
                             )}
 
-                            {activeTab === "admins" && (
+                            {activeTab === "admins" && userRole === "superadmin" && (
                                 <button
                                     onClick={() => setShowCreateAdminModal(true)}
                                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all hover:opacity-90"
@@ -1210,250 +1240,337 @@ export default function SuperAdminDashboard() {
                 )}
             </main>
 
-            {/* Modal: Crear Estudiante */}
+            {/* Modal: Crear Estudiante - Diseño Mejorado */}
             {
                 showCreateModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                        <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Estudiante</h3>
-                                <button onClick={() => setShowCreateModal(false)} style={{ color: 'var(--text-secondary)' }}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <div
+                            className="modal-content rounded-2xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+                            style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}
+                        >
+                            {/* Header del Modal */}
+                            <div className="sticky top-0 z-10 flex items-center justify-between p-5 border-b" style={{ background: 'var(--modal-bg)', borderColor: 'var(--border-color)' }}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                                        <UserPlus className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Estudiante</h3>
+                                        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Completa la información del alumno</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                    style={{ color: 'var(--text-secondary)' }}
+                                >
                                     <X className="w-5 h-5" strokeWidth={2} />
                                 </button>
                             </div>
 
-                            <div className="space-y-3">
-                                {/* Nombre */}
-                                <div>
-                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
-                                    <input
-                                        type="text"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder="Juan Pérez García"
-                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                    />
-                                    {formErrors.name && <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>}
-                                </div>
-
-                                {/* Email */}
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
-                                    <div className="flex items-center">
-                                        <input
-                                            type="text"
-                                            value={formData.email.replace('@gmail.com', '')}
-                                            onChange={(e) => setFormData({ ...formData, email: e.target.value.replace(/@.*/, '') + '@gmail.com' })}
-                                            placeholder="usuario"
-                                            className="w-full px-3 py-2 rounded-l-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            style={{
-                                                background: 'var(--input-bg)',
-                                                border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`,
-                                                color: 'var(--text-primary)',
-                                                borderRight: 'none'
-                                            }}
-                                        />
-                                        <span
-                                            className="px-3 py-2 rounded-r-lg bg-gray-100 dark:bg-gray-800 border border-l-0"
-                                            style={{
-                                                borderColor: formErrors.email ? '#ef4444' : 'var(--input-border)',
-                                                color: 'var(--text-secondary)'
-                                            }}
-                                        >
-                                            @gmail.com
-                                        </span>
+                            <div className="p-5 space-y-6">
+                                {/* Sección: Información Personal */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                                        <User className="w-4 h-4 text-blue-500" />
+                                        <h4 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Información Personal</h4>
                                     </div>
-                                    {formErrors.email && <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>}
-                                </div>
 
-                                {/* Teléfono de Emergencia */}
-                                <div>
-                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                                        Tel. Emergencia (Papás)
-                                    </label>
-                                    <input
-                                        type="tel"
-                                        value={formData.emergencyPhone}
-                                        onChange={(e) => {
-                                            const value = e.target.value.replace(/\D/g, ''); // Solo números
-                                            if (value.length <= 10) { // Máximo 10 dígitos
-                                                setFormData({ ...formData, emergencyPhone: value });
-                                            }
-                                        }}
-                                        placeholder="5512345678"
-                                        maxLength={10}
-                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
-                                    />
-                                </div>
-
-                                {/* Día de Inscripción (Para migración) */}
-                                <div>
-                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                                        Día de Inscripción
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={formData.enrollmentDate}
-                                        onChange={(e) => setFormData({ ...formData, enrollmentDate: e.target.value })}
-                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{
-                                            background: 'var(--input-bg)',
-                                            border: '1px solid var(--input-border)',
-                                            color: 'var(--text-primary)',
-                                            colorScheme: 'dark'
-                                        }}
-                                    />
-                                    <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                        Por defecto es hoy. Cambia solo para migración de usuarios.
-                                    </p>
-                                </div>
-
-                                {/* Nivel */}
-                                <div>
-                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nivel</label>
-                                    <select
-                                        value={formData.level}
-                                        onChange={(e) => setFormData({ ...formData, level: e.target.value as NewStudentForm["level"] })}
-                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{
-                                            background: 'var(--input-bg)',
-                                            border: '1px solid var(--input-border)',
-                                            color: 'var(--text-primary)'
-                                        }}
-                                    >
-                                        <option value="Beginner 1" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Beginner 1</option>
-                                        <option value="Beginner 2" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Beginner 2</option>
-                                        <option value="Intermediate 1" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Intermediate 1</option>
-                                        <option value="Intermediate 2" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Intermediate 2</option>
-                                        <option value="Advanced 1" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Advanced 1</option>
-                                        <option value="Advanced 2" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}>Advanced 2</option>
-                                    </select>
-                                </div>
-
-                                {/* Esquema de Pago */}
-                                <div>
-                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Esquema de Pago</label>
-                                    <select
-                                        value={formData.paymentScheme}
-                                        onChange={(e) => setFormData({ ...formData, paymentScheme: e.target.value as any })}
-                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{
-                                            background: 'var(--input-bg)',
-                                            border: '1px solid var(--input-border)',
-                                            color: 'var(--text-primary)',
-                                            colorScheme: 'dark'
-                                        }}
-                                    >
-                                        <option value="monthly_28">Cada 28 días</option>
-                                        <option value="biweekly">Catorcenal (14 días)</option>
-                                        <option value="weekly">Semanal</option>
-                                        <option value="daily">Diario</option>
-                                    </select>
-                                </div>
-
-
-                                {/* Selección de días (Solo para Diario) */}
-                                {formData.paymentScheme === "daily" && (
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
-                                            Días de Clase
-                                        </label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {[
-                                                { id: 1, label: "Lun" },
-                                                { id: 2, label: "Mar" },
-                                                { id: 3, label: "Mié" },
-                                                { id: 4, label: "Jue" },
-                                                { id: 5, label: "Vie" },
-                                                { id: 6, label: "Sáb" },
-                                                { id: 0, label: "Dom" },
-                                            ].map((day) => (
-                                                <button
-                                                    key={day.id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const currentDays = formData.classDays || [];
-                                                        const isSelected = currentDays.includes(day.id);
-
-                                                        if (isSelected) {
-                                                            setFormData({ ...formData, classDays: currentDays.filter(d => d !== day.id) });
-                                                        } else {
-                                                            if (currentDays.length < 2) {
-                                                                setFormData({ ...formData, classDays: [...currentDays, day.id] });
-                                                            }
-                                                        }
-                                                    }}
-                                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${formData.classDays?.includes(day.id)
-                                                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
-                                                        : "bg-gray-700 text-gray-400 hover:bg-gray-600"
-                                                        }`}
-                                                >
-                                                    {day.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Mensualidad */}
-                                <div>
-                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Mensualidad</label>
-                                    <select
-                                        value={formData.priceOption}
-                                        onChange={(e) => setFormData({ ...formData, priceOption: e.target.value, customPrice: "" })}
-                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{
-                                            background: 'var(--input-bg)',
-                                            border: '1px solid var(--input-border)',
-                                            color: 'var(--text-primary)',
-                                            colorScheme: 'dark'
-                                        }}
-                                    >
-                                        {PRICE_OPTIONS.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Campo de precio personalizado */}
-                                {formData.priceOption === "custom" && (
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Precio Personalizado</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Nombre Completo */}
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                                Nombre Completo <span className="text-red-500">*</span>
+                                            </label>
                                             <input
-                                                type="number"
-                                                step="0.01"
-                                                min="0"
-                                                value={formData.customPrice}
-                                                onChange={(e) => setFormData({ ...formData, customPrice: e.target.value })}
-                                                placeholder="0.00"
-                                                className={`w-full pl-7 pr-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.customPrice ? "border-red-500" : ""}`}
-                                                style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.customPrice ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                                type="text"
+                                                value={formData.name}
+                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                                placeholder="Juan Pérez García"
+                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                                style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
                                             />
+                                            {formErrors.name && <p className="mt-1 text-xs text-red-500">{formErrors.name}</p>}
                                         </div>
-                                        {formErrors.customPrice && <p className="mt-1 text-sm text-red-500">{formErrors.customPrice}</p>}
+
+                                        {/* Email */}
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                                Correo Electrónico <span className="text-red-500">*</span>
+                                            </label>
+                                            <div className="flex items-center">
+                                                <input
+                                                    type="text"
+                                                    value={formData.email.replace('@gmail.com', '')}
+                                                    onChange={(e) => setFormData({ ...formData, email: e.target.value.replace(/@.*/, '') + '@gmail.com' })}
+                                                    placeholder="usuario"
+                                                    className="w-full px-4 py-2.5 rounded-l-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                                    style={{
+                                                        background: 'var(--input-bg)',
+                                                        border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`,
+                                                        color: 'var(--text-primary)',
+                                                        borderRight: 'none'
+                                                    }}
+                                                />
+                                                <span
+                                                    className="px-4 py-2.5 rounded-r-xl text-sm font-medium whitespace-nowrap"
+                                                    style={{
+                                                        background: 'var(--surface)',
+                                                        borderColor: formErrors.email ? '#ef4444' : 'var(--input-border)',
+                                                        border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`,
+                                                        color: 'var(--text-tertiary)'
+                                                    }}
+                                                >
+                                                    @gmail.com
+                                                </span>
+                                            </div>
+                                            {formErrors.email && <p className="mt-1 text-xs text-red-500">{formErrors.email}</p>}
+                                        </div>
                                     </div>
-                                )}
+                                </div>
+
+                                {/* Sección: Información de Contacto */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                                        <Phone className="w-4 h-4 text-green-500" />
+                                        <h4 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Información de Contacto</h4>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Teléfono del Estudiante */}
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                                Teléfono del Alumno
+                                            </label>
+                                            <input
+                                                type="tel"
+                                                value={formData.studentPhone}
+                                                onChange={(e) => {
+                                                    const value = e.target.value.replace(/\D/g, '');
+                                                    if (value.length <= 10) {
+                                                        setFormData({ ...formData, studentPhone: value });
+                                                    }
+                                                }}
+                                                placeholder="5512345678"
+                                                maxLength={10}
+                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                            />
+                                            <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>Número personal del estudiante</p>
+                                        </div>
+
+                                        {/* Teléfono de Emergencia */}
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                                Tel. Emergencia (Tutor)
+                                            </label>
+                                            <input
+                                                type="tel"
+                                                value={formData.emergencyPhone}
+                                                onChange={(e) => {
+                                                    const value = e.target.value.replace(/\D/g, '');
+                                                    if (value.length <= 10) {
+                                                        setFormData({ ...formData, emergencyPhone: value });
+                                                    }
+                                                }}
+                                                placeholder="5587654321"
+                                                maxLength={10}
+                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                            />
+                                            <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>Número del padre, madre o tutor</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Sección: Configuración Académica */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                                        <GraduationCap className="w-4 h-4 text-purple-500" />
+                                        <h4 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Configuración Académica</h4>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Nivel */}
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                                Nivel <span className="text-red-500">*</span>
+                                            </label>
+                                            <select
+                                                value={formData.level}
+                                                onChange={(e) => setFormData({ ...formData, level: e.target.value as NewStudentForm["level"] })}
+                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
+                                                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                            >
+                                                <optgroup label="Beginner">
+                                                    <option value="Beginner 1">Beginner 1</option>
+                                                    <option value="Beginner 2">Beginner 2</option>
+                                                </optgroup>
+                                                <optgroup label="Intermediate">
+                                                    <option value="Intermediate 1">Intermediate 1</option>
+                                                    <option value="Intermediate 2">Intermediate 2</option>
+                                                </optgroup>
+                                                <optgroup label="Advanced">
+                                                    <option value="Advanced 1">Advanced 1</option>
+                                                    <option value="Advanced 2">Advanced 2</option>
+                                                </optgroup>
+                                            </select>
+                                        </div>
+
+                                        {/* Fecha de Inscripción */}
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                                Fecha de Inscripción
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={formData.enrollmentDate}
+                                                onChange={(e) => setFormData({ ...formData, enrollmentDate: e.target.value })}
+                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)', colorScheme: 'dark' }}
+                                            />
+                                            <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>Por defecto es hoy</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Sección: Configuración de Pago */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                                        <CreditCard className="w-4 h-4 text-amber-500" />
+                                        <h4 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Configuración de Pago</h4>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Esquema de Pago */}
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                                Esquema de Pago
+                                            </label>
+                                            <select
+                                                value={formData.paymentScheme}
+                                                onChange={(e) => setFormData({ ...formData, paymentScheme: e.target.value as any })}
+                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
+                                                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                            >
+                                                <option value="monthly_28">Cada 28 días</option>
+                                                <option value="biweekly">Catorcenal (14 días)</option>
+                                                <option value="weekly">Semanal</option>
+                                                <option value="daily">Diario</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Mensualidad */}
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                                Mensualidad
+                                            </label>
+                                            <select
+                                                value={formData.priceOption}
+                                                onChange={(e) => setFormData({ ...formData, priceOption: e.target.value, customPrice: "" })}
+                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
+                                                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                            >
+                                                {PRICE_OPTIONS.map((option) => (
+                                                    <option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Campo de precio personalizado */}
+                                        {formData.priceOption === "custom" && (
+                                            <div className="md:col-span-2">
+                                                <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                                    Precio Personalizado <span className="text-red-500">*</span>
+                                                </label>
+                                                <div className="relative">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        value={formData.customPrice}
+                                                        onChange={(e) => setFormData({ ...formData, customPrice: e.target.value })}
+                                                        placeholder="0.00"
+                                                        className="w-full pl-8 pr-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                                        style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.customPrice ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                                    />
+                                                </div>
+                                                {formErrors.customPrice && <p className="mt-1 text-xs text-red-500">{formErrors.customPrice}</p>}
+                                            </div>
+                                        )}
+
+                                        {/* Días de Clase (Solo para Diario) */}
+                                        {formData.paymentScheme === "daily" && (
+                                            <div className="md:col-span-2">
+                                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                                                    Días de Clase (máximo 2)
+                                                </label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {[
+                                                        { id: 1, label: "Lunes" },
+                                                        { id: 2, label: "Martes" },
+                                                        { id: 3, label: "Miércoles" },
+                                                        { id: 4, label: "Jueves" },
+                                                        { id: 5, label: "Viernes" },
+                                                        { id: 6, label: "Sábado" },
+                                                        { id: 0, label: "Domingo" },
+                                                    ].map((day) => (
+                                                        <button
+                                                            key={day.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const currentDays = formData.classDays || [];
+                                                                const isSelected = currentDays.includes(day.id);
+
+                                                                if (isSelected) {
+                                                                    setFormData({ ...formData, classDays: currentDays.filter(d => d !== day.id) });
+                                                                } else {
+                                                                    if (currentDays.length < 2) {
+                                                                        setFormData({ ...formData, classDays: [...currentDays, day.id] });
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${formData.classDays?.includes(day.id)
+                                                                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                                                                : "bg-gray-700/50 text-gray-400 hover:bg-gray-600/50"
+                                                                }`}
+                                                        >
+                                                            {day.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="flex gap-3 mt-5">
+                            {/* Footer del Modal */}
+                            <div className="sticky bottom-0 flex gap-3 p-5 border-t" style={{ background: 'var(--modal-bg)', borderColor: 'var(--border-color)' }}>
                                 <button
                                     onClick={handleCreateStudent}
                                     disabled={isCreating}
-                                    className="flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm"
-                                    style={{ background: '#014287' }}
+                                    className="flex-1 px-6 py-3 text-white font-semibold rounded-xl transition-all disabled:opacity-50 hover:opacity-90 flex items-center justify-center gap-2"
+                                    style={{ background: 'linear-gradient(135deg, #014287 0%, #0369a1 100%)' }}
                                 >
-                                    {isCreating ? "Creando..." : "Crear y Generar Credencial"}
+                                    {isCreating ? (
+                                        <>
+                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Creando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <UserPlus className="w-5 h-5" />
+                                            Crear y Generar Credencial
+                                        </>
+                                    )}
                                 </button>
                                 <button
                                     onClick={() => setShowCreateModal(false)}
-                                    className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
+                                    className="px-6 py-3 font-semibold rounded-xl transition-colors hover:opacity-80"
                                     style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
                                 >
                                     Cancelar
