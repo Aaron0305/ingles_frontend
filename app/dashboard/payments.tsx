@@ -1690,16 +1690,10 @@ export default function PaymentsPanel({
             // setPendingPaymentRequest(null); // Assuming this state setter exists in the parent or context
             onPaymentRequestHandled?.(); // Clear pending request from parent
 
-            // Notificar al estudiante a través del socket
+            // Notificar al estudiante a través del socket (SOLO notificación, el pago ya se procesó via API)
             if (socket && scanRequest) {
-                socket.emit("payment-confirmed", {
-                    studentId: selectedStudent.id,
-                    month: selectedPeriod,
-                    year: selectedYear,
-                    success: true,
-                    message: amountPaid < (selectedStudent.monthlyFee || 0)
-                        ? `Pago parcial de $${amountPaid} confirmado. Resta: $${(selectedStudent.monthlyFee || 0) - amountPaid}`
-                        : `Pago confirmado exitosamente`
+                socket.emit("notify-payment-success", {
+                    studentId: selectedStudent.id
                 });
                 setScanRequest(null);
             }
