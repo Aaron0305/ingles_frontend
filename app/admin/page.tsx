@@ -103,6 +103,16 @@ export default function SuperAdminDashboard() {
     // Estado del rol del usuario
     const [userRole, setUserRole] = useState<"admin" | "superadmin">("admin");
 
+    // Estado para solicitud de pago pendiente (QR)
+    const [pendingPaymentRequest, setPendingPaymentRequest] = useState<{
+        studentId: string;
+        studentName: string;
+        studentNumber: string;
+        pendingMonth: number;
+        pendingYear: number;
+        monthlyFee: number;
+    } | null>(null);
+
 
 
 
@@ -188,6 +198,21 @@ export default function SuperAdminDashboard() {
 
         newSocket.on("auth-failed", (data) => {
             console.error("❌ Autenticación de socket fallida:", data.message);
+        });
+
+        // Escuchar solicitudes de pago (QR)
+        newSocket.on("payment-request", (data: any) => {
+            console.log("📱 Solicitud de pago recibida (Super Admin):", data);
+            setPendingPaymentRequest(data);
+            setActiveTab("payments");
+
+            // Reproducir sonido de notificación
+            try {
+                const audio = new Audio("/sounds/notification.mp3");
+                audio.play().catch(() => { });
+            } catch (error) {
+                console.error("Error reproduciendo audio", error);
+            }
         });
 
         newSocket.on("disconnect", (reason) => {
@@ -706,6 +731,8 @@ export default function SuperAdminDashboard() {
                                 onPaymentConfirm={handlePaymentConfirm}
                                 onPaymentRevoke={handlePaymentRevoke}
                                 socket={socket}
+                                pendingPaymentRequest={pendingPaymentRequest}
+                                onPaymentRequestHandled={() => setPendingPaymentRequest(null)}
                             />
                         ) : activeTab === "admins" ? (
                             /* Content - Admins Tab */
