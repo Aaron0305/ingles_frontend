@@ -1855,7 +1855,7 @@ export default function PaymentsPanel({
             return true;
         })();
 
-        return matchesSearch && matchesPaymentStatus;
+        return matchesSearch && matchesPaymentStatus && student.status !== 'baja';
     });
 
     return (

@@ -16,11 +16,13 @@ export interface Student {
     monthlyFee: number;
     progress: number;
     lastAccess: string;
-    status: "active" | "inactive";
+    status: "active" | "inactive" | "baja";
     createdAt?: string;
     paymentScheme?: "daily" | "weekly" | "biweekly" | "monthly_28";
     classDays?: number[]; // Días de clase: 0=Dom, 1=Lun, ... 6=Sab
     enrollmentDate?: string;
+    dropoutDate?: string;
+    dropoutReason?: string;
 }
 
 interface CredentialModalProps {

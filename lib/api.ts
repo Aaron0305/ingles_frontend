@@ -21,12 +21,14 @@ export interface Student {
     emergencyPhone?: string;
     level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
     monthlyFee: number;
-    status: "active" | "inactive";
+    status: "active" | "inactive" | "baja";
     createdAt?: string;
     lastAccess?: string;
     paymentScheme?: "daily" | "weekly" | "biweekly" | "monthly_28";
     classDays?: number[];
     enrollmentDate?: string;
+    dropoutDate?: string;
+    dropoutReason?: string;
 }
 
 export interface Admin {

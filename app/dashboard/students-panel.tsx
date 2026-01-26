@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { Student } from "./credential";
 import { studentsApi } from "@/lib/api";
-import { Search, X, Trash2, Pencil, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, X, Trash2, Pencil, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, UserMinus, Eye, RotateCcw, Calendar } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 interface EditStudentForm {
@@ -45,6 +45,17 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [studentToToggle, setStudentToToggle] = useState<Student | null>(null);
     const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+
+    // Estados para Baja
+    const [showDropoutModal, setShowDropoutModal] = useState(false);
+    const [dropoutReasonText, setDropoutReasonText] = useState("");
+    const [isProcessingDropout, setIsProcessingDropout] = useState(false);
+    const [showReasonModal, setShowReasonModal] = useState(false);
+
+    // Estados para Reactivación
+    const [showReactivateModal, setShowReactivateModal] = useState(false);
+    const [newEnrollmentDate, setNewEnrollmentDate] = useState("");
+    const [isProcessingReactivate, setIsProcessingReactivate] = useState(false);
 
     // Helpers
     const getLevelBadge = (level: string) => {
@@ -221,6 +232,98 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
         }
     };
 
+    const handleDropoutClick = (student: Student) => {
+        setStudentToToggle(student);
+        setDropoutReasonText("");
+        setShowDropoutModal(true);
+    };
+
+    const handleConfirmDropout = async () => {
+        if (!studentToToggle) return;
+        if (!dropoutReasonText.trim()) {
+            setSaveMessage({ type: 'error', text: 'Debes ingresar un motivo de baja' });
+            setTimeout(() => setSaveMessage(null), 3000);
+            return;
+        }
+
+        setIsProcessingDropout(true);
+        try {
+            // Actualizar status a 'baja' y guardar motivo
+            // Usamos 'as any' para evitar conflictos de tipos temporales si la interfaz Student de api.ts y credential.ts difieren ligeramente
+            const updatedStudent = await studentsApi.update(studentToToggle.id, {
+                status: "baja" as any,
+                dropoutReason: dropoutReasonText,
+                dropoutDate: new Date().toISOString().split('T')[0]
+            } as any);
+
+            setStudents(prev => prev.map(s =>
+                s.id === studentToToggle.id
+                    ? { ...s, status: "baja", dropoutReason: dropoutReasonText, dropoutDate: new Date().toISOString().split('T')[0] }
+                    : s
+            ));
+
+            setShowDropoutModal(false);
+            setStudentToToggle(null);
+            setSaveMessage({ type: 'success', text: 'Estudiante dado de baja correctamente' });
+            setTimeout(() => setSaveMessage(null), 3000);
+        } catch (error) {
+            console.error("Error dando de baja:", error);
+            setSaveMessage({ type: 'error', text: 'Error al dar de baja' });
+            setTimeout(() => setSaveMessage(null), 4000);
+        } finally {
+            setIsProcessingDropout(false);
+        }
+    };
+
+    const handleViewReason = (student: Student) => {
+        setStudentToToggle(student);
+        setShowReasonModal(true);
+    };
+
+    const handleReactivateClick = (student: Student) => {
+        setStudentToToggle(student);
+        // Default to today
+        setNewEnrollmentDate(new Date().toISOString().split('T')[0]);
+        setShowReactivateModal(true);
+    };
+
+    const handleConfirmReactivate = async () => {
+        if (!studentToToggle || !newEnrollmentDate) return;
+        setIsProcessingReactivate(true);
+
+        try {
+            const updatedStudent = await studentsApi.update(studentToToggle.id, {
+                status: "active" as any,
+                enrollmentDate: newEnrollmentDate,
+                dropoutReason: null as any,
+                dropoutDate: null as any
+            } as any);
+
+            setStudents(prev => prev.map(s =>
+                s.id === studentToToggle.id
+                    ? {
+                        ...s,
+                        status: "active",
+                        enrollmentDate: newEnrollmentDate,
+                        dropoutReason: undefined,
+                        dropoutDate: undefined
+                    }
+                    : s
+            ));
+
+            setShowReactivateModal(false);
+            setStudentToToggle(null);
+            setSaveMessage({ type: 'success', text: 'Estudiante reactivado exitosamente con nueva fecha' });
+            setTimeout(() => setSaveMessage(null), 3000);
+        } catch (error) {
+            console.error("Error reactivando:", error);
+            setSaveMessage({ type: 'error', text: 'Error al reactivar estudiante' });
+            setTimeout(() => setSaveMessage(null), 4000);
+        } finally {
+            setIsProcessingReactivate(false);
+        }
+    };
+
     return (
         <div className="w-full">
             {/* Toast Notifications */}
@@ -391,6 +494,34 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                                             >
                                                 <Trash2 className="w-4 h-4" strokeWidth={2} />
                                             </button>
+
+                                            {/* Botón de Baja / Ver Motivo / Reactivar */}
+                                            {student.status === 'baja' ? (
+                                                <>
+                                                    <button
+                                                        onClick={() => handleViewReason(student)}
+                                                        className="p-1.5 text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 rounded-lg transition-colors"
+                                                        title="Ver motivo de baja"
+                                                    >
+                                                        <Eye className="w-4 h-4" strokeWidth={2} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleReactivateClick(student)}
+                                                        className="p-1.5 text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors"
+                                                        title="Reactivar Estudiante"
+                                                    >
+                                                        <RotateCcw className="w-4 h-4" strokeWidth={2} />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleDropoutClick(student)}
+                                                    className="p-1.5 text-orange-500 hover:text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 rounded-lg transition-colors"
+                                                    title="Dar de baja definitiva"
+                                                >
+                                                    <UserMinus className="w-4 h-4" strokeWidth={2} />
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -616,6 +747,157 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                                 className={`px-4 py-2 text-white rounded-lg font-medium transition-colors ${studentToToggle.status === "active" ? "bg-amber-600 hover:bg-amber-700" : "bg-green-600 hover:bg-green-700"}`}
                             >
                                 {studentToToggle.status === "active" ? "Desactivar" : "Activar"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal: Ver Motivo de Baja */}
+            {showReasonModal && studentToToggle && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="rounded-xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                Motivo de Baja
+                            </h3>
+                            <button onClick={() => setShowReasonModal(false)} style={{ color: 'var(--text-secondary)' }}>
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="mb-6">
+                            <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Estudiante:</p>
+                            <p className="text-base font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>{studentToToggle.name}</p>
+
+                            <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Fecha de baja:</p>
+                            <p className="text-sm mb-4 font-mono" style={{ color: '#ea242e' }}>{formatDate(studentToToggle.dropoutDate || "")}</p>
+
+                            <p className="text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Motivo registrado:</p>
+                            <div className="p-3 rounded-lg bg-black/20 border border-white/5 text-sm italic" style={{ color: 'var(--text-primary)' }}>
+                                "{studentToToggle.dropoutReason || "Sin motivo especificado"}"
+                            </div>
+                        </div>
+                        <div className="flex justify-end">
+                            <button
+                                onClick={() => setShowReasonModal(false)}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Confirmar Baja */}
+            {showDropoutModal && studentToToggle && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="rounded-xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-red-400">
+                                Dar de Baja Estudiante
+                            </h3>
+                            <button onClick={() => setShowDropoutModal(false)} style={{ color: 'var(--text-secondary)' }}>
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="mb-4">
+                            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                                Estás a punto de dar de baja a: <span className="font-bold text-white">{studentToToggle.name}</span>.
+                                <br />Esta acción ocultará al estudiante del panel de pagos y lo marcará como "Baja".
+                            </p>
+
+                            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                                Motivo de la baja <span className="text-red-400">*</span>
+                            </label>
+                            <textarea
+                                value={dropoutReasonText}
+                                onChange={(e) => setDropoutReasonText(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                placeholder="Escribe la razón detallada de la baja..."
+                                autoFocus
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                onClick={() => setShowDropoutModal(false)}
+                                className="px-4 py-2 rounded-lg font-medium transition-colors"
+                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmDropout}
+                                disabled={isProcessingDropout || !dropoutReasonText.trim()}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isProcessingDropout ? "Procesando..." : "Confirmar Baja"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Reactivar Estudiante */}
+            {showReactivateModal && studentToToggle && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="rounded-xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-emerald-400">
+                                Reactivar Estudiante
+                            </h3>
+                            <button onClick={() => setShowReactivateModal(false)} style={{ color: 'var(--text-secondary)' }}>
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="mb-6">
+                            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                                Estás a punto de reactivar a: <span className="font-bold text-white">{studentToToggle.name}</span>.
+                            </p>
+
+                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-4">
+                                <p className="text-xs text-blue-200 flex gap-2">
+                                    <AlertTriangle className="w-4 h-4 text-blue-400 shrink-0" />
+                                    <span>
+                                        Se asignará una <strong>nueva fecha de inscripción</strong>.
+                                        El sistema calculará los pagos pendientes a partir de esta nueva fecha.
+                                        Los pagos históricos anteriores se conservarán en los reportes pero no afectarán el saldo actual.
+                                    </span>
+                                </p>
+                            </div>
+
+                            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                                Nueva Fecha de Inscripción
+                            </label>
+                            <div className="relative">
+                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                    type="date"
+                                    value={newEnrollmentDate}
+                                    onChange={(e) => setNewEnrollmentDate(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowReactivateModal(false)}
+                                className="px-4 py-2 rounded-lg font-medium transition-colors"
+                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmReactivate}
+                                disabled={isProcessingReactivate || !newEnrollmentDate}
+                                className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isProcessingReactivate ? "Procesando..." : "Confirmar Reactivación"}
                             </button>
                         </div>
                     </div>
