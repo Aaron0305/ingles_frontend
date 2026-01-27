@@ -10,6 +10,7 @@ import { QRCodeSVG } from "qrcode.react";
 interface EditStudentForm {
     name: string;
     email: string;
+    studentPhone: string;
     emergencyPhone: string;
     level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
 }
@@ -35,6 +36,7 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
     const [editFormData, setEditFormData] = useState<EditStudentForm>({
         name: "",
         email: "",
+        studentPhone: "",
         emergencyPhone: "",
         level: "Beginner 1",
     });
@@ -139,6 +141,7 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
         setEditFormData({
             name: student.name,
             email: student.email,
+            studentPhone: student.studentPhone || "",
             emergencyPhone: student.emergencyPhone || "",
             level: student.level as any,
         });
@@ -165,6 +168,7 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
             const updatedStudent = await studentsApi.update(studentToEdit.id, {
                 name: editFormData.name,
                 email: editFormData.email,
+                studentPhone: editFormData.studentPhone || undefined,
                 emergencyPhone: editFormData.emergencyPhone || undefined,
                 level: editFormData.level,
             });
@@ -646,6 +650,25 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                                         style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
                                     />
                                     {editFormErrors.email && <p className="mt-1 text-xs text-red-500">{editFormErrors.email}</p>}
+                                </div>
+
+                                {/* Teléfono del Alumno */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Tel. Alumno</label>
+                                    <input
+                                        type="tel"
+                                        value={editFormData.studentPhone}
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, '');
+                                            if (value.length <= 10) {
+                                                setEditFormData({ ...editFormData, studentPhone: value });
+                                            }
+                                        }}
+                                        placeholder="5512345678"
+                                        maxLength={10}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                    />
                                 </div>
 
                                 {/* Teléfono de Emergencia */}

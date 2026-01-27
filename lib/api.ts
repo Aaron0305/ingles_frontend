@@ -18,6 +18,7 @@ export interface Student {
     studentNumber: string;
     name: string;
     email: string;
+    studentPhone?: string;
     emergencyPhone?: string;
     level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
     monthlyFee: number;
