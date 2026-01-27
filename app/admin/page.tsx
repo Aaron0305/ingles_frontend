@@ -1008,7 +1008,7 @@ export default function SuperAdminDashboard() {
                                         {/* Fecha de Inscripción */}
                                         <div>
                                             <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Fecha de Inscripción
+                                                Día de Inicio
                                             </label>
                                             <input
                                                 type="date"

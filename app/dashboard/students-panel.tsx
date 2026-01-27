@@ -429,7 +429,7 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                                     Tel. Emergencia
                                 </th>
                                 <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                    Inscripción
+                                    Día de Inicio
                                 </th>
                                 <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                                     Estado

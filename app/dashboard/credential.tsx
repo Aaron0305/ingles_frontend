@@ -167,11 +167,11 @@ export default function CredentialModal({ student, isOpen, onClose }: Credential
 
             // Crear mensaje para WhatsApp
             const message = encodeURIComponent(
-                `🎓 *What Time Is It? Idiomas®*\n\n` +
-                `Hola! Te comparto tu credencial de estudiante.\n\n` +
-                `📋 *Estudiante:* ${student.name}\n` +
-                `🔢 *No. Estudiante:* ${student.studentNumber}\n\n` +
-                `Por favor revisa el PDF adjunto con tu credencial.`
+                `*What Time Is It? Idiomas®*\n\n` +
+                `¡Hola! Te comparto tu credencial de estudiante.\n\n` +
+                `*Estudiante:* ${student.name}\n` +
+                `*No. Estudiante:* ${student.studentNumber}\n\n` +
+                `Adjunto a este mensaje encontrarás el PDF con tu credencial. ¡Saludos!`
             );
 
             // Abrir WhatsApp con el número y mensaje
@@ -322,7 +322,7 @@ export default function CredentialModal({ student, isOpen, onClose }: Credential
                                 </div>
                                 <div>
                                     <div style={{ fontSize: "7px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                                        Fecha de Inscripción
+                                        Día de Inicio
                                     </div>
                                     <div style={{ fontSize: "11px", fontWeight: "700", color: "#014287" }}>
                                         {formatDate(student.enrollmentDate || student.createdAt || "")}
