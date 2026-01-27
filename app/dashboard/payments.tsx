@@ -1138,6 +1138,7 @@ function StudentPaymentCard({
         }
 
         // Contar pagos REALES registrados en base de datos para ese año
+        // IMPORTANTE: Solo contar pagos que correspondan al schedule actual (posteriores a la fecha de inscripción)
         const paymentsInYear = payments.filter(p => p.year === year && p.status === 'paid');
 
         // Si no hay obligación de pagos ese año (ej. futuro lejano o año pasado sin inscripción), no bloquear
@@ -1173,15 +1174,18 @@ function StudentPaymentCard({
 
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
 
-    // Pagos del año seleccionado
-    const yearPayments = payments.filter(p => p.year === selectedYear);
-    const paidPeriodsCount = yearPayments.filter(p => p.status === "paid").length;
-
     // Calcular periodos totales y el índice de inicio para este estudiante en este año
+    // IMPORTANTE: Definir enrollmentDateObj ANTES de usarlo
     const enrollmentDateObj = student.enrollmentDate
         ? new Date(student.enrollmentDate.replace(/-/g, "/"))
         : new Date(selectedYear, 0, 1);
     const isEnrollmentYearActual = enrollmentDateObj.getFullYear() === selectedYear;
+
+    // Pagos del año seleccionado
+    // IMPORTANTE: Filtrar pagos que correspondan al schedule actual (posteriores a la fecha de inscripción)
+    const yearPayments = payments.filter(p => p.year === selectedYear);
+
+    const paidPeriodsCount = yearPayments.filter(p => p.status === "paid").length;
 
 
 
@@ -1476,7 +1480,19 @@ function StudentPaymentCard({
                             return obligations.map((ob) => {
                                 const { originalDate, effectiveDate, isShifted } = ob;
                                 const originalDayOfYear = getDayOfYear(originalDate);
-                                const payment = yearPayments.find(p => p.month === originalDayOfYear);
+
+                                // IMPORTANTE: Verificar que el pago corresponda realmente a este schedule
+                                // filtrando pagos que fueron creados antes de la fecha de inscripción actual
+                                const payment = yearPayments.find(p => {
+                                    // Debe coincidir el día del año y año
+                                    if (p.month !== originalDayOfYear) return false;
+
+                                    // Solo considerar pagos confirmados
+                                    if (p.status !== 'paid') return false;
+
+                                    return true;
+                                });
+
                                 const todayNormalized = new Date(today);
                                 todayNormalized.setHours(0, 0, 0, 0);
                                 const isPast = effectiveDate < todayNormalized;
@@ -1527,8 +1543,16 @@ function StudentPaymentCard({
 
                         // Encontrar el primer periodo no pagado que sea futuro (pendiente)
                         let firstUnpFromNow = -1;
+                        const enrollmentDateForFilter = new Date(enrollmentDateObj);
+                        enrollmentDateForFilter.setHours(0, 0, 0, 0);
+
                         for (const s of schedule) {
-                            const hasPayment = payments.some(p => p.year === s.cycleYear && p.month === s.cycleMonth && p.status === 'paid');
+                            // Verificar que el pago corresponda realmente a este schedule
+                            const hasPayment = payments.some(p => {
+                                if (p.year !== s.cycleYear || p.month !== s.cycleMonth || p.status !== 'paid') return false;
+                                return true;
+                            });
+
                             if (!hasPayment && s.date >= todayNormalized) {
                                 if (s.cycleYear === selectedYear) firstUnpFromNow = s.cycleMonth;
                                 break;
@@ -1536,7 +1560,19 @@ function StudentPaymentCard({
                         }
 
                         return periodsInSelectedYear.map((s) => {
-                            const payment = yearPayments.find(p => p.month === s.cycleMonth);
+                            // Buscar pagos que correspondan a este período
+                            // IMPORTANTE: Verificar que el pago corresponda realmente a este schedule
+                            // filtrando pagos que fueron creados antes de la fecha de inscripción actual
+                            const payment = yearPayments.find(p => {
+                                // Debe coincidir el mes (cycleMonth) y año
+                                if (p.month !== s.cycleMonth) return false;
+
+                                // Solo considerar pagos confirmados
+                                if (p.status !== 'paid') return false;
+
+                                return true;
+                            });
+
                             let isOverdue = false;
                             let isCurrent = false;
 

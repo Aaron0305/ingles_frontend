@@ -212,7 +212,7 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
 
             setStudents(prev => prev.map(s =>
                 s.id === studentToToggle.id
-                    ? { ...s, status: updatedStudent.status }
+                    ? { ...s, ...updatedStudent }
                     : s
             ));
 
