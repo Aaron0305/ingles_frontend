@@ -354,7 +354,7 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                                         </span>
                                     </td>
                                     <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                        {"N/A"}
+                                        {student.studentPhone || ""}
                                     </td>
                                     <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
                                         {student.emergencyPhone || ""}
