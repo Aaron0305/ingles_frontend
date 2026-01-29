@@ -243,8 +243,18 @@ export const adminsApi = {
 // ============================================
 
 export const paymentsApi = {
+    // Obtener pagos consolidados por período (para UI de pagos)
     async getAll(): Promise<Payment[]> {
         const response = await fetch(`${API_URL}/api/payments`, {
+            headers: getAuthHeaders(),
+        });
+
+        return handleResponse<Payment[]>(response);
+    },
+
+    // Obtener pagos individuales sin consolidar (para reportes diarios)
+    async getAllRaw(): Promise<Payment[]> {
+        const response = await fetch(`${API_URL}/api/payments?raw=true`, {
             headers: getAuthHeaders(),
         });
 
@@ -276,12 +286,29 @@ export const paymentsApi = {
     },
 
     async revoke(studentId: string, month: number, year: number): Promise<Payment> {
-        const response = await fetch(`${API_URL}/api/payments`, {
-            method: "PUT",
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ studentId, month, year, action: "revoke" }),
-        });
+        console.log('🗑️ [API] Iniciando revoke de pago:', { studentId, month, year });
+        console.log('🌐 [API] URL:', `${API_URL}/api/payments`);
 
-        return handleResponse<Payment>(response);
+        try {
+            const response = await fetch(`${API_URL}/api/payments`, {
+                method: "PUT",
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ studentId, month, year, action: "revoke" }),
+            });
+
+            console.log('📥 [API] Response status:', response.status);
+
+            const data = await response.json();
+            console.log('📦 [API] Response data:', data);
+
+            if (!response.ok) {
+                throw new Error(data.error || "Error en la petición");
+            }
+
+            return data as Payment;
+        } catch (error) {
+            console.error('❌ [API] Error en revoke:', error);
+            throw error;
+        }
     },
 };

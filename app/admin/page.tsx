@@ -7,16 +7,15 @@ import CredentialModal, { Student } from "../dashboard/credential";
 import PaymentsPanel, { PaymentRecord } from "../dashboard/payments";
 import CredentialsPanel from "../dashboard/credentials-panel";
 import ReportsPanel from "../dashboard/reports-panel";
+import StudentsPanel from "../dashboard/students-panel"; // Importado
 import { studentsApi, adminsApi, paymentsApi, authApi } from "@/lib/api";
 import { QRCodeSVG } from "qrcode.react";
 import {
     ShieldCheck, Users, CheckCircle, CircleDollarSign,
-    BarChart3, Plus, UserPlus, Search, X, Trash2, Ban,
-    TrendingDown, FileText, Copy, AlertTriangle, Pencil,
-    UserX, UserCheck, Loader2, Shield, LogOut, Download, Calendar, History,
-    ChevronLeft, ChevronRight, User, Phone, GraduationCap, CreditCard
+    BarChart3, Plus, UserPlus, X, Trash2, Ban,
+    Copy, AlertTriangle, Shield, LogOut, User, Phone,
+    GraduationCap, CreditCard
 } from "lucide-react";
-import * as XLSX from "xlsx";
 import Image from "next/image";
 
 // ============================================
@@ -84,33 +83,28 @@ export default function SuperAdminDashboard() {
     const [activeTab, setActiveTab] = useState<TabType>("students");
     const [students, setStudents] = useState<Student[]>([]);
     const [admins, setAdmins] = useState<Admin[]>([]);
-    const [payments, setPayments] = useState<PaymentRecord[]>([]);
+    const [payments, setPayments] = useState<PaymentRecord[]>([]); // Pagos consolidados por período
+    const [rawPayments, setRawPayments] = useState<PaymentRecord[]>([]); // Pagos individuales para reportes
     const [isLoading, setIsLoading] = useState(true);
 
     // Modales
+    const [isCreating, setIsCreating] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showCredentialModal, setShowCredentialModal] = useState(false);
     const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
     const [showDeleteAdminModal, setShowDeleteAdminModal] = useState(false);
     const [showQRModal, setShowQRModal] = useState(false);
-    const [showEditStudentModal, setShowEditStudentModal] = useState(false);
-    const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
+
     const [adminToDelete, setAdminToDelete] = useState<Admin | null>(null);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
-    // Modal y estado para borrar estudiante
-    const [showDeleteStudentModal, setShowDeleteStudentModal] = useState(false);
-    const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+
 
     // Estado del rol del usuario
     const [userRole, setUserRole] = useState<"admin" | "superadmin">("admin");
 
-    // Filtros y búsqueda
-    const [searchTerm, setSearchTerm] = useState("");
-    const [filterLevel, setFilterLevel] = useState<string>("all");
-    const [filterStatus, setFilterStatus] = useState<string>("all");
-    const [currentPage, setCurrentPage] = useState(1);
-    const studentsPerPage = 10;
+
+
 
     // Formularios
     const [formData, setFormData] = useState<NewStudentForm>({
@@ -133,44 +127,12 @@ export default function SuperAdminDashboard() {
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [adminFormErrors, setAdminFormErrors] = useState<Partial<NewAdminForm & { confirmPassword?: string }>>({});
-    const [editFormData, setEditFormData] = useState<EditStudentForm>({
-        name: "",
-        email: "",
-        emergencyPhone: "",
-        level: "Beginner 1",
-    });
-    const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
-    const [isCreating, setIsCreating] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-    // Estado para modal de confirmación de activar/desactivar estudiante
-    const [showStatusModal, setShowStatusModal] = useState(false);
-    const [studentToToggle, setStudentToToggle] = useState<Student | null>(null);
-    const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
     // Socket para comunicación en tiempo real
     const [socket, setSocket] = useState<Socket | null>(null);
 
-    // Handlers for deleting student
-    const handleDeleteStudent = (student: Student) => {
-        setStudentToDelete(student);
-        setShowDeleteStudentModal(true);
-    };
 
-    const confirmDeleteStudent = async () => {
-        if (studentToDelete) {
-            try {
-                await studentsApi.delete(studentToDelete.id);
-                setStudents(prev => prev.filter(s => s.id !== studentToDelete.id));
-            } catch (error) {
-                console.error("Error eliminando estudiante:", error);
-            } finally {
-                setShowDeleteStudentModal(false);
-                setStudentToDelete(null);
-            }
-        }
-    };
 
     // ============================================
     // EFECTOS
@@ -266,9 +228,10 @@ export default function SuperAdminDashboard() {
         const userType = localStorage.getItem("userType");
 
         try {
-            const promises = [
+            const promises: Promise<any>[] = [
                 studentsApi.getAll(),
-                paymentsApi.getAll(),
+                paymentsApi.getAll(),      // Pagos consolidados (para UI de pagos)
+                paymentsApi.getAllRaw(),   // Pagos individuales (para reportes)
             ];
 
             // Solo cargar admins si es superadmin
@@ -279,7 +242,8 @@ export default function SuperAdminDashboard() {
             const results = await Promise.all(promises);
             const studentsData = results[0];
             const paymentsData = results[1];
-            const adminsData = userType === 'superadmin' ? results[2] : [];
+            const rawPaymentsData = results[2];
+            const adminsData = userType === 'superadmin' ? results[3] : [];
 
             // Transformar datos para compatibilidad con el componente
             const transformedStudents: Student[] = studentsData.map((s: any) => ({
@@ -297,6 +261,7 @@ export default function SuperAdminDashboard() {
             setStudents(transformedStudents);
             setAdmins(transformedAdmins);
             setPayments(paymentsData);
+            setRawPayments(rawPaymentsData);  // Pagos individuales para reportes
         } catch (error) {
             console.error("Error cargando datos:", error);
         } finally {
@@ -380,117 +345,25 @@ export default function SuperAdminDashboard() {
         }
     };
 
-    const handleEditStudent = (student: Student) => {
-        setStudentToEdit(student);
-        setEditFormData({
-            name: student.name,
-            email: student.email,
-            emergencyPhone: student.emergencyPhone || "",
-            level: student.level,
-        });
-        setEditFormErrors({});
-        setShowEditStudentModal(true);
-    };
 
-    const validateEditForm = (): boolean => {
-        const errors: Record<string, string> = {};
-        if (!editFormData.name.trim()) errors.name = "Nombre requerido";
-        if (!editFormData.email.trim()) errors.email = "Email requerido";
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editFormData.email)) {
-            errors.email = "Email inválido";
-        }
-        setEditFormErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
 
-    const handleSaveEditStudent = async () => {
-        if (!validateEditForm() || !studentToEdit) return;
-        setIsEditing(true);
-
-        try {
-            const updatedStudent = await studentsApi.update(studentToEdit.id, {
-                name: editFormData.name,
-                email: editFormData.email,
-                emergencyPhone: editFormData.emergencyPhone || undefined,
-                level: editFormData.level,
-            });
-
-            setStudents(prev => prev.map(s =>
-                s.id === studentToEdit.id
-                    ? { ...s, ...updatedStudent, progress: s.progress, lastAccess: s.lastAccess }
-                    : s
-            ));
-            setShowEditStudentModal(false);
-            setStudentToEdit(null);
-            setSaveMessage({ type: 'success', text: 'Cambios guardados correctamente' });
-            setTimeout(() => setSaveMessage(null), 3000);
-        } catch (error) {
-            console.error("Error actualizando estudiante:", error);
-            const message = error instanceof Error ? error.message : "Error al actualizar";
-
-            // Si el error es de email duplicado, mostrar en el campo de email
-            if (message.toLowerCase().includes('correo') || message.toLowerCase().includes('email')) {
-                setEditFormErrors({ email: message });
-                setSaveMessage({ type: 'error', text: message });
-            } else {
-                setEditFormErrors({ email: message });
-                setSaveMessage({ type: 'error', text: 'Error al guardar cambios' });
-            }
-            setTimeout(() => setSaveMessage(null), 4000);
-        } finally {
-            setIsEditing(false);
-        }
-    };
-
-    // Función para abrir modal de confirmación de cambio de estado
-    const handleToggleStatusClick = (student: Student) => {
-        setStudentToToggle(student);
-        setShowStatusModal(true);
-    };
-
-    // Función para confirmar cambio de estado
-    const handleConfirmToggleStatus = async () => {
-        if (!studentToToggle) return;
-        setIsTogglingStatus(true);
-
-        try {
-            const newStatus = studentToToggle.status === "active" ? "inactive" : "active";
-            const updatedStudent = await studentsApi.update(studentToToggle.id, {
-                status: newStatus,
-            });
-
-            setStudents(prev => prev.map(s =>
-                s.id === studentToToggle.id
-                    ? { ...s, status: updatedStudent.status }
-                    : s
-            ));
-
-            setShowStatusModal(false);
-            setStudentToToggle(null);
-            setSaveMessage({
-                type: 'success',
-                text: newStatus === "active" ? 'Estudiante activado correctamente' : 'Estudiante desactivado correctamente'
-            });
-            setTimeout(() => setSaveMessage(null), 3000);
-        } catch (error) {
-            console.error("Error cambiando estado:", error);
-            setSaveMessage({ type: 'error', text: 'Error al cambiar estado del estudiante' });
-            setTimeout(() => setSaveMessage(null), 4000);
-        } finally {
-            setIsTogglingStatus(false);
-        }
-    };
-
-    const handlePaymentConfirm = async (studentId: string, month: number, year: number) => {
+    const handlePaymentConfirm = async (studentId: string, month: number, year: number, amountPaid?: number, amountExpected?: number) => {
         const student = students.find(s => s.id === studentId);
         if (!student) return;
+
+        // Si viene un monto pagado del modal, usarlo. Si no, usar la colegiatura completa (por defecto)
+        const paymentAmount = amountPaid !== undefined ? amountPaid : student.monthlyFee;
+
+        // Definir monto esperado
+        const finalExpected = amountExpected !== undefined ? amountExpected : student.monthlyFee;
 
         try {
             const newPayment = await paymentsApi.create({
                 studentId,
                 month,
                 year,
-                amount: student.monthlyFee,
+                amount: paymentAmount,
+                amountExpected: finalExpected
             });
 
             // Actualizar o agregar el pago
@@ -512,14 +385,15 @@ export default function SuperAdminDashboard() {
         try {
             await paymentsApi.revoke(studentId, month, year);
 
-            // Actualizar estado local - cambiar a pending
-            setPayments(prev => prev.map(p =>
-                p.studentId === studentId && p.month === month && p.year === year
-                    ? { ...p, status: "pending" as const, paidAt: undefined }
-                    : p
+            // Eliminar el pago de la lista local (ya se borró de la BD)
+            setPayments(prev => prev.filter(p =>
+                !(p.studentId === studentId && p.month === month && p.year === year)
             ));
+
+            console.log('✅ Pago eliminado correctamente de la base de datos y del estado local');
         } catch (error) {
-            console.error("Error revocando pago:", error);
+            console.error("Error eliminando pago:", error);
+            throw error; // Re-lanzar para que el componente hijo pueda manejar el error
         }
     };
 
@@ -608,70 +482,7 @@ export default function SuperAdminDashboard() {
     // FILTROS Y ESTADÍSTICAS
     // ============================================
 
-    // Filtrar estudiantes (búsqueda por número o nombre)
-    const filteredStudents = students.filter(student => {
-        const search = searchTerm.toLowerCase().trim();
-        const isNumeric = /^\d+$/.test(search);
 
-        const matchesSearch = search === "" || (
-            isNumeric
-                ? student.studentNumber.toString().includes(search)
-                : student.name.toLowerCase().includes(search)
-        );
-
-        const matchesLevel = filterLevel === "all" || student.level === filterLevel;
-        const matchesStatus = filterStatus === "all" || student.status === filterStatus;
-        return matchesSearch && matchesLevel && matchesStatus;
-    });
-
-
-
-    // Formatear fecha
-    const formatDate = (dateString: string): string => {
-        try {
-            if (!dateString) return "";
-            // Reemplazar guiones por slashes para evitar desfase de día
-            const date = new Date(dateString.replace(/-/g, "/"));
-            return date.toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' });
-        } catch {
-            return dateString;
-        }
-    };
-
-    // Paginación
-    const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
-    const paginatedStudents = filteredStudents.slice(
-        (currentPage - 1) * studentsPerPage,
-        currentPage * studentsPerPage
-    );
-
-    // Resetear página cuando cambian los filtros
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm, filterLevel, filterStatus]);
-
-    // ============================================
-    // HELPERS
-    // ============================================
-
-    const getLevelBadge = (level: string) => {
-        switch (level) {
-            case "Beginner 1":
-                return "bg-blue-500/20 text-blue-500 border-blue-500/30";
-            case "Beginner 2":
-                return "bg-blue-400/20 text-blue-400 border-blue-400/30";
-            case "Intermediate 1":
-                return "bg-amber-500/20 text-amber-500 border-amber-500/30";
-            case "Intermediate 2":
-                return "bg-amber-400/20 text-amber-400 border-amber-400/30";
-            case "Advanced 1":
-                return "bg-emerald-500/20 text-emerald-500 border-emerald-500/30";
-            case "Advanced 2":
-                return "bg-emerald-400/20 text-emerald-400 border-emerald-400/30";
-            default:
-                return "bg-gray-500/20 text-gray-500 border-gray-500/30";
-        }
-    };
 
     // ============================================
     // RENDER
@@ -883,71 +694,11 @@ export default function SuperAdminDashboard() {
                         </div>
 
                         {/* Barra de búsqueda y filtros - Solo para estudiantes */}
-                        {activeTab === "students" && (
-                            <div className="flex flex-wrap gap-4 mb-6 p-4 rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                                {/* Búsqueda */}
-                                <div className="flex-1 min-w-[200px]">
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-tertiary)' }} strokeWidth={2} />
-                                        <input
-                                            type="text"
-                                            placeholder="Buscar por número o nombre..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="w-full pl-10 pr-4 py-2 rounded-lg focus:outline-none transition-all"
-                                            style={{
-                                                background: 'var(--input-bg)',
-                                                border: '1px solid var(--input-border)',
-                                                color: 'var(--text-primary)'
-                                            }}
-                                            onFocus={(e) => e.target.style.borderColor = '#2596be'}
-                                            onBlur={(e) => e.target.style.borderColor = 'var(--input-border)'}
-                                        />
-                                    </div>
-                                </div>
 
-                                {/* Filtro por nivel */}
-                                <select
-                                    value={filterLevel}
-                                    onChange={(e) => setFilterLevel(e.target.value)}
-                                    className="px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-white font-medium cursor-pointer"
-                                    style={{ background: '#014287', border: 'none' }}
-                                >
-                                    <option value="all" className="bg-gray-800 text-white">Todos los niveles</option>
-                                    <option value="Beginner 1" className="bg-gray-800 text-white">Beginner 1</option>
-                                    <option value="Beginner 2" className="bg-gray-800 text-white">Beginner 2</option>
-                                    <option value="Intermediate 1" className="bg-gray-800 text-white">Intermediate 1</option>
-                                    <option value="Intermediate 2" className="bg-gray-800 text-white">Intermediate 2</option>
-                                    <option value="Advanced 1" className="bg-gray-800 text-white">Advanced 1</option>
-                                    <option value="Advanced 2" className="bg-gray-800 text-white">Advanced 2</option>
-                                </select>
-                                <select
-                                    value={filterStatus}
-                                    onChange={(e) => setFilterStatus(e.target.value)}
-                                    className="px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-white font-medium cursor-pointer"
-                                    style={{ background: '#014287', border: 'none' }}
-                                >
-                                    <option value="all" className="bg-gray-800 text-white">Todos los estados</option>
-                                    <option value="active" className="bg-gray-800 text-white">Activos</option>
-                                    <option value="inactive" className="bg-gray-800 text-white">Inactivos</option>
-                                </select>
-                                <button
-                                    onClick={() => {
-                                        setSearchTerm("");
-                                        setFilterLevel("all");
-                                        setFilterStatus("all");
-                                    }}
-                                    className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                                    style={{ background: '#ea242e', color: 'white' }}
-                                >
-                                    Limpiar filtros
-                                </button>
-                            </div>
-                        )}
 
                         {/* Content - Reports Tab */}
                         {activeTab === "reports" ? (
-                            <ReportsPanel students={students} payments={payments} />
+                            <ReportsPanel students={students} payments={rawPayments} />
                         ) : activeTab === "payments" ? (
                             <PaymentsPanel
                                 students={students}
@@ -1044,197 +795,7 @@ export default function SuperAdminDashboard() {
                         ) : activeTab === "credentials" ? (
                             <CredentialsPanel students={students} />
                         ) : (
-                            /* Content - Students Tab (Default) */
-                            <div className="data-table rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>
-                                <div className="p-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                    <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                                        Seguimiento de Estudiantes
-                                    </h2>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full">
-                                        <thead>
-                                            <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                                    No.
-                                                </th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                                    Estudiante
-                                                </th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                                    Nivel
-                                                </th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                                    Tel. Emergencia
-                                                </th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                                    Inscripción
-                                                </th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                                    Estado
-                                                </th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                                    Acciones
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {paginatedStudents.map((student) => (
-                                                <tr key={student.id} className="table-row-hover transition-colors" style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                                    <td className="px-3 py-3 whitespace-nowrap">
-                                                        <span className="text-sm font-mono text-cyan-500">{student.studentNumber}</span>
-                                                    </td>
-                                                    <td className="px-3 py-3 whitespace-nowrap">
-                                                        <div>
-                                                            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{student.name}</p>
-                                                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{student.email}</p>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-3 py-3 whitespace-nowrap">
-                                                        <span className={`inline-flex items-center justify-center w-24 px-2 py-0.5 rounded-full text-xs font-medium border ${getLevelBadge(student.level)}`}>
-                                                            {student.level}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                                        {student.emergencyPhone || ""}
-                                                    </td>
-                                                    <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                                        {formatDate(student.enrollmentDate || "")}
-                                                    </td>
-                                                    <td className="px-3 py-3 whitespace-nowrap">
-                                                        <button
-                                                            onClick={() => handleToggleStatusClick(student)}
-                                                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium cursor-pointer transition-all hover:scale-105 ${student.status === "active"
-                                                                ? "bg-green-500/20 text-green-500 hover:bg-green-500/30"
-                                                                : "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
-                                                                }`}
-                                                            title={student.status === "active" ? "Clic para desactivar" : "Clic para activar"}
-                                                        >
-                                                            <span className={`w-1.5 h-1.5 rounded-full ${student.status === "active" ? "bg-green-500" : "bg-gray-500"}`} />
-                                                            {student.status === "active" ? "Activo" : "Inactivo"}
-                                                        </button>
-                                                    </td>
-                                                    <td className="px-3 py-3 whitespace-nowrap">
-                                                        <div className="flex items-center gap-1">
-                                                            <button
-                                                                onClick={() => handleEditStudent(student)}
-                                                                className="p-1.5 text-blue-500 hover:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-colors"
-                                                                title="Editar Estudiante"
-                                                            >
-                                                                <Pencil className="w-4 h-4" strokeWidth={2} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeleteStudent(student)}
-                                                                className="p-1.5 text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors"
-                                                                title="Eliminar Estudiante"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" strokeWidth={2} />
-                                                            </button>
-                                                        </div>
-                                                        {/* Modal de confirmación para borrar estudiante */}
-                                                        {showDeleteStudentModal && studentToDelete && (
-                                                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                                                                <div className="rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                                                                    <div className="flex items-center justify-between mb-4">
-                                                                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                                                                            Eliminar Estudiante
-                                                                        </h3>
-                                                                        <button
-                                                                            onClick={() => setShowDeleteStudentModal(false)}
-                                                                            className="hover:opacity-70 transition-opacity"
-                                                                            style={{ color: 'var(--text-secondary)' }}
-                                                                        >
-                                                                            <X className="w-5 h-5" strokeWidth={2} />
-                                                                        </button>
-                                                                    </div>
-                                                                    <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                                                        ¿Estás seguro de eliminar a{' '}
-                                                                        <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-                                                                            {studentToDelete.name}
-                                                                        </span>
-                                                                        ?
-                                                                    </p>
-                                                                    <div className="flex justify-end gap-3">
-                                                                        <button
-                                                                            onClick={() => setShowDeleteStudentModal(false)}
-                                                                            className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-80"
-                                                                            style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
-                                                                        >
-                                                                            Cancelar
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={confirmDeleteStudent}
-                                                                            className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90 flex items-center gap-2"
-                                                                            style={{ background: '#ea242e', color: 'white' }}
-                                                                        >
-                                                                            <Trash2 className="w-4 h-4" />
-                                                                            Sí, Eliminar
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                {/* Paginación */}
-                                {totalPages > 1 && (
-                                    <div className="flex items-center justify-between p-4" style={{ borderTop: '1px solid var(--border-color)' }}>
-                                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                            Mostrando {((currentPage - 1) * studentsPerPage) + 1} - {Math.min(currentPage * studentsPerPage, filteredStudents.length)} de {filteredStudents.length} estudiantes
-                                        </p>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                                disabled={currentPage === 1}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                style={{ background: '#014287', color: 'white' }}
-                                            >
-                                                Anterior
-                                            </button>
-                                            <div className="flex items-center gap-1">
-                                                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                                                    let pageNum;
-                                                    if (totalPages <= 5) {
-                                                        pageNum = i + 1;
-                                                    } else if (currentPage <= 3) {
-                                                        pageNum = i + 1;
-                                                    } else if (currentPage >= totalPages - 2) {
-                                                        pageNum = totalPages - 4 + i;
-                                                    } else {
-                                                        pageNum = currentPage - 2 + i;
-                                                    }
-                                                    return (
-                                                        <button
-                                                            key={pageNum}
-                                                            onClick={() => setCurrentPage(pageNum)}
-                                                            className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === pageNum ? 'text-white' : ''}`}
-                                                            style={currentPage === pageNum
-                                                                ? { background: '#014287' }
-                                                                : { background: 'var(--surface)', color: 'var(--text-secondary)' }
-                                                            }
-                                                        >
-                                                            {pageNum}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                            <button
-                                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                                disabled={currentPage === totalPages}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                style={{ background: '#014287', color: 'white' }}
-                                            >
-                                                Siguiente
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                            <StudentsPanel students={students} setStudents={setStudents} />
                         )}
                     </>
                 )}
@@ -1832,181 +1393,9 @@ export default function SuperAdminDashboard() {
                 )
             }
 
-            {/* Modal: Editar Estudiante */}
-            {
-                showEditStudentModal && studentToEdit && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                        <div className="modal-content rounded-xl p-5 max-w-sm w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                            {/* Header */}
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
-                                        <Pencil className="w-4 h-4 text-white" strokeWidth={2} />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Editar Estudiante</h3>
-                                        <p className="text-xs font-mono text-cyan-500">#{studentToEdit.studentNumber}</p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => {
-                                        setShowEditStudentModal(false);
-                                        setStudentToEdit(null);
-                                    }}
-                                    style={{ color: 'var(--text-secondary)' }}
-                                >
-                                    <X className="w-5 h-5" strokeWidth={2} />
-                                </button>
-                            </div>
 
-                            <div className="space-y-3">
-                                {/* Nombre */}
-                                <div>
-                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
-                                    <input
-                                        type="text"
-                                        value={editFormData.name}
-                                        onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                                        placeholder="Nombre del estudiante"
-                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                    />
-                                    {editFormErrors.name && <p className="mt-1 text-xs text-red-500">{editFormErrors.name}</p>}
-                                </div>
 
-                                {/* Email */}
-                                <div>
-                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
-                                    <input
-                                        type="email"
-                                        value={editFormData.email}
-                                        onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                                        placeholder="correo@ejemplo.com"
-                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                    />
-                                    {editFormErrors.email && <p className="mt-1 text-xs text-red-500">{editFormErrors.email}</p>}
-                                </div>
 
-                                {/* Teléfono de Emergencia */}
-                                <div>
-                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Tel. Emergencia (Papás)</label>
-                                    <input
-                                        type="tel"
-                                        value={editFormData.emergencyPhone}
-                                        onChange={(e) => {
-                                            const value = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                            setEditFormData({ ...editFormData, emergencyPhone: value });
-                                        }}
-                                        placeholder="5512345678"
-                                        maxLength={10}
-                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
-                                    />
-                                </div>
-
-                                {/* Nivel */}
-                                <div>
-                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nivel</label>
-                                    <select
-                                        value={editFormData.level}
-                                        onChange={(e) => setEditFormData({ ...editFormData, level: e.target.value as EditStudentForm["level"] })}
-                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
-                                    >
-                                        <option value="Beginner 1" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner 1</option>
-                                        <option value="Beginner 2" style={{ background: '#1f2937', color: '#ffffff' }}>Beginner 2</option>
-                                        <option value="Intermediate 1" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate 1</option>
-                                        <option value="Intermediate 2" style={{ background: '#1f2937', color: '#ffffff' }}>Intermediate 2</option>
-                                        <option value="Advanced 1" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced 1</option>
-                                        <option value="Advanced 2" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced 2</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 mt-5">
-                                <button
-                                    onClick={handleSaveEditStudent}
-                                    disabled={isEditing}
-                                    className="flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm"
-                                    style={{ background: '#014287' }}
-                                >
-                                    {isEditing ? "Guardando..." : "Guardar Cambios"}
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setShowEditStudentModal(false);
-                                        setStudentToEdit(null);
-                                    }}
-                                    className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
-                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-            {/* Modal de confirmación para activar/desactivar estudiante */}
-            {
-                showStatusModal && studentToToggle && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'var(--modal-overlay)' }}>
-                        <div className="rounded-xl shadow-2xl max-w-sm w-full p-5" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${studentToToggle.status === "active" ? "bg-red-500/20" : "bg-green-500/20"}`}>
-                                    {studentToToggle.status === "active" ? (
-                                        <UserX className="w-5 h-5 text-red-500" strokeWidth={2} />
-                                    ) : (
-                                        <UserCheck className="w-5 h-5 text-green-500" strokeWidth={2} />
-                                    )}
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
-                                        {studentToToggle.status === "active" ? "Desactivar Estudiante" : "Activar Estudiante"}
-                                    </h3>
-                                    <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>#{studentToToggle.studentNumber}</p>
-                                </div>
-                            </div>
-
-                            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                                {studentToToggle.status === "active"
-                                    ? `¿Estás seguro de que deseas desactivar a "${studentToToggle.name}"?`
-                                    : `¿Estás seguro de que deseas activar a "${studentToToggle.name}"?`
-                                }
-                            </p>
-
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={handleConfirmToggleStatus}
-                                    disabled={isTogglingStatus}
-                                    className={`flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90 text-sm ${studentToToggle.status === "active" ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"}`}
-                                >
-                                    {isTogglingStatus ? (
-                                        <span className="inline-flex items-center justify-center gap-2">
-                                            <Loader2 className="animate-spin h-4 w-4" strokeWidth={2} />
-                                            Procesando...
-                                        </span>
-                                    ) : (
-                                        studentToToggle.status === "active" ? "Sí, Desactivar" : "Sí, Activar"
-                                    )}
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setShowStatusModal(false);
-                                        setStudentToToggle(null);
-                                    }}
-                                    className="px-4 py-2.5 font-medium rounded-lg transition-colors text-sm"
-                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
         </div >
     );
 }

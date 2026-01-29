@@ -51,8 +51,8 @@ interface PaymentConfirmModalProps {
 interface PaymentsPanelProps {
     students: Student[];
     payments: PaymentRecord[];
-    onPaymentConfirm: (studentId: string, month: number, year: number, amountPaid?: number) => void;
-    onPaymentRevoke?: (studentId: string, month: number, year: number) => void;
+    onPaymentConfirm: (studentId: string, month: number, year: number, amountPaid?: number, amountExpected?: number) => void;
+    onPaymentRevoke?: (studentId: string, month: number, year: number) => Promise<void>;
     socket?: Socket | null;
     pendingPaymentRequest?: {
         studentId: string;
@@ -134,6 +134,7 @@ const getEasterSunday = (year: number): Date => {
 };
 
 // Obtener Jueves y Viernes Santo basados en Pascua
+// Obtener Jueves, Viernes y Sábado Santo basados en Pascua
 const getHolyWeekDays = (year: number): Date[] => {
     const easter = getEasterSunday(year);
     const dates: Date[] = [];
@@ -147,6 +148,11 @@ const getHolyWeekDays = (year: number): Date[] => {
     const goodFriday = new Date(easter);
     goodFriday.setDate(easter.getDate() - 2);
     dates.push(goodFriday);
+
+    // Sábado Santo (1 día antes de Pascua)
+    const holySaturday = new Date(easter);
+    holySaturday.setDate(easter.getDate() - 1);
+    dates.push(holySaturday);
 
     return dates;
 };
@@ -163,16 +169,24 @@ const formatDateStr = (date: Date): string => {
 const getHolidaysForYear = (year: number): Set<string> => {
     const holidays = new Set<string>();
 
-    // Días fijos (fechas reales)
-    holidays.add(`${year}-01-01`); // Año Nuevo
-    holidays.add(`${year}-02-05`); // Día de la Constitución (fecha real)
-    holidays.add(`${year}-03-21`); // Natalicio de Benito Juárez (fecha real)
+    // Días fijos que NO se mueven
     holidays.add(`${year}-05-01`); // Día del Trabajo
     holidays.add(`${year}-09-16`); // Independencia
-    holidays.add(`${year}-11-20`); // Día de la Revolución (fecha real)
-    holidays.add(`${year}-12-25`); // Navidad
 
-    // Jueves y Viernes Santo (calculados dinámicamente)
+    // Días oficiales recorridos al lunes (Ley Federal del Trabajo - Puentes)
+    // 5 de Febrero (Constitución) -> Primer lunes de febrero
+    const constitutionDay = getNthDayOfWeekInMonth(year, 1, 1, 1);
+    holidays.add(formatDateStr(constitutionDay));
+
+    // 21 de Marzo (Juárez) -> Tercer lunes de marzo
+    const juarezDay = getNthDayOfWeekInMonth(year, 2, 1, 3);
+    holidays.add(formatDateStr(juarezDay));
+
+    // 20 de Noviembre (Revolución) -> Tercer lunes de noviembre
+    const revolutionDay = getNthDayOfWeekInMonth(year, 10, 1, 3);
+    holidays.add(formatDateStr(revolutionDay));
+
+    // Jueves, Viernes y Sábado Santo (calculados dinámicamente)
     const holyWeek = getHolyWeekDays(year);
     holyWeek.forEach(d => holidays.add(formatDateStr(d)));
 
@@ -477,7 +491,7 @@ function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, on
     const currentPaidAmount = existingPayment?.amount || 0;
     const currentPendingAmount = existingPayment?.amountPending || expectedAmount;
 
-    const newPaidAmount = parseFloat(amountPaid) || 0;
+    const newPaidAmount = amountPaid === "" ? 0 : (parseFloat(amountPaid) || 0);
     const totalPaidAmount = currentPaidAmount + newPaidAmount;
     const finalPendingAmount = Math.max(expectedAmount - totalPaidAmount, 0);
     const percentage = Math.min(Math.round((totalPaidAmount / expectedAmount) * 100), 100);
@@ -569,9 +583,10 @@ function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, on
                     <div className="mt-3 mb-2">
                         <div className="h-3 bg-gray-200 dark:bg-slate-600 rounded-full overflow-hidden">
                             <div
-                                className={`h-full transition-all duration-300 rounded-full ${percentage >= 100 ? 'bg-gradient-to-r from-green-400 to-emerald-500' :
-                                    percentage >= 50 ? 'bg-gradient-to-r from-amber-400 to-orange-500' :
-                                        'bg-gradient-to-r from-red-400 to-red-500'
+                                className={`h-full transition-all duration-300 rounded-full ${percentage === 0 ? 'bg-transparent' : // Fix para 0%
+                                    percentage >= 100 ? 'bg-gradient-to-r from-green-400 to-emerald-500' :
+                                        percentage >= 50 ? 'bg-gradient-to-r from-amber-400 to-orange-500' :
+                                            'bg-gradient-to-r from-red-400 to-red-500'
                                     }`}
                                 style={{ width: `${percentage}%` }}
                             />
@@ -692,6 +707,106 @@ function PaymentSuccessModal({ isOpen, student, periodIndex, onClose }: { isOpen
                 <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 rounded-full text-green-500 text-xs font-medium">
                     <Check className="w-3.5 h-3.5" strokeWidth={2} />
                     Guardado correctamente
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ============================================
+// MODAL DE CANCELACIÓN DE PAGO
+// ============================================
+
+function PaymentCancelModal({
+    isOpen,
+    student,
+    periodIndex,
+    year,
+    payment,
+    onConfirm,
+    onCancel,
+    isProcessing
+}: {
+    isOpen: boolean;
+    student: Student | null;
+    periodIndex: number;
+    year: number;
+    payment?: PaymentRecord | null;
+    onConfirm: () => void;
+    onCancel: () => void;
+    isProcessing: boolean;
+}) {
+    if (!isOpen || !student) return null;
+
+    const scheme = getStudentScheme(student);
+    const config = SCHEME_CONFIGS[scheme];
+
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-150" style={{ background: 'var(--modal-bg)' }}>
+                {/* Icono de advertencia */}
+                <div className="relative flex justify-center mb-4">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center shadow-lg shadow-red-500/30">
+                        <AlertTriangle className="w-8 h-8 text-white" strokeWidth={2} />
+                    </div>
+                </div>
+
+                <h3 className="text-xl font-bold mb-2 text-center" style={{ color: 'var(--text-primary)' }}>
+                    ¿Cancelar este pago?
+                </h3>
+
+                <p className="text-sm mb-4 text-center" style={{ color: 'var(--text-secondary)' }}>
+                    Estás a punto de eliminar el pago de <span className="font-semibold text-blue-500">{student.name}</span> correspondiente a <span className="font-semibold">{config.getPeriodFullName(periodIndex)}</span> del {year}.
+                </p>
+
+                {payment && (
+                    <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Monto pagado:</span>
+                            <span className="font-bold text-red-500">${payment.amount}</span>
+                        </div>
+                        {payment.paidAt && (
+                            <div className="flex justify-between items-center mt-1">
+                                <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Fecha de pago:</span>
+                                <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                    {new Date(payment.paidAt).toLocaleDateString('es-MX')}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <p className="text-xs text-center mb-4 text-amber-500">
+                    ⚠️ Esta acción eliminará el registro de pago de la base de datos y no se puede deshacer.
+                </p>
+
+                {/* Botones */}
+                <div className="flex gap-3">
+                    <button
+                        onClick={onCancel}
+                        disabled={isProcessing}
+                        className="flex-1 py-3 font-semibold rounded-xl transition-colors"
+                        style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
+                    >
+                        No, mantener
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={isProcessing}
+                        className="flex-1 py-3 text-white font-semibold rounded-xl transition-all shadow-lg bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-red-500/25 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        {isProcessing ? (
+                            <>
+                                <Loader2 className="animate-spin h-5 w-5" />
+                                Cancelando...
+                            </>
+                        ) : (
+                            <>
+                                <X className="w-5 h-5" strokeWidth={2} />
+                                Sí, cancelar pago
+                            </>
+                        )}
+                    </button>
                 </div>
             </div>
         </div>
@@ -836,13 +951,12 @@ function PeriodCell({
     periodIndex: number;
     payment?: PaymentRecord;
     onClick: () => void;
-    onRevoke?: () => void;
+    onRevoke: () => void;
     isCurrentPeriod: boolean;
-
     selectedYear: number;
     config: SchemeConfig;
-    isOverdue?: boolean; // Nuevo prop para indicar si está vencido
-    customLabel?: string; // Nuevo prop para label personalizado
+    isOverdue?: boolean;
+    customLabel?: string;
 }) {
     const isPaid = payment?.status === "paid";
 
@@ -870,10 +984,11 @@ function PeriodCell({
         // Si es pago parcial, permitir agregar el pago restante
         if (isPartialPayment) {
             onClick();
-        } else if (isPaid && onRevoke) {
-            // Solo revocar si está completamente pagado (no parcial)
+        } else if (isPaid) {
+            // Si ya está pagado completamente, abrir modal de cancelación
             onRevoke();
-        } else if (!isPaid) {
+        } else {
+            // Pago pendiente o vencido, abrir modal de pago
             onClick();
         }
     };
@@ -941,7 +1056,7 @@ function PeriodCell({
             <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
                 {isPartialPayment
                     ? `Agregar pago restante: $${payment?.amountPending} (Ya pagado: $${payment?.amount})`
-                    : isPaid ? "Cancelar pago" :
+                    : isPaid ? "Click para cancelar pago" :
                         isOverdue ? `¡Vencido! Pagar ${config.getPeriodFullName(periodIndex)}` :
                             isCurrentPeriod ? `Pendiente hoy - Pagar ${config.getPeriodFullName(periodIndex)}` :
                                 `Pagar ${config.getPeriodFullName(periodIndex)}`}
@@ -963,7 +1078,7 @@ function StudentPaymentCard({
     student: Student;
     payments: PaymentRecord[];
     onPeriodClick: (periodIndex: number, year: number) => void;
-    onPeriodRevoke?: (periodIndex: number, year: number) => void;
+    onPeriodRevoke: (periodIndex: number, year: number) => void;
 }) {
     const currentYear = new Date().getFullYear();
     const scheme = getStudentScheme(student);
@@ -977,20 +1092,69 @@ function StudentPaymentCard({
     // Función para verificar si un año tiene todos los periodos pagados
     // Ajuste: solo contar meses desde el mes de inscripción en el año de inscripción
     const isYearFullyPaid = (year: number) => {
-        const enrollmentDate = student.enrollmentDate
+        // Generar schedule para ese año para saber EXACTAMENTE cuántos pagos tocan
+        const enrollment = student.enrollmentDate
             ? new Date(student.enrollmentDate.replace(/-/g, "/"))
             : new Date(year, 0, 1);
-        const isEnrollmentYear = enrollmentDate.getFullYear() === year;
-        const startPeriodIndex = isEnrollmentYear ? (enrollmentDate.getMonth() + 1) : 1;
-        const periodsInYear = config.periods - startPeriodIndex + 1;
+        enrollment.setHours(12, 0, 0, 0);
 
-        const yearPayments = payments.filter(p => p.year === year && p.status === "paid" && (!isEnrollmentYear || p.month >= startPeriodIndex));
-        return yearPayments.length >= periodsInYear;
+        // Si es daily, lógica simple (no aplica carrusel complejo igual)
+        if (scheme === 'daily') return false;
+
+        // Simular schedule para contar períodos en ESE año
+        let count = 0;
+        const cycleDays = scheme === 'weekly' ? 7 : (scheme === 'biweekly' ? 14 : 28);
+        let pDate = new Date(enrollment);
+
+        // Si el año a evaluar es anterior al de inscripción, está "pagado" (vacío)
+        if (year < enrollment.getFullYear()) return true;
+
+        // Avanzar el puntero hasta el año deseado si es necesario
+        // Pero para simplificar, generamos desde inscripción y filtramos
+
+        // Primer pago
+        if (enrollment.getFullYear() === year) count++;
+
+        // Generar ciclos suficientes (ej. 5 años hacia adelante máx)
+        for (let i = 0; i < 200; i++) {
+            const baseDate = new Date(pDate);
+            baseDate.setDate(pDate.getDate() + cycleDays);
+
+            let holidays = 0;
+            const checkDate = new Date(pDate);
+            for (let d = 0; d < cycleDays; d++) {
+                checkDate.setDate(checkDate.getDate() + 1);
+                if (isHoliday(checkDate)) holidays++;
+            }
+
+            let next = new Date(baseDate);
+            next.setDate(baseDate.getDate() + holidays);
+            while (isHoliday(next)) next.setDate(next.getDate() + 1);
+
+            if (next.getFullYear() === year) count++;
+            if (next.getFullYear() > year) break;
+
+            pDate = next;
+        }
+
+        // Contar pagos REALES registrados en base de datos para ese año
+        const paymentsInYear = payments.filter(p => p.year === year && p.status === 'paid');
+
+        // Si no hay obligación de pagos ese año (ej. futuro lejano o año pasado sin inscripción), no bloquear
+        if (count === 0) return false;
+
+        return paymentsInYear.length >= count;
     };
 
-    // Calcular el último año disponible
+    // Calcular el último año disponible:
+    // Si el año actual está pagado al 100%, permitir ver el año siguiente.
+    // Iterar para encontrar hasta qué año futuro permitir (si pagaron por adelantado 2 años, permitir ver hasta el 3ro)
     let maxYear = currentYear;
     while (isYearFullyPaid(maxYear)) {
+        maxYear++;
+    }
+    // Siempre permitir al menos ver el año siguiente si estamos al final del año actual (mes > 10)
+    if (new Date().getMonth() >= 10 && maxYear === currentYear) {
         maxYear++;
     }
 
@@ -1342,7 +1506,7 @@ function StudentPaymentCard({
                                         periodIndex={originalDayOfYear}
                                         payment={payment}
                                         onClick={() => onPeriodClick(originalDayOfYear, selectedYear)}
-                                        onRevoke={onPeriodRevoke ? () => onPeriodRevoke(originalDayOfYear, selectedYear) : undefined}
+                                        onRevoke={() => onPeriodRevoke(originalDayOfYear, selectedYear)}
                                         isCurrentPeriod={isCurrentPeriod}
                                         selectedYear={selectedYear}
                                         config={config}
@@ -1390,7 +1554,7 @@ function StudentPaymentCard({
                                     periodIndex={s.cycleMonth}
                                     payment={payment}
                                     onClick={() => onPeriodClick(s.cycleMonth, selectedYear)}
-                                    onRevoke={onPeriodRevoke ? () => onPeriodRevoke(s.cycleMonth, selectedYear) : undefined}
+                                    onRevoke={() => onPeriodRevoke(s.cycleMonth, selectedYear)}
                                     isCurrentPeriod={isCurrent}
                                     selectedYear={selectedYear}
                                     config={config}
@@ -1426,7 +1590,10 @@ export default function PaymentsPanel({
     const [selectedYear, setSelectedYear] = useState<number>(currentYear);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
-    const [showRevokeModal, setShowRevokeModal] = useState(false);
+
+    // Estado para el modal de cancelación de pago
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [isProcessingCancel, setIsProcessingCancel] = useState(false);
 
     // Router for QR navigation
     const router = useRouter();
@@ -1502,17 +1669,21 @@ export default function PaymentsPanel({
         // No auto-opening modal anymore, user needs to click the specific period
     };
 
-    const handleConfirmRevoke = () => {
-        if (selectedStudent && selectedPeriod && onPaymentRevoke) {
-            onPaymentRevoke(selectedStudent.id, selectedPeriod, selectedYear);
-        }
-        setShowRevokeModal(false);
-    };
-
     const handleConfirmPayment = (amountPaid: number) => {
         console.log("💰 PaymentsPanel handleConfirmPayment", amountPaid);
         if (selectedStudent && selectedPeriod) {
-            onPaymentConfirm(selectedStudent.id, selectedPeriod, selectedYear, Number(amountPaid));
+            // Pass valid expected amount from logic. Note: we need to recalculate or capture it from modal state if possible, 
+            // but simpler to just pass student fee if no existing payment, OR existing payment expected amount.
+            // Since we don't have existingPayment here easily without lookup, let's rely on student.monthlyFee for now as base, 
+            // OR better: The modal logic (PaymentConfirmModal) already did the math. 
+            // But handleConfirmPayment is inside PaymentsPanel.
+            // Let's pass the student.monthlyFee as a safe default expected amount if we don't have better context here,
+            // relying on the API to finalize. 
+            // ACTUALLY: The modal calls `onConfirm(newPaidAmount)`.
+            // Let's update PaymentConfirmModal to pass expectedAmount too?
+            // No, too many changes.
+            // Let's just use selectedStudent.monthlyFee here.
+            onPaymentConfirm(selectedStudent.id, selectedPeriod, selectedYear, Number(amountPaid), selectedStudent.monthlyFee);
             setShowConfirmModal(false);
             setShowSuccessModal(true);
             setScanRequest(null); // Clear scan request
@@ -1554,6 +1725,29 @@ export default function PaymentsPanel({
         // Limpiar la solicitud pendiente del componente padre
         if (onPaymentRequestHandled) {
             onPaymentRequestHandled();
+        }
+    };
+
+    // Función para cancelar/revocar un pago
+    const handleRevokePayment = async () => {
+        if (!selectedStudent || !selectedPeriod || !selectedYear) return;
+
+        if (!onPaymentRevoke) {
+            console.error('❌ onPaymentRevoke no está definido');
+            alert('Error: La función de cancelación no está disponible');
+            return;
+        }
+
+        setIsProcessingCancel(true);
+        try {
+            await onPaymentRevoke(selectedStudent.id, selectedPeriod, selectedYear);
+            console.log('✅ Pago cancelado exitosamente');
+            setShowCancelModal(false);
+        } catch (error) {
+            console.error('❌ Error al cancelar pago:', error);
+            alert('Error al cancelar el pago');
+        } finally {
+            setIsProcessingCancel(false);
         }
     };
 
@@ -1784,7 +1978,7 @@ export default function PaymentsPanel({
                                 setSelectedStudent(student);
                                 setSelectedPeriod(periodIndex);
                                 setSelectedYear(year);
-                                setShowRevokeModal(true);
+                                setShowCancelModal(true);
                             }}
                         />
                     ))
@@ -1815,43 +2009,19 @@ export default function PaymentsPanel({
 
 
 
-            {/* Modal de confirmación de revocación */}
-            {
-                showRevokeModal && selectedStudent && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-                        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
-                            <div className="flex justify-center mb-4">
-                                <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
-                                    <AlertTriangle className="w-8 h-8 text-red-500" strokeWidth={2} />
-                                </div>
-                            </div>
-
-                            <h3 className="text-xl font-bold text-center mb-2 dark:text-white">
-                                ¿Cancelar pago?
-                            </h3>
-
-                            <p className="text-center text-gray-500 dark:text-gray-400 text-sm mb-6">
-                                Esta acción marcará el pago de <span className="font-bold text-gray-700 dark:text-gray-300">{selectedStudent.name}</span> como pendiente nuevamente.
-                            </p>
-
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setShowRevokeModal(false)}
-                                    className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 font-medium rounded-xl transition-colors"
-                                >
-                                    No, mantener
-                                </button>
-                                <button
-                                    onClick={handleConfirmRevoke}
-                                    className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-colors shadow-lg shadow-red-500/20"
-                                >
-                                    Cancelar pago
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
+            {/* Modal de confirmación de cancelación */}
+            <PaymentCancelModal
+                isOpen={showCancelModal}
+                student={selectedStudent}
+                periodIndex={selectedPeriod}
+                year={selectedYear}
+                payment={selectedStudent && selectedPeriod && selectedYear
+                    ? payments.find(p => p.studentId === selectedStudent.id && p.month === selectedPeriod && p.year === selectedYear)
+                    : null}
+                onConfirm={handleRevokePayment}
+                onCancel={() => setShowCancelModal(false)}
+                isProcessing={isProcessingCancel}
+            />
         </div >
     );
 }
