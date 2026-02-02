@@ -66,6 +66,7 @@ export default function PayScanPage() {
     const [message, setMessage] = useState<string>("");
     const [socket, setSocket] = useState<Socket | null>(null);
     const [progress, setProgress] = useState<number>(0);
+    const [sessionExpired, setSessionExpired] = useState<boolean>(false);
 
     // Verificar autenticación al cargar
     useEffect(() => {
@@ -80,6 +81,15 @@ export default function PayScanPage() {
             setStatus("auth-required");
         }
     }, []);
+
+    const handleReloginRedirect = () => {
+        // Limpiar cualquier token viejo y mandar al login con retorno a la pantalla actual
+        localStorage.removeItem("token");
+        localStorage.removeItem("userType");
+        localStorage.removeItem("userName");
+        const returnTo = encodeURIComponent(`/pay/scan/${studentId}`);
+        router.push(`/login?next=${returnTo}`);
+    };
 
     // Handler para login
     const handleLogin = async (e: React.FormEvent) => {
@@ -124,6 +134,12 @@ export default function PayScanPage() {
 
             // Obtener info del estudiante
             const studentRes = await fetch(`${API_URL}/api/students/${studentId}`);
+            if (studentRes.status === 401) {
+                setSessionExpired(true);
+                setStatus("auth-required");
+                setMessage("Tu sesión expiró. Inicia sesión de nuevo para confirmar el pago.");
+                return null;
+            }
             if (!studentRes.ok) throw new Error("Estudiante no encontrado");
             const studentData = await studentRes.json();
             setStudent(studentData);
@@ -131,6 +147,12 @@ export default function PayScanPage() {
 
             // Obtener pagos del estudiante
             const paymentsRes = await fetch(`${API_URL}/api/payments?studentId=${studentId}`);
+            if (paymentsRes.status === 401) {
+                setSessionExpired(true);
+                setStatus("auth-required");
+                setMessage("Tu sesión expiró. Inicia sesión de nuevo para confirmar el pago.");
+                return null;
+            }
             const paymentsData = await paymentsRes.json();
             const payments = Array.isArray(paymentsData) ? paymentsData : [];
             setProgress(70);
@@ -208,8 +230,9 @@ export default function PayScanPage() {
 
         newSocket.on("auth-failed", (data) => {
             console.error("❌ Autenticación de socket fallida:", data.message);
-            setStatus("error");
-            setMessage("Error de autenticación. Tu sesión puede haber expirado.");
+            setSessionExpired(true);
+            setStatus("auth-required");
+            setMessage("Tu sesión expiró. Inicia sesión de nuevo para confirmar el pago.");
         });
 
         newSocket.on("connect_error", (error) => {
@@ -327,6 +350,23 @@ export default function PayScanPage() {
                                     Inicia sesión para registrar el pago de este estudiante
                                 </p>
                             </div>
+
+                            {sessionExpired && (
+                                <div className="mb-4 p-3 rounded-xl border-2 flex items-center justify-between" style={{ borderColor: '#ea242e', background: 'linear-gradient(135deg, rgba(234,36,46,0.08), rgba(234,36,46,0.02))' }}>
+                                    <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#b91c1c' }}>
+                                        <AlertTriangle className="w-4 h-4" />
+                                        <span>Tu sesión expiró. Vuelve a iniciar sesión.</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleReloginRedirect}
+                                        className="px-3 py-1.5 text-white text-xs font-bold rounded-lg shadow-sm"
+                                        style={{ background: '#014287' }}
+                                    >
+                                        Inicia sesión de nuevo
+                                    </button>
+                                </div>
+                            )}
 
                             {/* Info Badge */}
                             <div className="rounded-xl p-4 mb-6 border-2 shadow-sm" style={{ background: 'linear-gradient(135deg, rgba(37, 150, 190, 0.1) 0%, rgba(1, 66, 135, 0.1) 100%)', borderColor: '#2596be' }}>
@@ -622,6 +662,15 @@ export default function PayScanPage() {
                             </div>
                             <h2 className="text-2xl font-bold mb-2" style={{ color: '#ea242e' }}>Pago No Procesado</h2>
                             <p className="text-gray-700 mb-6 font-medium">{message}</p>
+                            {sessionExpired && (
+                                <button
+                                    onClick={handleReloginRedirect}
+                                    className="w-full px-6 py-3 mb-3 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                    style={{ background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)' }}
+                                >
+                                    Inicia sesión de nuevo
+                                </button>
+                            )}
                             <button
                                 onClick={() => window.location.reload()}
                                 className="w-full px-6 py-4 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
@@ -640,6 +689,15 @@ export default function PayScanPage() {
                             </div>
                             <h2 className="text-2xl font-bold mb-2" style={{ color: '#ea242e' }}>Error de Conexión</h2>
                             <p className="text-gray-700 mb-6 font-medium">{message}</p>
+                            {sessionExpired && (
+                                <button
+                                    onClick={handleReloginRedirect}
+                                    className="w-full px-6 py-3 mb-3 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                    style={{ background: 'linear-gradient(135deg, #014287 0%, #2596be 100%)' }}
+                                >
+                                    Inicia sesión de nuevo
+                                </button>
+                            )}
                             <button
                                 onClick={() => window.location.reload()}
                                 className="w-full px-6 py-4 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
