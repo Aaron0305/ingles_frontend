@@ -1017,7 +1017,6 @@ export default function SuperAdminDashboard() {
                                                 className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                                 style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)', colorScheme: 'dark' }}
                                             />
-                                            <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>Por defecto es hoy</p>
                                         </div>
                                     </div>
                                 </div>

@@ -224,7 +224,7 @@ const isHoliday = (date: Date): boolean => {
 };
 
 const getNextClassDay = (date: Date, classDays: number[]): Date => {
-    let nextDate = new Date(date);
+    const nextDate = new Date(date);
     nextDate.setDate(date.getDate() + 1);
 
     // Buscar el siguiente día que sea día de clase Y que no sea festivo (opcional, si se recorre indefinidamente)
@@ -365,7 +365,7 @@ const isStudentOverdue = (student: Student, allPayments: PaymentRecord[]): boole
             if (isHoliday(checkDate)) holidays++;
         }
 
-        let next = new Date(baseDate);
+        const next = new Date(baseDate);
         next.setDate(baseDate.getDate() + holidays);
         while (isHoliday(next)) next.setDate(next.getDate() + 1);
 
@@ -472,11 +472,13 @@ function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, on
     useEffect(() => {
         if (isOpen && student) {
             // Si hay un pago parcial existente, mostrar solo lo que falta
-            if (existingPayment && existingPayment.amountPending && existingPayment.amountPending > 0) {
-                setAmountPaid(existingPayment.amountPending.toString());
-            } else {
-                setAmountPaid(student.monthlyFee.toString());
-            }
+            setTimeout(() => {
+                if (existingPayment && existingPayment.amountPending && existingPayment.amountPending > 0) {
+                    setAmountPaid(existingPayment.amountPending.toString());
+                } else {
+                    setAmountPaid(student.monthlyFee.toString());
+                }
+            }, 0);
         }
     }, [isOpen, student, existingPayment]);
 
@@ -946,7 +948,8 @@ function PeriodCell({
     selectedYear,
     config,
     isOverdue,
-    customLabel
+    customLabel,
+    customTooltip
 }: {
     periodIndex: number;
     payment?: PaymentRecord;
@@ -957,6 +960,7 @@ function PeriodCell({
     config: SchemeConfig;
     isOverdue?: boolean;
     customLabel?: string;
+    customTooltip?: string;
 }) {
     const isPaid = payment?.status === "paid";
 
@@ -1057,9 +1061,9 @@ function PeriodCell({
                 {isPartialPayment
                     ? `Agregar pago restante: $${payment?.amountPending} (Ya pagado: $${payment?.amount})`
                     : isPaid ? "Click para cancelar pago" :
-                        isOverdue ? `¡Vencido! Pagar ${config.getPeriodFullName(periodIndex)}` :
-                            isCurrentPeriod ? `Pendiente hoy - Pagar ${config.getPeriodFullName(periodIndex)}` :
-                                `Pagar ${config.getPeriodFullName(periodIndex)}`}
+                        isOverdue ? `¡Vencido! Pagar ${customTooltip || config.getPeriodFullName(periodIndex)}` :
+                            isCurrentPeriod ? `Pendiente hoy - Pagar ${customTooltip || config.getPeriodFullName(periodIndex)}` :
+                                `Pagar ${customTooltip || config.getPeriodFullName(periodIndex)}`}
             </div>
         </button>
     );
@@ -1127,7 +1131,7 @@ function StudentPaymentCard({
                 if (isHoliday(checkDate)) holidays++;
             }
 
-            let next = new Date(baseDate);
+            const next = new Date(baseDate);
             next.setDate(baseDate.getDate() + holidays);
             while (isHoliday(next)) next.setDate(next.getDate() + 1);
 
@@ -1191,7 +1195,7 @@ function StudentPaymentCard({
 
     // GENERACIÓN DE SCHEDULE (Movido aquí para calcular totales dinámicos)
     // Esto asegura que indicadores como "0/13" o "0/26" sean exactos según el año.
-    let dynamicSchedule: { date: Date; cycleMonth: number; cycleYear: number }[] = [];
+    const dynamicSchedule: { date: Date; cycleMonth: number; cycleYear: number }[] = [];
 
     if (scheme !== 'daily') {
         const enrollment = new Date(enrollmentDateObj);
@@ -1221,7 +1225,7 @@ function StudentPaymentCard({
                 if (isHoliday(checkDate)) holidays++;
             }
 
-            let next = new Date(baseDate);
+            const next = new Date(baseDate);
             next.setDate(baseDate.getDate() + holidays);
             while (isHoliday(next)) next.setDate(next.getDate() + 1);
 
@@ -1583,6 +1587,9 @@ function StudentPaymentCard({
 
                             // Todas las etiquetas muestran la fecha específica: "12 Feb"
                             const label = `${s.date.getDate()} ${MONTHS_SHORT[s.date.getMonth()]}`;
+                            const tooltipLabel = scheme === 'monthly_28'
+                                ? `Pago de ${MONTHS[s.date.getMonth()]}`
+                                : config.getPeriodFullName(s.cycleMonth);
 
                             return (
                                 <PeriodCell
@@ -1596,6 +1603,7 @@ function StudentPaymentCard({
                                     config={config}
                                     isOverdue={isOverdue}
                                     customLabel={label}
+                                    customTooltip={tooltipLabel}
                                 />
                             );
                         });
@@ -1637,11 +1645,18 @@ export default function PaymentsPanel({
     // Filtros de búsqueda (igual que en StudentList, pero interno)
     const [searchTerm, setSearchTerm] = useState("");
     const [filterPaymentStatus, setFilterPaymentStatus] = useState<'all' | 'overdue' | 'pending' | 'partial'>('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const PAGE_SIZE = 10;
 
     // Estado para el escaneo QR en tiempo real
     const [scanRequest, setScanRequest] = useState<PaymentScanRequest | null>(null);
     const [showScanNotification, setShowScanNotification] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Resetear paginación cuando cambia el filtro o la búsqueda
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterPaymentStatus, students.length]);
 
 
 
@@ -1847,7 +1862,7 @@ export default function PaymentsPanel({
                 if (isHoliday(checkDate)) holidays++;
             }
 
-            let next = new Date(baseDate);
+            const next = new Date(baseDate);
             next.setDate(baseDate.getDate() + holidays);
             while (isHoliday(next)) next.setDate(next.getDate() + 1);
 
@@ -1893,6 +1908,11 @@ export default function PaymentsPanel({
 
         return matchesSearch && matchesPaymentStatus && student.status !== 'baja';
     });
+
+    const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
+    const safePage = Math.min(currentPage, totalPages);
+    const startIndex = (safePage - 1) * PAGE_SIZE;
+    const paginatedStudents = filteredStudents.slice(startIndex, startIndex + PAGE_SIZE);
 
     return (
         <div className="space-y-6">
@@ -1993,7 +2013,7 @@ export default function PaymentsPanel({
                         <p className="text-gray-500 font-medium">No se encontraron estudiantes</p>
                     </div>
                 ) : (
-                    filteredStudents.map(student => (
+                    paginatedStudents.map(student => (
                         <StudentPaymentCard
                             key={student.id}
                             student={student}
@@ -2014,6 +2034,40 @@ export default function PaymentsPanel({
                     ))
                 )}
             </div>
+
+            {/* Controles de paginación */}
+            {filteredStudents.length > 0 && (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-gray-200/60 dark:border-gray-700/50 bg-white/70 dark:bg-slate-800/60 px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+                    <span>
+                        Mostrando {startIndex + 1} - {Math.min(startIndex + PAGE_SIZE, filteredStudents.length)} de {filteredStudents.length} estudiantes
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={safePage === 1}
+                            className={`px-3 py-1.5 rounded-lg border transition ${safePage === 1
+                                ? 'border-gray-200 text-gray-400 cursor-not-allowed dark:border-gray-700'
+                                : 'border-gray-300 hover:border-blue-500 hover:text-blue-600 dark:border-gray-600'}
+                            `}
+                        >
+                            Anterior
+                        </button>
+                        <span className="px-3 py-1 text-gray-600 dark:text-gray-300">
+                            Página {safePage} de {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(p => p + 1)}
+                            disabled={safePage === totalPages}
+                            className={`px-3 py-1.5 rounded-lg border transition ${safePage === totalPages
+                                ? 'border-gray-200 text-gray-400 cursor-not-allowed dark:border-gray-700'
+                                : 'border-gray-300 hover:border-blue-500 hover:text-blue-600 dark:border-gray-600'}
+                            `}
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Modales */}
             <PaymentConfirmModal
