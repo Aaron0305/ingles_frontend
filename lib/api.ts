@@ -255,9 +255,9 @@ export const paymentsApi = {
         return handleResponse<Payment[]>(response);
     },
 
-    // Obtener pagos individuales sin consolidar (para reportes diarios)
+    // Obtener pagos individuales sin consolidar (para reportes diarios). Siempre incluye todas las versiones.
     async getAllRaw(): Promise<Payment[]> {
-        const response = await fetch(`${API_URL}/api/payments?raw=true`, {
+        const response = await fetch(`${API_URL}/api/payments?raw=true&includeAllVersions=true`, {
             headers: getAuthHeaders(),
         });
 

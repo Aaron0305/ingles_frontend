@@ -264,8 +264,8 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
                     <CardHeader>
                         <div className="flex items-center justify-between flex-wrap gap-4">
                             <div>
-                                <CardTitle>Ingresos Diarios</CardTitle>
-                                <CardDescription>
+                                <CardTitle className="text-base font-semibold text-gray-900 dark:text-white">Ingresos del mes</CardTitle>
+                                <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
                                     {chartMonth.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
                                 </CardDescription>
                             </div>

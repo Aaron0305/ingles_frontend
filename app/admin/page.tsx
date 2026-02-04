@@ -84,7 +84,7 @@ export default function SuperAdminDashboard() {
     const [students, setStudents] = useState<Student[]>([]);
     const [admins, setAdmins] = useState<Admin[]>([]);
     const [payments, setPayments] = useState<PaymentRecord[]>([]); // Pagos consolidados por período
-    const [rawPayments, setRawPayments] = useState<PaymentRecord[]>([]); // Pagos individuales para reportes
+    const [rawPayments, setRawPayments] = useState<PaymentRecord[]>([]); // Pagos individuales para reportes (historial completo)
     const [isLoading, setIsLoading] = useState(true);
 
     // Modales
@@ -256,7 +256,7 @@ export default function SuperAdminDashboard() {
             const promises: Promise<any>[] = [
                 studentsApi.getAll(),
                 paymentsApi.getAll(),      // Pagos consolidados (para UI de pagos)
-                paymentsApi.getAllRaw(),   // Pagos individuales (para reportes)
+                paymentsApi.getAllRaw(),   // Pagos individuales (historial completo para reportes)
             ];
 
             // Solo cargar admins si es superadmin
@@ -293,6 +293,7 @@ export default function SuperAdminDashboard() {
             setIsLoading(false);
         }
     };
+
 
     // ============================================
     // HANDLERS - ESTUDIANTES
@@ -723,7 +724,10 @@ export default function SuperAdminDashboard() {
 
                         {/* Content - Reports Tab */}
                         {activeTab === "reports" ? (
-                            <ReportsPanel students={students} payments={rawPayments} />
+                            <ReportsPanel
+                                students={students}
+                                payments={rawPayments}
+                            />
                         ) : activeTab === "payments" ? (
                             <PaymentsPanel
                                 students={students}
