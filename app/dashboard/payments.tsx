@@ -1169,12 +1169,13 @@ function StudentPaymentCard({
         (_, i) => enrollmentYear + i
     );
 
-    const [selectedYear, setSelectedYear] = useState(() => {
-        if (isYearFullyPaid(currentYear)) {
-            return currentYear + 1;
-        }
-        return currentYear;
-    });
+    // Año inicial: si la inscripción es futura, mostrar directamente ese año.
+    const initialYear = currentYear < enrollmentYear
+        ? enrollmentYear
+        : (isYearFullyPaid(currentYear) ? currentYear + 1 : currentYear);
+    const clampedInitialYear = Math.min(Math.max(initialYear, enrollmentYear), maxYear);
+
+    const [selectedYear, setSelectedYear] = useState(() => clampedInitialYear);
 
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
 
@@ -1211,8 +1212,13 @@ function StudentPaymentCard({
             cycleYear: enrollment.getFullYear()
         });
 
-        // Generar suficinetes ciclos
-        for (let i = 0; i < pPerYear * 5; i++) {
+        // Generar ciclos suficientes hasta cubrir el año seleccionado (y el siguiente para referencias)
+        // Se evita el límite fijo de 5 años para que siga funcionando en 2028, 2030, etc.
+        let safeCounter = 0;
+        let cycleIndex = 1; // Ya se agregó el ciclo 1 (inscripción)
+        const maxCycles = pPerYear * 30; // ~30 años como tope de seguridad
+
+        while (safeCounter < maxCycles) {
             // Lógica unificada: días calendario + feriados en periodo
             const baseDate = new Date(pDate);
             baseDate.setDate(pDate.getDate() + cycleDays);
@@ -1229,12 +1235,15 @@ function StudentPaymentCard({
             next.setDate(baseDate.getDate() + holidays);
             while (isHoliday(next)) next.setDate(next.getDate() + 1);
 
-            const cMonth = i + 2;
+            cycleIndex += 1;
+            const cMonth = cycleIndex;
             const cYear = next.getFullYear();
 
             dynamicSchedule.push({ date: next, cycleMonth: cMonth, cycleYear: cYear });
             if (cYear > selectedYear + 1) break;
             pDate = next;
+
+            safeCounter++;
         }
     }
 

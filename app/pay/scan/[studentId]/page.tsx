@@ -157,19 +157,20 @@ export default function PayScanPage() {
             const payments = Array.isArray(paymentsData) ? paymentsData : [];
             setProgress(70);
 
-            // Encontrar el primer mes pendiente (buscando desde el año actual hacia adelante)
-            const currentYear = new Date().getFullYear();
-            const currentMonth = new Date().getMonth() + 1;
+            // Encontrar el primer mes pendiente (respetando la fecha de inscripción, incluso si es futura)
+            const enrollmentDate = studentData.enrollmentDate ? new Date(studentData.enrollmentDate.replace(/-/g, "/")) : new Date();
+            const startYear = enrollmentDate.getFullYear();
+            const startMonth = enrollmentDate.getMonth() + 1;
 
             // Buscar el primer mes no pagado, empezando desde el año actual
             let foundPending = false;
 
             // Revisar hasta 3 años adelante para encontrar el mes pendiente
-            for (let year = currentYear; year <= currentYear + 2 && !foundPending; year++) {
-                // Para el año actual, empezar desde el mes actual. Para años futuros, empezar desde enero.
-                const startMonth = (year === currentYear) ? 1 : 1;
+            for (let year = startYear; year <= startYear + 2 && !foundPending; year++) {
+                // Para el año inicial, empezar desde el mes de inscripción; después, desde enero.
+                const monthStart = (year === startYear) ? startMonth : 1;
 
-                for (let month = startMonth; month <= 12; month++) {
+                for (let month = monthStart; month <= 12; month++) {
                     const isPaid = payments.some(
                         (p: { month: number; year: number; status: string }) =>
                             p.month === month && p.year === year && p.status === "paid"
@@ -186,7 +187,7 @@ export default function PayScanPage() {
             // Si no encontró ninguno pendiente (muy raro), mostrar el siguiente mes disponible
             if (!foundPending) {
                 setPendingMonth(1);
-                setPendingYear(currentYear + 3);
+                setPendingYear(startYear + 3);
             }
 
             return studentData;
