@@ -139,6 +139,14 @@ export default function SuperAdminDashboard() {
     const [adminFormErrors, setAdminFormErrors] = useState<Partial<NewAdminForm & { confirmPassword?: string }>>({});
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+    // Auto-dismiss del toast de notificación
+    useEffect(() => {
+        if (saveMessage) {
+            const timer = setTimeout(() => setSaveMessage(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [saveMessage]);
+
     // Socket para comunicación en tiempo real
     const [socket, setSocket] = useState<Socket | null>(null);
 
@@ -477,12 +485,34 @@ export default function SuperAdminDashboard() {
         }
     };
 
-    const handleToggleAdminStatus = (adminId: string) => {
-        setAdmins(prev => prev.map(admin =>
-            admin.id === adminId
-                ? { ...admin, status: admin.status === "active" ? "inactive" : "active" }
-                : admin
+    const handleToggleAdminStatus = async (adminId: string) => {
+        const admin = admins.find(a => a.id === adminId);
+        if (!admin) return;
+
+        const newStatus = admin.status === "active" ? "inactive" : "active";
+
+        // Actualizar optimistamente en el frontend
+        setAdmins(prev => prev.map(a =>
+            a.id === adminId ? { ...a, status: newStatus } : a
         ));
+
+        try {
+            await adminsApi.update(adminId, { status: newStatus });
+            setSaveMessage({
+                type: "success",
+                text: `Administrador ${newStatus === "active" ? "activado" : "desactivado"} correctamente`
+            });
+        } catch (error) {
+            console.error("Error actualizando estado del admin:", error);
+            // Revertir el cambio si falla
+            setAdmins(prev => prev.map(a =>
+                a.id === adminId ? { ...a, status: admin.status } : a
+            ));
+            setSaveMessage({
+                type: "error",
+                text: "Error al cambiar el estado del administrador"
+            });
+        }
     };
 
     const handleDeleteAdmin = (admin: Admin) => {
