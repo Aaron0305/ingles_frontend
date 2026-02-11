@@ -288,6 +288,24 @@ export const paymentsApi = {
         return handleResponse<Payment>(response);
     },
 
+    async createEnrollment(data: {
+        studentId: string;
+        amount: number;
+    }): Promise<Payment> {
+        const response = await fetch(`${API_URL}/api/payments`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                ...data,
+                month: 0,
+                year: new Date().getFullYear(),
+                payment_type: "enrollment",
+            }),
+        });
+
+        return handleResponse<Payment>(response);
+    },
+
     async revoke(studentId: string, month: number, year: number): Promise<Payment> {
         console.log('🗑️ [API] Iniciando revoke de pago:', { studentId, month, year });
         console.log('🌐 [API] URL:', `${API_URL}/api/payments`);

@@ -114,6 +114,7 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
                 "No. Estudiante": student?.studentNumber || "N/A",
                 "Nombre": student?.name || "Desconocido",
                 "Nivel": student?.level || "N/A",
+                "Concepto": payment.month === 0 ? "Inscripción" : "Mensualidad",
                 "Monto": `$${payment.amount.toFixed(2)}`,
                 "Hora de Pago": (payment.createdAt ? new Date(payment.createdAt) : (paidAt || null))?.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) || "N/A",
                 "Confirmado Por": payment.confirmedBy || "Sistema",
@@ -123,13 +124,13 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
 
         const totalAmount = dailyPayments.reduce((acc, p) => acc + p.amount, 0);
         excelData.push({
-            "No. Estudiante": "", "Nombre": "TOTAL", "Nivel": "",
+            "No. Estudiante": "", "Nombre": "TOTAL", "Nivel": "", "Concepto": "",
             "Monto": `$${totalAmount.toFixed(2)}`, "Hora de Pago": "",
             "Confirmado Por": "", "Email": ""
         });
 
         const ws = XLSX.utils.json_to_sheet(excelData);
-        ws['!cols'] = [{ wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 30 }];
+        ws['!cols'] = [{ wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 30 }];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Pagos");
         XLSX.writeFile(wb, `Reporte_Pagos_${dateStr}.xlsx`);
@@ -441,6 +442,7 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
                                 <tr className="bg-gray-50 dark:bg-slate-700/50 border-b border-gray-200 dark:border-gray-700">
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Hora</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Estudiante</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Concepto</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Monto</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Confirmado por</th>
                                 </tr>
@@ -454,6 +456,7 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
                                     })
                                     .map((payment) => {
                                         const student = students.find(s => s.id === payment.studentId);
+                                        const isEnrollment = payment.month === 0;
                                         return (
                                             <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
                                                 <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-200">
@@ -469,6 +472,17 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
                                                             <p className="text-xs text-gray-500">{student?.studentNumber} • {student?.level}</p>
                                                         </div>
                                                     </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {isEnrollment ? (
+                                                        <span className="text-xs px-2 py-1 rounded-full bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400 border border-purple-100 dark:border-purple-800 font-medium">
+                                                            Inscripción
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs px-2 py-1 rounded-full bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 border border-green-100 dark:border-green-800 font-medium">
+                                                            Mensualidad
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400">
                                                     ${payment.amount.toFixed(2)}

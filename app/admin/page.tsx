@@ -51,6 +51,7 @@ interface NewStudentForm {
     paymentScheme: "daily" | "weekly" | "biweekly" | "monthly_28";
     classDays: number[];
     enrollmentDate: string;
+    enrollmentFee: string;
 }
 
 interface EditStudentForm {
@@ -129,6 +130,7 @@ export default function SuperAdminDashboard() {
         paymentScheme: "monthly_28",
         classDays: [],
         enrollmentDate: new Date().toLocaleDateString('en-CA'),
+        enrollmentFee: "0",
     });
     const [adminFormData, setAdminFormData] = useState<NewAdminForm>({
         name: "",
@@ -360,6 +362,18 @@ export default function SuperAdminDashboard() {
                 enrollmentDate: formData.enrollmentDate,
             });
 
+            // Registrar pago de inscripción (incluso si es $0, para tener el registro)
+            const enrollmentFeeAmount = parseFloat(formData.enrollmentFee) || 0;
+            try {
+                await paymentsApi.createEnrollment({
+                    studentId: newStudent.id,
+                    amount: enrollmentFeeAmount,
+                });
+                console.log(`✅ Pago de inscripción registrado: $${enrollmentFeeAmount}`);
+            } catch (err) {
+                console.error("Error registrando pago de inscripción:", err);
+            }
+
             const studentWithProgress: Student = {
                 ...newStudent,
                 progress: 0,
@@ -370,7 +384,7 @@ export default function SuperAdminDashboard() {
             setSelectedStudent(studentWithProgress);
             setShowCreateModal(false);
             setShowCredentialModal(true);
-            setFormData({ name: "", email: "", studentPhone: "", emergencyPhone: "", level: "Beginner 1", priceOption: "149.50", customPrice: "", paymentScheme: "monthly_28", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
+            setFormData({ name: "", email: "", studentPhone: "", emergencyPhone: "", level: "Beginner 1", priceOption: "149.50", customPrice: "", paymentScheme: "monthly_28", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA'), enrollmentFee: "0" });
         } catch (error) {
             console.error("Error creando estudiante:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
@@ -1178,6 +1192,29 @@ export default function SuperAdminDashboard() {
                                                 </div>
                                             </div>
                                         )}
+
+                                        {/* Pago de Inscripción */}
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                                Pago de Inscripción
+                                            </label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    value={formData.enrollmentFee}
+                                                    onChange={(e) => setFormData({ ...formData, enrollmentFee: e.target.value })}
+                                                    placeholder="0"
+                                                    className="w-full pl-8 pr-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                                />
+                                            </div>
+                                            <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                                Cobro por inscripción. Puede ser $0 si no se cobra. Se registra en los reportes de pagos diarios.
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
