@@ -490,7 +490,7 @@ export default function SuperAdminDashboard() {
             setAdmins((prev) => [...prev, adminWithLastLogin]);
             setShowCreateAdminModal(false);
             setAdminFormData({ name: "", email: "", password: "", confirmPassword: "" });
-            setFormData({ name: "", email: "", studentPhone: "", emergencyPhone: "", level: "Beginner 1", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA') });
+            setFormData({ name: "", email: "", studentPhone: "", emergencyPhone: "", level: "Beginner 1", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA'), enrollmentFee: "0" });
         } catch (error) {
             console.error("Error creando admin:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
