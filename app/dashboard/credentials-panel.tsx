@@ -3,11 +3,316 @@
 import { useState } from "react";
 import { Student } from "./credential";
 import CredentialModal from "./credential";
-import { Search, QrCode, Shield, Filter, IdCard, Sparkles } from "lucide-react";
+import { Search, QrCode, Shield, Filter, IdCard, Sparkles, ArrowRight, Repeat2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface CredentialsPanelProps {
     students: Student[];
 }
+
+// Obtener color del túnel/ripple según nivel
+function getTunnelColor(level: string) {
+    if (level.startsWith("Beginner")) {
+        return {
+            shadow: "rgba(59, 130, 246, 0.5)",   // blue
+            glow: "rgba(59, 130, 246, 0.5)",
+            accent: "#3b82f6",
+            accentLight: "rgba(59, 130, 246, 0.2)",
+            accentMid: "rgba(59, 130, 246, 0.1)",
+            gradient: "from-blue-100 to-white dark:from-blue-950/30 dark:to-black",
+            borderDark: "dark:border-blue-800/50",
+            textAccent: "text-blue-500",
+            hoverText: "group-hover/start:text-blue-600 dark:group-hover/start:text-blue-400",
+            btnFrom: "from-blue-500/10",
+            btnVia: "via-blue-500/5",
+            darkBtnFrom: "dark:hover:from-blue-500/20",
+            darkBtnVia: "dark:hover:via-blue-500/10",
+        };
+    }
+    if (level.startsWith("Intermediate")) {
+        return {
+            shadow: "rgba(245, 158, 11, 0.5)",   // amber
+            glow: "rgba(245, 158, 11, 0.5)",
+            accent: "#f59e0b",
+            accentLight: "rgba(245, 158, 11, 0.2)",
+            accentMid: "rgba(245, 158, 11, 0.1)",
+            gradient: "from-amber-100 to-white dark:from-amber-950/30 dark:to-black",
+            borderDark: "dark:border-amber-800/50",
+            textAccent: "text-amber-500",
+            hoverText: "group-hover/start:text-amber-600 dark:group-hover/start:text-amber-400",
+            btnFrom: "from-amber-500/10",
+            btnVia: "via-amber-500/5",
+            darkBtnFrom: "dark:hover:from-amber-500/20",
+            darkBtnVia: "dark:hover:via-amber-500/10",
+        };
+    }
+    // Advanced
+    return {
+        shadow: "rgba(16, 185, 129, 0.5)",   // emerald
+        glow: "rgba(16, 185, 129, 0.5)",
+        accent: "#10b981",
+        accentLight: "rgba(16, 185, 129, 0.2)",
+        accentMid: "rgba(16, 185, 129, 0.1)",
+        gradient: "from-emerald-100 to-white dark:from-emerald-950/30 dark:to-black",
+        borderDark: "dark:border-emerald-800/50",
+        textAccent: "text-emerald-500",
+        hoverText: "group-hover/start:text-emerald-600 dark:group-hover/start:text-emerald-400",
+        btnFrom: "from-emerald-500/10",
+        btnVia: "via-emerald-500/5",
+        darkBtnFrom: "dark:hover:from-emerald-500/20",
+        darkBtnVia: "dark:hover:via-emerald-500/10",
+    };
+}
+
+function getLevelBadgeColor(level: string) {
+    switch (level) {
+        case 'Beginner 1': return 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
+        case 'Beginner 2': return 'bg-blue-50 text-blue-500 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800';
+        case 'Intermediate 1': return 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800';
+        case 'Intermediate 2': return 'bg-amber-50 text-amber-500 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800';
+        case 'Advanced 1': return 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800';
+        case 'Advanced 2': return 'bg-emerald-50 text-emerald-500 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800';
+        default: return 'bg-gray-50 text-gray-600 border-gray-200';
+    }
+}
+
+// ============================
+// CARD FLIP COMPONENT
+// ============================
+interface StudentCardFlipProps {
+    student: Student;
+    index: number;
+    onViewCredential: (student: Student) => void;
+}
+
+function StudentCardFlip({ student, index, onViewCredential }: StudentCardFlipProps) {
+    const [isFlipped, setIsFlipped] = useState(false);
+    const tunnel = getTunnelColor(student.level);
+
+    const features = [
+        `Nivel: ${student.level}`,
+        `Esquema: ${student.paymentScheme === 'weekly' ? 'Semanal' : student.paymentScheme === 'biweekly' ? 'Catorcenal' : student.paymentScheme === 'daily' ? 'Diario' : 'Mensual'}`,
+        `Inscrito: ${student.enrollmentDate
+            ? new Date(student.enrollmentDate.replace(/-/g, "/")).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+            : student.createdAt
+                ? new Date(student.createdAt.replace(/-/g, "/")).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+                : "N/A"
+        }`,
+        `Estado: ${student.status === 'active' ? 'Activo' : student.status === 'baja' ? 'Baja' : 'Inactivo'}`,
+    ];
+
+    return (
+        <div
+            className="card-animate group relative h-[320px] w-full [perspective:2000px]"
+            style={{ animationDelay: `${index * 0.06}s` }}
+            onMouseEnter={() => setIsFlipped(true)}
+            onMouseLeave={() => setIsFlipped(false)}
+        >
+            <div
+                className={cn(
+                    "relative h-full w-full",
+                    "[transform-style:preserve-3d]",
+                    "transition-all duration-700",
+                    isFlipped
+                        ? "[transform:rotateY(180deg)]"
+                        : "[transform:rotateY(0deg)]"
+                )}
+            >
+                {/* ========= FRONT ========= */}
+                <div
+                    className={cn(
+                        "absolute inset-0 h-full w-full",
+                        "[backface-visibility:hidden] [transform:rotateY(0deg)]",
+                        "overflow-hidden rounded-2xl",
+                        "bg-zinc-50 dark:bg-zinc-900",
+                        "border border-zinc-200 dark:border-zinc-800/50",
+                        "shadow-sm dark:shadow-lg",
+                        "transition-all duration-700",
+                        "group-hover:shadow-lg dark:group-hover:shadow-xl",
+                        isFlipped ? "opacity-0" : "opacity-100"
+                    )}
+                >
+                    <div className={cn(
+                        "relative h-full overflow-hidden bg-gradient-to-b",
+                        tunnel.gradient
+                    )}>
+                        {/* Tunnel / Ripple Animation */}
+                        <div className="absolute inset-0 flex items-start justify-center pt-16">
+                            <div className="relative flex h-[100px] w-[200px] items-center justify-center">
+                                {[...Array(10)].map((_, i) => (
+                                    <div
+                                        className={cn(
+                                            "absolute h-[50px] w-[50px]",
+                                            "rounded-[140px]",
+                                            "animate-[scale_3s_linear_infinite]",
+                                            "opacity-0",
+                                            "group-hover:animate-[scale_2s_linear_infinite]"
+                                        )}
+                                        key={i}
+                                        style={{
+                                            animationDelay: `${i * 0.3}s`,
+                                            boxShadow: `0 0 50px ${tunnel.shadow}`,
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Front Content - Bottom */}
+                    <div className="absolute right-0 bottom-0 left-0 p-5">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="space-y-1.5">
+                                {/* Level badge */}
+                                <div className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getLevelBadgeColor(student.level)} mb-1`}>
+                                    {student.level}
+                                </div>
+                                <h3 className="font-semibold text-lg text-zinc-900 leading-snug tracking-tighter transition-all duration-500 ease-out group-hover:translate-y-[-4px] dark:text-white line-clamp-1">
+                                    {student.name}
+                                </h3>
+                                <p className="line-clamp-1 text-sm text-zinc-600 tracking-tight transition-all delay-[50ms] duration-500 ease-out group-hover:translate-y-[-4px] dark:text-zinc-200 font-mono">
+                                    #{student.studentNumber}
+                                </p>
+                            </div>
+                            <div className="group/icon relative">
+                                <div
+                                    className={cn(
+                                        "absolute inset-[-8px] rounded-lg transition-opacity duration-300",
+                                    )}
+                                    style={{
+                                        background: `linear-gradient(to bottom right, ${tunnel.accentLight}, ${tunnel.accentMid}, transparent)`,
+                                    }}
+                                />
+                                <Repeat2
+                                    className={cn(
+                                        "group-hover/icon:-rotate-12 relative z-10 h-4 w-4 transition-transform duration-300 group-hover/icon:scale-110",
+                                        tunnel.textAccent
+                                    )}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Status indicator */}
+                    <div className="absolute top-3 left-3">
+                        <div className={cn(
+                            "flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium border backdrop-blur-sm",
+                            student.status === 'active'
+                                ? 'bg-green-50/90 text-green-600 border-green-200 dark:bg-green-900/40 dark:text-green-400 dark:border-green-800'
+                                : 'bg-gray-50/90 text-gray-600 border-gray-200 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700'
+                        )}>
+                            <span className={cn(
+                                "w-1.5 h-1.5 rounded-full",
+                                student.status === 'active' ? 'bg-green-500 pulse-dot' : 'bg-gray-400'
+                            )} />
+                            {student.status === 'active' ? 'Activo' : student.status === 'baja' ? 'Baja' : 'Inactivo'}
+                        </div>
+                    </div>
+                </div>
+
+                {/* ========= BACK ========= */}
+                <div
+                    className={cn(
+                        "absolute inset-0 h-full w-full",
+                        "[backface-visibility:hidden] [transform:rotateY(180deg)]",
+                        "rounded-2xl p-5",
+                        "bg-gradient-to-b from-zinc-100 to-white dark:from-zinc-900 dark:to-black",
+                        "border border-zinc-200 dark:border-zinc-800",
+                        "shadow-sm dark:shadow-lg",
+                        "flex flex-col",
+                        "transition-all duration-700",
+                        "group-hover:shadow-lg dark:group-hover:shadow-xl",
+                        isFlipped ? "opacity-100" : "opacity-0"
+                    )}
+                >
+                    <div className="flex-1 space-y-4">
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <div className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getLevelBadgeColor(student.level)}`}>
+                                    {student.level}
+                                </div>
+                            </div>
+                            <h3 className="font-semibold text-lg text-zinc-900 leading-snug tracking-tight transition-all duration-500 ease-out group-hover:translate-y-[-2px] dark:text-white line-clamp-1">
+                                {student.name}
+                            </h3>
+                            <p className="text-sm text-zinc-600 tracking-tight transition-all duration-500 ease-out group-hover:translate-y-[-2px] dark:text-zinc-400 font-mono">
+                                #{student.studentNumber}
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            {features.map((feature, featureIndex) => (
+                                <div
+                                    className="flex items-center gap-2 text-sm text-zinc-700 transition-all duration-500 dark:text-zinc-300"
+                                    key={feature}
+                                    style={{
+                                        transform: isFlipped
+                                            ? "translateX(0)"
+                                            : "translateX(-10px)",
+                                        opacity: isFlipped ? 1 : 0,
+                                        transitionDelay: `${featureIndex * 100 + 200}ms`,
+                                    }}
+                                >
+                                    <ArrowRight className={cn("h-3 w-3 flex-shrink-0", tunnel.textAccent)} />
+                                    <span className="truncate">{feature}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="mt-4 border-zinc-200 border-t pt-4 dark:border-zinc-800">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onViewCredential(student);
+                            }}
+                            className={cn(
+                                "group/start relative",
+                                "flex items-center justify-between w-full",
+                                "-m-2 rounded-xl p-3",
+                                "transition-all duration-300",
+                                "bg-gradient-to-r from-zinc-100 via-zinc-100 to-zinc-100",
+                                "dark:from-zinc-800 dark:via-zinc-800 dark:to-zinc-800",
+                                `hover:from-0% hover:${tunnel.btnFrom} hover:via-100% hover:${tunnel.btnVia} hover:to-100% hover:to-transparent`,
+                                `${tunnel.darkBtnFrom} ${tunnel.darkBtnVia} dark:hover:to-100% dark:hover:to-transparent`,
+                                "hover:scale-[1.02] hover:cursor-pointer"
+                            )}
+                        >
+                            <div className="flex items-center gap-2">
+                                <IdCard className={cn("h-4 w-4", tunnel.textAccent)} />
+                                <span className={cn(
+                                    "font-medium text-sm text-zinc-900 transition-colors duration-300 dark:text-white",
+                                    tunnel.hoverText
+                                )}>
+                                    Ver Credencial
+                                </span>
+                            </div>
+                            <div className="group/icon relative">
+                                <div
+                                    className={cn(
+                                        "absolute inset-[-6px] rounded-lg transition-all duration-300",
+                                        "scale-90 opacity-0 group-hover/start:scale-100 group-hover/start:opacity-100"
+                                    )}
+                                    style={{
+                                        background: `linear-gradient(to bottom right, ${tunnel.accentLight}, ${tunnel.accentMid}, transparent)`,
+                                    }}
+                                />
+                                <ArrowRight className={cn(
+                                    "relative z-10 h-4 w-4 transition-all duration-300 group-hover/start:translate-x-0.5 group-hover/start:scale-110",
+                                    tunnel.textAccent
+                                )} />
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ============================
+// MAIN PANEL
+// ============================
 
 export default function CredentialsPanel({ students }: CredentialsPanelProps) {
     const [searchTerm, setSearchTerm] = useState("");
@@ -41,30 +346,6 @@ export default function CredentialsPanel({ students }: CredentialsPanelProps) {
         setShowCredentialModal(true);
     };
 
-    const getLevelColor = (level: string) => {
-        switch (level) {
-            case 'Beginner 1': return 'from-blue-500 to-cyan-500';
-            case 'Beginner 2': return 'from-blue-400 to-cyan-400';
-            case 'Intermediate 1': return 'from-amber-500 to-orange-500';
-            case 'Intermediate 2': return 'from-amber-400 to-orange-400';
-            case 'Advanced 1': return 'from-emerald-500 to-teal-500';
-            case 'Advanced 2': return 'from-emerald-400 to-teal-400';
-            default: return 'from-gray-500 to-slate-500';
-        }
-    };
-
-    const getLevelBadgeColor = (level: string) => {
-        switch (level) {
-            case 'Beginner 1': return 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
-            case 'Beginner 2': return 'bg-blue-50 text-blue-500 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800';
-            case 'Intermediate 1': return 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800';
-            case 'Intermediate 2': return 'bg-amber-50 text-amber-500 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800';
-            case 'Advanced 1': return 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800';
-            case 'Advanced 2': return 'bg-emerald-50 text-emerald-500 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800';
-            default: return 'bg-gray-50 text-gray-600 border-gray-200';
-        }
-    };
-
     return (
         <div className="space-y-6">
             {/* Estilos de animación CSS */}
@@ -79,6 +360,21 @@ export default function CredentialsPanel({ students }: CredentialsPanelProps) {
                         transform: translateY(0) scale(1);
                     }
                 }
+
+                @keyframes scale {
+                    0% {
+                        transform: scale(2);
+                        opacity: 0;
+                    }
+                    50% {
+                        transform: translate(0px, -5px) scale(1);
+                        opacity: 1;
+                    }
+                    100% {
+                        transform: translate(0px, 5px) scale(0.1);
+                        opacity: 0;
+                    }
+                }
                 
                 @keyframes shimmer {
                     0% { transform: translateX(-100%); }
@@ -90,26 +386,13 @@ export default function CredentialsPanel({ students }: CredentialsPanelProps) {
                     50% { transform: scale(1.2); opacity: 0.7; }
                 }
                 
-                @keyframes spin-slow {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-                
                 .card-animate {
                     animation: fadeInUp 0.5s ease-out forwards;
                     opacity: 0;
                 }
                 
-                .shimmer-effect {
-                    animation: shimmer 3s infinite;
-                }
-                
                 .pulse-dot {
                     animation: pulse-ring 2s ease-in-out infinite;
-                }
-                
-                .spin-slow {
-                    animation: spin-slow 8s linear infinite;
                 }
             `}</style>
 
@@ -180,7 +463,7 @@ export default function CredentialsPanel({ students }: CredentialsPanelProps) {
                 </div>
             </div>
 
-            {/* Grid de Cards con animaciones CSS */}
+            {/* Grid de Cards Flip */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredStudents.length === 0 ? (
                     <div className="col-span-full py-16 text-center animate-fade-in">
@@ -192,97 +475,12 @@ export default function CredentialsPanel({ students }: CredentialsPanelProps) {
                     </div>
                 ) : (
                     filteredStudents.map((student, index) => (
-                        <div
+                        <StudentCardFlip
                             key={student.id}
-                            className="card-animate group relative bg-white dark:bg-slate-800 rounded-2xl p-1 shadow-sm hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02] transition-all duration-300 border border-gray-200 dark:border-gray-700/50 flex flex-col overflow-hidden"
-                            style={{ animationDelay: `${index * 0.06}s` }}
-                        >
-                            {/* Efecto de brillo en hover */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
-
-                            {/* Borde brillante animado */}
-                            <div
-                                className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                                style={{ background: 'linear-gradient(45deg, transparent, rgba(59, 130, 246, 0.1), transparent)' }}
-                            />
-
-                            <div className="relative flex-1 p-5 flex flex-col items-center">
-                                {/* Badge de Nivel */}
-                                <div className={`absolute top-4 right-4 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getLevelBadgeColor(student.level)} transform translate-x-0 opacity-100 transition-all duration-300`}>
-                                    {student.level}
-                                </div>
-
-                                {/* Status */}
-                                <div className={`absolute top-4 left-4 flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium border ${student.status === 'active'
-                                    ? 'bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
-                                    : 'bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
-                                    }`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${student.status === 'active' ? 'bg-green-500 pulse-dot' : 'bg-gray-400'}`} />
-                                    {student.status === 'active' ? 'Activo' : 'Inactivo'}
-                                </div>
-
-                                {/* Avatar con anillo brillante */}
-                                <div className="mt-6 mb-4 relative">
-                                    {/* Anillo giratorio brillante (solo visible en hover) */}
-                                    <div
-                                        className="absolute -inset-1 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 spin-slow"
-                                        style={{ background: 'conic-gradient(from 0deg, transparent, rgba(59, 130, 246, 0.3), transparent, rgba(16, 185, 129, 0.3), transparent)' }}
-                                    />
-
-                                    <div className={`relative w-20 h-20 rounded-2xl bg-gradient-to-br ${getLevelColor(student.level)} p-0.5 shadow-lg group-hover:scale-105 group-hover:rotate-3 transition-transform duration-300`}>
-                                        <div className="w-full h-full bg-white dark:bg-slate-800 rounded-[14px] flex items-center justify-center text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-gray-800 to-gray-500 dark:from-white dark:to-gray-400">
-                                            {student.name.charAt(0).toUpperCase()}
-                                        </div>
-                                    </div>
-
-                                    {/* Icono QR */}
-                                    <div className="absolute -bottom-2 -right-2 bg-white dark:bg-slate-800 p-1.5 rounded-full shadow-md border border-gray-100 dark:border-gray-700 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300">
-                                        <QrCode className="w-4 h-4 text-blue-500" />
-                                    </div>
-                                </div>
-
-                                {/* Información */}
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center mb-1 line-clamp-1 w-full" title={student.name}>
-                                    {student.name}
-                                </h3>
-
-                                <p className="text-xs font-mono text-gray-500 dark:text-gray-400 mb-4 bg-gray-100 dark:bg-slate-700/50 px-2 py-1 rounded-md">
-                                    #{student.studentNumber}
-                                </p>
-
-                                {/* Detalles */}
-                                <div className="w-full grid grid-cols-2 gap-2 text-center mb-5">
-                                    <div className="bg-gray-50 dark:bg-slate-700/30 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors">
-                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Inscrito</p>
-                                        <p className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">
-                                            {student.enrollmentDate
-                                                ? new Date(student.enrollmentDate.replace(/-/g, "/")).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' })
-                                                : student.createdAt
-                                                    ? new Date(student.createdAt.replace(/-/g, "/")).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' })
-                                                    : ""
-                                            }
-                                        </p>
-                                    </div>
-                                    <div className="bg-gray-50 dark:bg-slate-700/30 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors">
-                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Esquema</p>
-                                        <p className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">
-                                            {student.paymentScheme === 'weekly' ? 'Semanal' : student.paymentScheme === 'biweekly' ? 'Catorcenal' : student.paymentScheme === 'daily' ? 'Diario' : 'Mensual'}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Botón con efecto shimmer */}
-                                <button
-                                    onClick={() => handleViewCredential(student)}
-                                    className="relative w-full mt-auto py-2.5 px-4 bg-gradient-to-r from-slate-800 to-slate-900 dark:from-slate-700 dark:to-slate-800 rounded-xl flex items-center justify-center gap-2 text-white font-medium overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98]"
-                                >
-                                    {/* Efecto shimmer */}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent shimmer-effect" />
-                                    <IdCard className="w-4 h-4 relative z-10" />
-                                    <span className="relative z-10">Ver Credencial</span>
-                                </button>
-                            </div>
-                        </div>
+                            student={student}
+                            index={index}
+                            onViewCredential={handleViewCredential}
+                        />
                     ))
                 )}
             </div>

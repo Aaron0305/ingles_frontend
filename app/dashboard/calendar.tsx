@@ -710,12 +710,12 @@ export default function CalendarPanel() {
                                                 ? '#dc2626'
                                                 : '#a855f7',
                                     border: `1px solid ${isSelectedPredefinedAndActive
-                                            ? 'rgba(220, 38, 38, 0.3)'
-                                            : isSelectedDisabledPredefined
-                                                ? 'rgba(34, 197, 94, 0.3)'
-                                                : isSelectedActiveCustom
-                                                    ? 'rgba(220, 38, 38, 0.3)'
-                                                    : 'rgba(168, 85, 247, 0.3)'
+                                        ? 'rgba(220, 38, 38, 0.3)'
+                                        : isSelectedDisabledPredefined
+                                            ? 'rgba(34, 197, 94, 0.3)'
+                                            : isSelectedActiveCustom
+                                                ? 'rgba(220, 38, 38, 0.3)'
+                                                : 'rgba(168, 85, 247, 0.3)'
                                         }`,
                                 }}
                             >
