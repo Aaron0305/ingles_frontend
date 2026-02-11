@@ -8,13 +8,14 @@ import PaymentsPanel, { PaymentRecord } from "../dashboard/payments";
 import CredentialsPanel from "../dashboard/credentials-panel";
 import ReportsPanel from "../dashboard/reports-panel";
 import StudentsPanel from "../dashboard/students-panel"; // Importado
+import CalendarPanel from "../dashboard/calendar";
 import { studentsApi, adminsApi, paymentsApi, authApi } from "@/lib/api";
 import { QRCodeSVG } from "qrcode.react";
 import {
     ShieldCheck, Users, CheckCircle, CircleDollarSign,
     BarChart3, Plus, UserPlus, X, Trash2, Ban,
     Copy, AlertTriangle, Shield, LogOut, User, Phone,
-    GraduationCap, CreditCard
+    GraduationCap, CreditCard, CalendarDays
 } from "lucide-react";
 import Image from "next/image";
 
@@ -59,7 +60,7 @@ interface EditStudentForm {
     level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
 }
 
-type TabType = "students" | "credentials" | "payments" | "admins" | "reports";
+type TabType = "students" | "credentials" | "payments" | "admins" | "reports" | "calendar";
 
 // ============================================
 // CONSTANTES
@@ -724,9 +725,19 @@ export default function SuperAdminDashboard() {
                                     <BarChart3 className="w-4 h-4" strokeWidth={2} />
                                     Reportes
                                 </button>
+                                <button
+                                    onClick={() => setActiveTab("calendar")}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "calendar" ? "text-white" : ""}`}
+                                    style={activeTab === "calendar"
+                                        ? { background: '#014287', color: 'white' }
+                                        : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
+                                >
+                                    <CalendarDays className="w-4 h-4" strokeWidth={2} />
+                                    Calendario
+                                </button>
                             </div>
 
-                            {activeTab !== "payments" && activeTab !== "admins" && activeTab !== "reports" && (
+                            {activeTab !== "payments" && activeTab !== "admins" && activeTab !== "reports" && activeTab !== "calendar" && (
                                 <button
                                     onClick={() => setShowCreateModal(true)}
                                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all hover:opacity-90"
@@ -753,7 +764,9 @@ export default function SuperAdminDashboard() {
 
 
                         {/* Content - Reports Tab */}
-                        {activeTab === "reports" ? (
+                        {activeTab === "calendar" ? (
+                            <CalendarPanel />
+                        ) : activeTab === "reports" ? (
                             <ReportsPanel
                                 students={students}
                                 payments={rawPayments}

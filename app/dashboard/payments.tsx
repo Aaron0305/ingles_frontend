@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Student } from "./credential";
 import { Socket } from "socket.io-client";
+import { holidaysApi, CustomHoliday } from "@/lib/api";
 import {
     Calendar, Users, CheckCircle, XCircle, Search, Clock, DollarSign, AlertTriangle, Filter, Sparkles, IdCard,
     CircleDollarSign, Check, QrCode, X, Loader2, ChevronDown
@@ -203,6 +204,31 @@ const getHolidaysSet = (year: number): Set<string> => {
     return holidaysCache.get(year)!;
 };
 
+// Custom holidays cargados desde la base de datos (variable de módulo)
+let _customHolidaysSet: Set<string> = new Set();
+// Días festivos predefinidos desactivados por el admin
+let _disabledHolidaysSet: Set<string> = new Set();
+
+// Función para actualizar los custom holidays desde fuera
+function setCustomHolidaysData(holidays: CustomHoliday[]): void {
+    // Separar: custom activos vs días predefinidos desactivados
+    const activeDates: string[] = [];
+    const disabledDates: string[] = [];
+
+    holidays.forEach(h => {
+        if (h.isDisabled) {
+            disabledDates.push(h.date);
+        } else {
+            activeDates.push(h.date);
+        }
+    });
+
+    _customHolidaysSet = new Set(activeDates);
+    _disabledHolidaysSet = new Set(disabledDates);
+    // Limpiar cache de feriados para que se recalcule todo
+    holidaysCache.clear();
+}
+
 const isHoliday = (date: Date): boolean => {
     // Forzamos mediodía en una copia para evitar desfases de zona horaria
     const dCopy = new Date(date);
@@ -211,14 +237,33 @@ const isHoliday = (date: Date): boolean => {
     const year = dCopy.getFullYear();
     const dateStr = formatDateStr(dCopy);
 
-    // Verificar si es un feriado calculado
+    // Si este día fue DESACTIVADO por el admin, NO es festivo
+    if (_disabledHolidaysSet.has(dateStr)) return false;
+
+    // Verificar si es un feriado calculado (predefinido)
     if (getHolidaysSet(year).has(dateStr)) return true;
+
+    // Verificar si es un custom holiday (personalizado por el admin)
+    if (_customHolidaysSet.has(dateStr)) return true;
 
     // Vacaciones invierno: 23-31 dic, 1-12 ene (segunda semana)
     const mIdx = dCopy.getMonth();
     const dIdx = dCopy.getDate();
-    if (mIdx === 11 && dIdx >= 23) return true;
-    if (mIdx === 0 && dIdx <= 12) return true;
+
+    // Verificar vacaciones de invierno específicas
+    // Ciclo 2026-2027: 19 de Dic 2026 al 7 de Ene 2027
+    if (year === 2026 && mIdx === 11 && dIdx >= 19) return true;
+    if (year === 2027 && mIdx === 0 && dIdx <= 7) return true;
+
+    // Ciclo 2027-2028: 18 de Dic 2027 al 6 de Ene 2028
+    if (year === 2027 && mIdx === 11 && dIdx >= 18) return true;
+    if (year === 2028 && mIdx === 0 && dIdx <= 6) return true;
+
+    // Fallback genérico
+    if (year > 2028) {
+        if (mIdx === 11 && dIdx >= 20) return true;
+        if (mIdx === 0 && dIdx <= 6) return true;
+    }
 
     return false;
 };
@@ -1644,6 +1689,9 @@ export default function PaymentsPanel({
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
 
+    // Versión de custom holidays para forzar re-render cuando se cargan
+    const [customHolidaysVersion, setCustomHolidaysVersion] = useState(0);
+
     // Estado para el modal de cancelación de pago
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [isProcessingCancel, setIsProcessingCancel] = useState(false);
@@ -1661,6 +1709,17 @@ export default function PaymentsPanel({
     const [scanRequest, setScanRequest] = useState<PaymentScanRequest | null>(null);
     const [showScanNotification, setShowScanNotification] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Cargar custom holidays al montar el componente
+    useEffect(() => {
+        holidaysApi.getAll().then(holidays => {
+            setCustomHolidaysData(holidays);
+            // Forzar re-render para que se recalculen las fechas de pago
+            setCustomHolidaysVersion(v => v + 1);
+        }).catch(err => {
+            console.error('Error cargando custom holidays:', err);
+        });
+    }, []);
 
     // Resetear paginación cuando cambia el filtro o la búsqueda
     useEffect(() => {
@@ -2024,7 +2083,7 @@ export default function PaymentsPanel({
                 ) : (
                     paginatedStudents.map(student => (
                         <StudentPaymentCard
-                            key={student.id}
+                            key={`${student.id}-${customHolidaysVersion}`}
                             student={student}
                             payments={payments.filter(p => p.studentId === student.id)}
                             onPeriodClick={(periodIndex, year) => {

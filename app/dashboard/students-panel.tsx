@@ -297,11 +297,11 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
 
         try {
             const updatedStudent = await studentsApi.update(studentToToggle.id, {
-                status: "active" as any,
+                status: "active" as const,
                 enrollmentDate: newEnrollmentDate,
-                dropoutReason: null as any,
-                dropoutDate: null as any
-            } as any);
+                dropoutReason: undefined,
+                dropoutDate: undefined
+            });
 
             setStudents(prev => prev.map(s =>
                 s.id === studentToToggle.id

@@ -315,3 +315,45 @@ export const paymentsApi = {
         }
     },
 };
+
+// ============================================
+// CUSTOM HOLIDAYS API
+// ============================================
+
+export interface CustomHoliday {
+    id: string;
+    date: string;       // "YYYY-MM-DD"
+    name: string;
+    isDisabled?: boolean;  // true = día predefinido desactivado
+    createdBy?: string;
+    createdAt?: string;
+}
+
+export const holidaysApi = {
+    async getAll(): Promise<CustomHoliday[]> {
+        const response = await fetch(`${API_URL}/api/holidays`, {
+            headers: getAuthHeaders(),
+        });
+
+        return handleResponse<CustomHoliday[]>(response);
+    },
+
+    async create(date: string, name: string = "Día festivo personalizado", isDisabled: boolean = false): Promise<CustomHoliday> {
+        const response = await fetch(`${API_URL}/api/holidays`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ date, name, isDisabled }),
+        });
+
+        return handleResponse<CustomHoliday>(response);
+    },
+
+    async remove(date: string): Promise<{ success: boolean }> {
+        const response = await fetch(`${API_URL}/api/holidays?date=${date}`, {
+            method: "DELETE",
+            headers: getAuthHeaders(),
+        });
+
+        return handleResponse<{ success: boolean }>(response);
+    },
+};
