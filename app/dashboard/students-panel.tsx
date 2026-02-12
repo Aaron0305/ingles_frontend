@@ -13,6 +13,7 @@ interface EditStudentForm {
     studentPhone: string;
     emergencyPhone: string;
     level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
+    classDays: number[];
 }
 
 interface StudentsPanelProps {
@@ -39,6 +40,7 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
         studentPhone: "",
         emergencyPhone: "",
         level: "Beginner 1",
+        classDays: [],
     });
     const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
     const [isEditing, setIsEditing] = useState(false);
@@ -144,6 +146,7 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
             studentPhone: student.studentPhone || "",
             emergencyPhone: student.emergencyPhone || "",
             level: student.level as any,
+            classDays: student.classDays || [],
         });
         setEditFormErrors({});
         setShowEditStudentModal(true);
@@ -171,6 +174,7 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                 studentPhone: editFormData.studentPhone || undefined,
                 emergencyPhone: editFormData.emergencyPhone || undefined,
                 level: editFormData.level,
+                classDays: editFormData.classDays,
             });
 
             setStudents(prev => prev.map(s =>
@@ -297,11 +301,11 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
 
         try {
             const updatedStudent = await studentsApi.update(studentToToggle.id, {
-                status: "active" as const,
+                status: "active" as any,
                 enrollmentDate: newEnrollmentDate,
-                dropoutReason: undefined,
-                dropoutDate: undefined
-            });
+                dropoutReason: null as any,
+                dropoutDate: null as any
+            } as any);
 
             setStudents(prev => prev.map(s =>
                 s.id === studentToToggle.id
@@ -436,6 +440,9 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                                     Día de Inicio
                                 </th>
                                 <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                    Días de Clase
+                                </th>
+                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                                     Estado
                                 </th>
                                 <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
@@ -468,6 +475,15 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                                     </td>
                                     <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
                                         {formatDate(student.enrollmentDate || "")}
+                                    </td>
+                                    <td className="px-3 py-3 whitespace-nowrap text-sm">
+                                        {student.classDays && student.classDays.length > 0 ? (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                                {student.classDays.map(d => ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][d]).join(", ")}
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Sin asignar</span>
+                                        )}
                                     </td>
                                     <td className="px-3 py-3 whitespace-nowrap">
                                         <button
@@ -706,6 +722,47 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                                         <option value="Advanced 1" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced 1</option>
                                         <option value="Advanced 2" style={{ background: '#1f2937', color: '#ffffff' }}>Advanced 2</option>
                                     </select>
+                                </div>
+
+                                {/* Días de Clase */}
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                                        Días de Clase
+                                    </label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {[
+                                            { id: 1, label: "Lunes" },
+                                            { id: 2, label: "Martes" },
+                                            { id: 3, label: "Miércoles" },
+                                            { id: 4, label: "Jueves" },
+                                            { id: 5, label: "Viernes" },
+                                            { id: 6, label: "Sábado" },
+                                            { id: 0, label: "Domingo" },
+                                        ].map((day) => (
+                                            <button
+                                                key={day.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    const currentDays = editFormData.classDays || [];
+                                                    const isSelected = currentDays.includes(day.id);
+                                                    if (isSelected) {
+                                                        setEditFormData({ ...editFormData, classDays: currentDays.filter(d => d !== day.id) });
+                                                    } else {
+                                                        setEditFormData({ ...editFormData, classDays: [...currentDays, day.id] });
+                                                    }
+                                                }}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${editFormData.classDays?.includes(day.id)
+                                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                                                    : "bg-gray-700/50 text-gray-400 hover:bg-gray-600/50"
+                                                    }`}
+                                            >
+                                                {day.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                        Selecciona los días que el estudiante asiste a clase
+                                    </p>
                                 </div>
                             </div>
 

@@ -399,6 +399,7 @@ const isStudentOverdue = (student: Student, allPayments: PaymentRecord[]): boole
     });
 
     // Generar suficientes ciclos
+    const studentClassDays = student.classDays && student.classDays.length > 0 ? student.classDays : [];
     for (let i = 0; i < pPerYear * 3; i++) {
         const baseDate = new Date(pDate);
         baseDate.setDate(pDate.getDate() + cycleDays);
@@ -407,12 +408,21 @@ const isStudentOverdue = (student: Student, allPayments: PaymentRecord[]): boole
         const checkDate = new Date(pDate);
         for (let d = 0; d < cycleDays; d++) {
             checkDate.setDate(checkDate.getDate() + 1);
-            if (isHoliday(checkDate)) holidays++;
+            // Solo contar festivos que caen en días de clase del estudiante
+            if (isHoliday(checkDate)) {
+                const dow = checkDate.getDay();
+                if (studentClassDays.length === 0 || studentClassDays.includes(dow)) {
+                    holidays++;
+                }
+            }
         }
 
         const next = new Date(baseDate);
         next.setDate(baseDate.getDate() + holidays);
-        while (isHoliday(next)) next.setDate(next.getDate() + 1);
+        // Mover al siguiente día que NO sea festivo Y sea día de clase del estudiante
+        while (isHoliday(next) || (studentClassDays.length > 0 && !studentClassDays.includes(next.getDay()))) {
+            next.setDate(next.getDate() + 1);
+        }
 
         const cMonth = i + 2;
         const cYear = next.getFullYear();
@@ -1263,6 +1273,8 @@ function StudentPaymentCard({
         let cycleIndex = 1; // Ya se agregó el ciclo 1 (inscripción)
         const maxCycles = pPerYear * 30; // ~30 años como tope de seguridad
 
+        // Obtener días de clase del estudiante para filtrar festivos
+        const studentClassDaysGrid = student.classDays && student.classDays.length > 0 ? student.classDays : [];
         while (safeCounter < maxCycles) {
             // Lógica unificada: días calendario + feriados en periodo
             const baseDate = new Date(pDate);
@@ -1272,13 +1284,21 @@ function StudentPaymentCard({
             const checkDate = new Date(pDate);
             for (let d = 0; d < cycleDays; d++) {
                 checkDate.setDate(checkDate.getDate() + 1);
-                // Contar TODOS los feriados (incluyendo fines de semana)
-                if (isHoliday(checkDate)) holidays++;
+                // Solo contar festivos que caen en días de clase del estudiante
+                if (isHoliday(checkDate)) {
+                    const dow = checkDate.getDay();
+                    if (studentClassDaysGrid.length === 0 || studentClassDaysGrid.includes(dow)) {
+                        holidays++;
+                    }
+                }
             }
 
             const next = new Date(baseDate);
             next.setDate(baseDate.getDate() + holidays);
-            while (isHoliday(next)) next.setDate(next.getDate() + 1);
+            // Mover al siguiente día que NO sea festivo Y sea día de clase del estudiante
+            while (isHoliday(next) || (studentClassDaysGrid.length > 0 && !studentClassDaysGrid.includes(next.getDay()))) {
+                next.setDate(next.getDate() + 1);
+            }
 
             cycleIndex += 1;
             const cMonth = cycleIndex;
@@ -1362,8 +1382,8 @@ function StudentPaymentCard({
                             </span>
                             <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>•</span>
                             <span className="text-[11px] font-medium text-green-500">${student.monthlyFee}/{config.shortLabel}</span>
-                            {/* Mostrar días de clase solo para esquema diario */}
-                            {scheme === 'daily' && student.classDays && student.classDays.length > 0 && (
+                            {/* Mostrar días de clase */}
+                            {student.classDays && student.classDays.length > 0 && (
                                 <>
                                     <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>•</span>
                                     <span className="text-[11px] font-medium text-blue-500 capitalize">
@@ -1919,6 +1939,7 @@ export default function PaymentsPanel({
         }
 
         // Generar schedule y encontrar el próximo período pendiente
+        const pendingClassDays = student.classDays && student.classDays.length > 0 ? student.classDays : [];
         for (let i = 0; i < pPerYear * 3; i++) {
             const baseDate = new Date(pDate);
             baseDate.setDate(pDate.getDate() + cycleDays);
@@ -1927,12 +1948,21 @@ export default function PaymentsPanel({
             const checkDate = new Date(pDate);
             for (let d = 0; d < cycleDays; d++) {
                 checkDate.setDate(checkDate.getDate() + 1);
-                if (isHoliday(checkDate)) holidays++;
+                // Solo contar festivos que caen en días de clase del estudiante
+                if (isHoliday(checkDate)) {
+                    const dow = checkDate.getDay();
+                    if (pendingClassDays.length === 0 || pendingClassDays.includes(dow)) {
+                        holidays++;
+                    }
+                }
             }
 
             const next = new Date(baseDate);
             next.setDate(baseDate.getDate() + holidays);
-            while (isHoliday(next)) next.setDate(next.getDate() + 1);
+            // Mover al siguiente día que NO sea festivo Y sea día de clase del estudiante
+            while (isHoliday(next) || (pendingClassDays.length > 0 && !pendingClassDays.includes(next.getDay()))) {
+                next.setDate(next.getDate() + 1);
+            }
 
             const cMonth = i + 2;
             const cYear = next.getFullYear();

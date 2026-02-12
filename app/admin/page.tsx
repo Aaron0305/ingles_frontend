@@ -358,7 +358,7 @@ export default function SuperAdminDashboard() {
                 studentPhone: formData.studentPhone || undefined,
                 emergencyPhone: formData.emergencyPhone || undefined,
                 paymentScheme: formData.paymentScheme,
-                classDays: formData.paymentScheme === 'daily' ? formData.classDays : undefined,
+                classDays: formData.classDays.length > 0 ? formData.classDays : undefined,
                 enrollmentDate: formData.enrollmentDate,
             });
 
@@ -1150,48 +1150,47 @@ export default function SuperAdminDashboard() {
                                             </div>
                                         )}
 
-                                        {/* Días de Clase (Solo para Diario) */}
-                                        {formData.paymentScheme === "daily" && (
-                                            <div className="md:col-span-2">
-                                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
-                                                    Días de Clase (máximo 2)
-                                                </label>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {[
-                                                        { id: 1, label: "Lunes" },
-                                                        { id: 2, label: "Martes" },
-                                                        { id: 3, label: "Miércoles" },
-                                                        { id: 4, label: "Jueves" },
-                                                        { id: 5, label: "Viernes" },
-                                                        { id: 6, label: "Sábado" },
-                                                        { id: 0, label: "Domingo" },
-                                                    ].map((day) => (
-                                                        <button
-                                                            key={day.id}
-                                                            type="button"
-                                                            onClick={() => {
-                                                                const currentDays = formData.classDays || [];
-                                                                const isSelected = currentDays.includes(day.id);
+                                        {/* Días de Clase */}
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                                                Días de Clase
+                                            </label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {[
+                                                    { id: 1, label: "Lunes" },
+                                                    { id: 2, label: "Martes" },
+                                                    { id: 3, label: "Miércoles" },
+                                                    { id: 4, label: "Jueves" },
+                                                    { id: 5, label: "Viernes" },
+                                                    { id: 6, label: "Sábado" },
+                                                    { id: 0, label: "Domingo" },
+                                                ].map((day) => (
+                                                    <button
+                                                        key={day.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const currentDays = formData.classDays || [];
+                                                            const isSelected = currentDays.includes(day.id);
 
-                                                                if (isSelected) {
-                                                                    setFormData({ ...formData, classDays: currentDays.filter(d => d !== day.id) });
-                                                                } else {
-                                                                    if (currentDays.length < 2) {
-                                                                        setFormData({ ...formData, classDays: [...currentDays, day.id] });
-                                                                    }
-                                                                }
-                                                            }}
-                                                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${formData.classDays?.includes(day.id)
-                                                                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
-                                                                : "bg-gray-700/50 text-gray-400 hover:bg-gray-600/50"
-                                                                }`}
-                                                        >
-                                                            {day.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
+                                                            if (isSelected) {
+                                                                setFormData({ ...formData, classDays: currentDays.filter(d => d !== day.id) });
+                                                            } else {
+                                                                setFormData({ ...formData, classDays: [...currentDays, day.id] });
+                                                            }
+                                                        }}
+                                                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${formData.classDays?.includes(day.id)
+                                                            ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                                                            : "bg-gray-700/50 text-gray-400 hover:bg-gray-600/50"
+                                                            }`}
+                                                    >
+                                                        {day.label}
+                                                    </button>
+                                                ))}
                                             </div>
-                                        )}
+                                            <p className="mt-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                                Selecciona los días que el estudiante asiste a clase
+                                            </p>
+                                        </div>
 
                                         {/* Pago de Inscripción */}
                                         <div className="md:col-span-2">
