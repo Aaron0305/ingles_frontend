@@ -317,14 +317,52 @@ export default function SuperAdminDashboard() {
 
     const validateStudentForm = (): boolean => {
         const errors: Record<string, string> = {};
-        if (!formData.name.trim()) errors.name = "Nombre requerido";
-        if (!formData.email.trim()) errors.email = "Email requerido";
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            errors.email = "Email inválido";
-        } else if (students.some(s => s.email.toLowerCase() === formData.email.trim().toLowerCase())) {
-            errors.email = "Este correo ya está registrado con otro usuario";
+
+        // Nombre completo
+        if (!formData.name.trim()) {
+            errors.name = "El nombre completo es obligatorio";
+        } else if (formData.name.trim().length < 3) {
+            errors.name = "El nombre debe tener al menos 3 caracteres";
         }
 
+        // Email
+        if (!formData.email.trim()) {
+            errors.email = "El correo electrónico es obligatorio";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            errors.email = "Formato de correo electrónico inválido";
+        } else if (students.some(s => s.email.toLowerCase() === formData.email.trim().toLowerCase())) {
+            errors.email = "Este correo ya está registrado con otro estudiante";
+        }
+
+        // Teléfono del estudiante (obligatorio, 10 dígitos)
+        if (!formData.studentPhone.trim()) {
+            errors.studentPhone = "El teléfono del alumno es obligatorio";
+        } else if (formData.studentPhone.length !== 10) {
+            errors.studentPhone = "El teléfono debe tener exactamente 10 dígitos";
+        }
+
+        // Teléfono de emergencia (obligatorio, 10 dígitos)
+        if (!formData.emergencyPhone.trim()) {
+            errors.emergencyPhone = "El teléfono de emergencia es obligatorio";
+        } else if (formData.emergencyPhone.length !== 10) {
+            errors.emergencyPhone = "El teléfono debe tener exactamente 10 dígitos";
+        }
+
+        // Días de clase (al menos uno)
+        if (!formData.classDays || formData.classDays.length === 0) {
+            errors.classDays = "Selecciona al menos un día de clase";
+        }
+
+        // Fecha de inicio
+        if (!formData.enrollmentDate) {
+            errors.enrollmentDate = "La fecha de inicio es obligatoria";
+        }
+
+        // Pago de inscripción (debe ser un número válido >= 0)
+        const enrollmentFeeVal = parseFloat(formData.enrollmentFee);
+        if (formData.enrollmentFee === "" || isNaN(enrollmentFeeVal) || enrollmentFeeVal < 0) {
+            errors.enrollmentFee = "Ingresa un monto de inscripción válido (mínimo $0)";
+        }
 
         // Validar precio personalizado
         if (formData.priceOption === "custom") {
@@ -351,14 +389,14 @@ export default function SuperAdminDashboard() {
 
         try {
             const newStudent = await studentsApi.create({
-                name: formData.name,
-                email: formData.email,
+                name: formData.name.trim(),
+                email: formData.email.trim(),
                 level: formData.level,
                 monthlyFee: finalPrice,
-                studentPhone: formData.studentPhone || undefined,
-                emergencyPhone: formData.emergencyPhone || undefined,
+                studentPhone: formData.studentPhone,
+                emergencyPhone: formData.emergencyPhone,
                 paymentScheme: formData.paymentScheme,
-                classDays: formData.classDays.length > 0 ? formData.classDays : undefined,
+                classDays: formData.classDays,
                 enrollmentDate: formData.enrollmentDate,
             });
 
@@ -890,8 +928,7 @@ export default function SuperAdminDashboard() {
             </main>
 
             {/* Modal: Crear Estudiante - Diseño Mejorado */}
-            {
-                showCreateModal && (
+            {showCreateModal && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                         <div
                             className="modal-content rounded-2xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
@@ -989,7 +1026,7 @@ export default function SuperAdminDashboard() {
                                         {/* Teléfono del Estudiante */}
                                         <div>
                                             <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Teléfono del Alumno
+                                                Teléfono del Alumno <span className="text-red-500">*</span>
                                             </label>
                                             <input
                                                 type="tel"
@@ -1003,15 +1040,19 @@ export default function SuperAdminDashboard() {
                                                 placeholder="5512345678"
                                                 maxLength={10}
                                                 className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                                style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.studentPhone ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
                                             />
-                                            <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>Número personal del estudiante</p>
+                                            {formErrors.studentPhone ? (
+                                                <p className="mt-1 text-xs text-red-500">{formErrors.studentPhone}</p>
+                                            ) : (
+                                                <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>10 dígitos — número personal del estudiante</p>
+                                            )}
                                         </div>
 
                                         {/* Teléfono de Emergencia */}
                                         <div>
                                             <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Tel. Emergencia (Tutor)
+                                                Tel. Emergencia (Tutor) <span className="text-red-500">*</span>
                                             </label>
                                             <input
                                                 type="tel"
@@ -1025,9 +1066,13 @@ export default function SuperAdminDashboard() {
                                                 placeholder="5587654321"
                                                 maxLength={10}
                                                 className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                                style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.emergencyPhone ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
                                             />
-                                            <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>Número del padre, madre o tutor</p>
+                                            {formErrors.emergencyPhone ? (
+                                                <p className="mt-1 text-xs text-red-500">{formErrors.emergencyPhone}</p>
+                                            ) : (
+                                                <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>10 dígitos — número del padre, madre o tutor</p>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -1069,15 +1114,16 @@ export default function SuperAdminDashboard() {
                                         {/* Fecha de Inscripción */}
                                         <div>
                                             <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Día de Inicio
+                                                Día de Inicio <span className="text-red-500">*</span>
                                             </label>
                                             <input
                                                 type="date"
                                                 value={formData.enrollmentDate}
                                                 onChange={(e) => setFormData({ ...formData, enrollmentDate: e.target.value })}
                                                 className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)', colorScheme: 'dark' }}
+                                                style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.enrollmentDate ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)', colorScheme: 'dark' }}
                                             />
+                                            {formErrors.enrollmentDate && <p className="mt-1 text-xs text-red-500">{formErrors.enrollmentDate}</p>}
                                         </div>
                                     </div>
                                 </div>
@@ -1153,9 +1199,9 @@ export default function SuperAdminDashboard() {
                                         {/* Días de Clase */}
                                         <div className="md:col-span-2">
                                             <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
-                                                Días de Clase
+                                                Días de Clase <span className="text-red-500">*</span>
                                             </label>
-                                            <div className="flex flex-wrap gap-2">
+                                            <div className={`flex flex-wrap gap-2 p-2 rounded-xl ${formErrors.classDays ? 'ring-1 ring-red-500' : ''}`}>
                                                 {[
                                                     { id: 1, label: "Lunes" },
                                                     { id: 2, label: "Martes" },
@@ -1187,15 +1233,19 @@ export default function SuperAdminDashboard() {
                                                     </button>
                                                 ))}
                                             </div>
-                                            <p className="mt-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                                Selecciona los días que el estudiante asiste a clase
-                                            </p>
+                                            {formErrors.classDays ? (
+                                                <p className="mt-1.5 text-xs text-red-500">{formErrors.classDays}</p>
+                                            ) : (
+                                                <p className="mt-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                                    Selecciona los días que el estudiante asiste a clase
+                                                </p>
+                                            )}
                                         </div>
 
                                         {/* Pago de Inscripción */}
                                         <div className="md:col-span-2">
                                             <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Pago de Inscripción
+                                                Pago de Inscripción <span className="text-red-500">*</span>
                                             </label>
                                             <div className="relative">
                                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
@@ -1207,16 +1257,35 @@ export default function SuperAdminDashboard() {
                                                     onChange={(e) => setFormData({ ...formData, enrollmentFee: e.target.value })}
                                                     placeholder="0"
                                                     className="w-full pl-8 pr-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                                    style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.enrollmentFee ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
                                                 />
                                             </div>
-                                            <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                                Cobro por inscripción. Puede ser $0 si no se cobra. Se registra en los reportes de pagos diarios.
-                                            </p>
+                                            {formErrors.enrollmentFee ? (
+                                                <p className="mt-1 text-xs text-red-500">{formErrors.enrollmentFee}</p>
+                                            ) : (
+                                                <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                                    Cobro por inscripción. Puede ser $0 si no se cobra. Se registra en los reportes de pagos diarios.
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Resumen de errores */}
+                            {Object.keys(formErrors).length > 0 && (
+                                <div className="mx-5 mb-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <AlertTriangle className="w-4 h-4 text-red-400" />
+                                        <p className="text-sm font-semibold text-red-400">Corrige los siguientes campos:</p>
+                                    </div>
+                                    <ul className="list-disc list-inside text-xs text-red-400/80 space-y-0.5">
+                                        {Object.values(formErrors).map((err, i) => (
+                                            <li key={i}>{err}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
 
                             {/* Footer del Modal */}
                             <div className="sticky bottom-0 flex gap-3 p-5 border-t" style={{ background: 'var(--modal-bg)', borderColor: 'var(--border-color)' }}>
@@ -1248,11 +1317,9 @@ export default function SuperAdminDashboard() {
                             </div>
                         </div>
                     </div>
-                )
-            }
+                )}
             {/* Modal: Crear Admin */}
-            {
-                showCreateAdminModal && (
+            {showCreateAdminModal && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                         <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
                             <div className="flex items-center justify-between mb-6">
@@ -1346,12 +1413,10 @@ export default function SuperAdminDashboard() {
                             </div>
                         </div>
                     </div>
-                )
-            }
+                )}
 
             {/* Modal: Ver Credencial */}
-            {
-                selectedStudent && (
+            {selectedStudent && (
                     <CredentialModal
                         student={selectedStudent}
                         isOpen={showCredentialModal}
@@ -1361,8 +1426,7 @@ export default function SuperAdminDashboard() {
             }
 
             {/* Modal: Confirmar Eliminación de Administrador */}
-            {
-                showDeleteAdminModal && adminToDelete && (
+            {showDeleteAdminModal && adminToDelete && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                         <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
                             {/* Header con icono de advertencia */}
@@ -1419,12 +1483,10 @@ export default function SuperAdminDashboard() {
                             </div>
                         </div>
                     </div>
-                )
-            }
+                )}
 
             {/* Modal: QR de Pago */}
-            {
-                showQRModal && selectedStudent && (
+            {showQRModal && selectedStudent && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                         <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
                             {/* Header */}
@@ -1499,12 +1561,8 @@ export default function SuperAdminDashboard() {
                             </div>
                         </div>
                     </div>
-                )
-            }
+            )}
 
-
-
-
-        </div >
+        </div>
     );
 }

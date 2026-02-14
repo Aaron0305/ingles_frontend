@@ -251,6 +251,10 @@ const isHoliday = (date: Date): boolean => {
     const dIdx = dCopy.getDate();
 
     // Verificar vacaciones de invierno específicas
+    // Ciclo 2025-2026: 19 de Dic 2025 al 7 de Ene 2026
+    if (year === 2025 && mIdx === 11 && dIdx >= 19) return true;
+    if (year === 2026 && mIdx === 0 && dIdx <= 7) return true;
+
     // Ciclo 2026-2027: 19 de Dic 2026 al 7 de Ene 2027
     if (year === 2026 && mIdx === 11 && dIdx >= 19) return true;
     if (year === 2027 && mIdx === 0 && dIdx <= 7) return true;
