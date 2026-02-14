@@ -463,7 +463,10 @@ const getPaymentDescription = (student: Student, scheme: PaymentScheme, periodIn
         const cycleDays = scheme === 'weekly' ? 7 : (scheme === 'biweekly' ? 14 : 28);
         const typeLabel = scheme === 'weekly' ? 'Semanal' : (scheme === 'biweekly' ? 'Catorcenal' : 'Mensual');
 
-        // Función auxiliar para calcular siguiente fecha
+        // Obtener días de clase del estudiante para filtrar festivos (igual que el grid)
+        const studentClassDays = student.classDays && student.classDays.length > 0 ? student.classDays : [];
+
+        // Función auxiliar para calcular siguiente fecha (unificada con el grid)
         const calculateNext = (pDate: Date) => {
             const baseDate = new Date(pDate);
             baseDate.setDate(pDate.getDate() + cycleDays);
@@ -472,13 +475,21 @@ const getPaymentDescription = (student: Student, scheme: PaymentScheme, periodIn
             const checkDate = new Date(pDate);
             for (let k = 0; k < cycleDays; k++) {
                 checkDate.setDate(checkDate.getDate() + 1);
-                // Contar TODOS los feriados (incluyendo fines de semana)
-                if (isHoliday(checkDate)) holidays++;
+                // Solo contar festivos que caen en días de clase del estudiante
+                if (isHoliday(checkDate)) {
+                    const dow = checkDate.getDay();
+                    if (studentClassDays.length === 0 || studentClassDays.includes(dow)) {
+                        holidays++;
+                    }
+                }
             }
 
             const next = new Date(baseDate);
             next.setDate(baseDate.getDate() + holidays);
-            while (isHoliday(next)) next.setDate(next.getDate() + 1);
+            // Mover al siguiente día que NO sea festivo Y sea día de clase del estudiante
+            while (isHoliday(next) || (studentClassDays.length > 0 && !studentClassDays.includes(next.getDay()))) {
+                next.setDate(next.getDate() + 1);
+            }
             return next;
         }
 
