@@ -14,7 +14,19 @@ interface EditStudentForm {
     emergencyPhone: string;
     level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
     classDays: number[];
+    paymentScheme: "daily" | "weekly" | "biweekly" | "monthly_28";
+    priceOption: string;
+    customPrice: string;
 }
+
+const PRICE_OPTIONS = [
+    { value: "760", label: "$760" },
+    { value: "750", label: "$750" },
+    { value: "790", label: "$790" },
+    { value: "650", label: "$650" },
+    { value: "149.50", label: "$149.50" },
+    { value: "custom", label: "Otro (personalizado)" },
+] as const;
 
 interface StudentsPanelProps {
     students: Student[];
@@ -41,6 +53,9 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
         emergencyPhone: "",
         level: "Beginner 1",
         classDays: [],
+        paymentScheme: "monthly_28",
+        priceOption: "760",
+        customPrice: "",
     });
     const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
     const [isEditing, setIsEditing] = useState(false);
@@ -140,6 +155,8 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
 
     const handleEditStudent = (student: Student) => {
         setStudentToEdit(student);
+        const feeStr = student.monthlyFee?.toString() || "760";
+        const isPreset = PRICE_OPTIONS.some(o => o.value === feeStr && o.value !== "custom");
         setEditFormData({
             name: student.name,
             email: student.email,
@@ -147,6 +164,9 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
             emergencyPhone: student.emergencyPhone || "",
             level: student.level as any,
             classDays: student.classDays || [],
+            paymentScheme: student.paymentScheme || "monthly_28",
+            priceOption: isPreset ? feeStr : "custom",
+            customPrice: isPreset ? "" : feeStr,
         });
         setEditFormErrors({});
         setShowEditStudentModal(true);
@@ -159,6 +179,11 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editFormData.email)) {
             errors.email = "Email inválido";
         }
+        if (editFormData.priceOption === "custom") {
+            if (!editFormData.customPrice || parseFloat(editFormData.customPrice) <= 0) {
+                errors.customPrice = "Ingresa un precio válido mayor a 0";
+            }
+        }
         setEditFormErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -166,6 +191,10 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
     const handleSaveEditStudent = async () => {
         if (!validateEditForm() || !studentToEdit) return;
         setIsEditing(true);
+
+        const monthlyFee = editFormData.priceOption === "custom"
+            ? parseFloat(editFormData.customPrice)
+            : parseFloat(editFormData.priceOption);
 
         try {
             const updatedStudent = await studentsApi.update(studentToEdit.id, {
@@ -175,6 +204,8 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                 emergencyPhone: editFormData.emergencyPhone || undefined,
                 level: editFormData.level,
                 classDays: editFormData.classDays,
+                paymentScheme: editFormData.paymentScheme,
+                monthlyFee: monthlyFee,
             });
 
             setStudents(prev => prev.map(s =>
@@ -705,6 +736,62 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                                         style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
                                     />
                                 </div>
+
+                                {/* Esquema de Pago */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Esquema de Pago</label>
+                                    <select
+                                        value={editFormData.paymentScheme}
+                                        onChange={(e) => setEditFormData({ ...editFormData, paymentScheme: e.target.value as EditStudentForm["paymentScheme"] })}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                        style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                    >
+                                        <option value="monthly_28" style={{ background: '#1f2937', color: '#ffffff' }}>Cada 28 días</option>
+                                        <option value="biweekly" style={{ background: '#1f2937', color: '#ffffff' }}>Catorcenal (14 días)</option>
+                                        <option value="weekly" style={{ background: '#1f2937', color: '#ffffff' }}>Semanal</option>
+                                        <option value="daily" style={{ background: '#1f2937', color: '#ffffff' }}>Diario</option>
+                                    </select>
+                                </div>
+
+                                {/* Mensualidad */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Mensualidad</label>
+                                    <select
+                                        value={editFormData.priceOption}
+                                        onChange={(e) => setEditFormData({ ...editFormData, priceOption: e.target.value, customPrice: "" })}
+                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                        style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
+                                    >
+                                        {PRICE_OPTIONS.map((option) => (
+                                            <option key={option.value} value={option.value} style={{ background: '#1f2937', color: '#ffffff' }}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Precio personalizado */}
+                                {editFormData.priceOption === "custom" && (
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                                            Precio Personalizado <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={editFormData.customPrice}
+                                                onChange={(e) => setEditFormData({ ...editFormData, customPrice: e.target.value })}
+                                                placeholder="0.00"
+                                                className="w-full pl-8 pr-4 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.customPrice ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                            />
+                                        </div>
+                                        {editFormErrors.customPrice && <p className="mt-1 text-xs text-red-500">{editFormErrors.customPrice}</p>}
+                                    </div>
+                                )}
 
                                 {/* Nivel */}
                                 <div>
