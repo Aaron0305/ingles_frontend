@@ -330,8 +330,6 @@ export default function SuperAdminDashboard() {
             errors.email = "El correo electrónico es obligatorio";
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
             errors.email = "Formato de correo electrónico inválido";
-        } else if (students.some(s => s.email.toLowerCase() === formData.email.trim().toLowerCase())) {
-            errors.email = "Este correo ya está registrado con otro estudiante";
         }
 
         // Teléfono del estudiante (obligatorio, 10 dígitos)
