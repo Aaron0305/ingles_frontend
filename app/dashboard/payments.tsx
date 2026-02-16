@@ -6,7 +6,7 @@ import { Socket } from "socket.io-client";
 import { holidaysApi, CustomHoliday } from "@/lib/api";
 import {
     Calendar, Users, CheckCircle, XCircle, Search, Clock, DollarSign, AlertTriangle, Filter, Sparkles, IdCard,
-    CircleDollarSign, Check, QrCode, X, Loader2, ChevronDown
+    CircleDollarSign, Check, QrCode, X, Loader2, ChevronDown, ShieldX
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -54,6 +54,7 @@ interface PaymentsPanelProps {
     payments: PaymentRecord[];
     onPaymentConfirm: (studentId: string, month: number, year: number, amountPaid?: number, amountExpected?: number) => void;
     onPaymentRevoke?: (studentId: string, month: number, year: number) => Promise<void>;
+    userRole?: "admin" | "superadmin";
     socket?: Socket | null;
     pendingPaymentRequest?: {
         studentId: string;
@@ -1712,6 +1713,7 @@ export default function PaymentsPanel({
     payments,
     onPaymentConfirm,
     onPaymentRevoke,
+    userRole = "admin",
     socket,
     pendingPaymentRequest,
     onPaymentRequestHandled
@@ -1730,6 +1732,9 @@ export default function PaymentsPanel({
     // Estado para el modal de cancelación de pago
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [isProcessingCancel, setIsProcessingCancel] = useState(false);
+
+    // Estado para modal de permiso denegado (solo superadmin puede cancelar)
+    const [showNoPermissionModal, setShowNoPermissionModal] = useState(false);
 
     // Router for QR navigation
     const router = useRouter();
@@ -2138,6 +2143,10 @@ export default function PaymentsPanel({
                                 setShowConfirmModal(true);
                             }}
                             onPeriodRevoke={(periodIndex, year) => {
+                                if (userRole !== "superadmin") {
+                                    setShowNoPermissionModal(true);
+                                    return;
+                                }
                                 setSelectedStudent(student);
                                 setSelectedPeriod(periodIndex);
                                 setSelectedYear(year);
@@ -2205,6 +2214,31 @@ export default function PaymentsPanel({
             />
 
 
+
+            {/* Modal de permiso denegado */}
+            {showNoPermissionModal && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                    <div className="rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-150" style={{ background: 'var(--modal-bg)' }}>
+                        <div className="relative flex justify-center mb-4">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg shadow-red-500/30">
+                                <ShieldX className="w-8 h-8 text-white" strokeWidth={2} />
+                            </div>
+                        </div>
+                        <h3 className="text-xl font-bold mb-2 text-center" style={{ color: 'var(--text-primary)' }}>
+                            Acceso restringido
+                        </h3>
+                        <p className="text-sm mb-5 text-center" style={{ color: 'var(--text-secondary)' }}>
+                            Solo un <span className="font-semibold text-orange-500">superadministrador</span> puede cancelar pagos registrados. Contacta al superadmin si necesitas realizar esta acción.
+                        </p>
+                        <button
+                            onClick={() => setShowNoPermissionModal(false)}
+                            className="w-full py-3 text-white font-semibold rounded-xl transition-all shadow-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-500/25"
+                        >
+                            Entendido
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Modal de confirmación de cancelación */}
             <PaymentCancelModal

@@ -827,6 +827,7 @@ export default function SuperAdminDashboard() {
                                 payments={payments}
                                 onPaymentConfirm={handlePaymentConfirm}
                                 onPaymentRevoke={handlePaymentRevoke}
+                                userRole={userRole}
                                 socket={socket}
                                 pendingPaymentRequest={pendingPaymentRequest}
                                 onPaymentRequestHandled={() => setPendingPaymentRequest(null)}
@@ -919,7 +920,7 @@ export default function SuperAdminDashboard() {
                         ) : activeTab === "credentials" ? (
                             <CredentialsPanel students={students} />
                         ) : (
-                            <StudentsPanel students={students} setStudents={setStudents} />
+                            <StudentsPanel students={students} setStudents={setStudents} userRole={userRole} />
                         )}
                     </>
                 )}

@@ -31,9 +31,10 @@ const PRICE_OPTIONS = [
 interface StudentsPanelProps {
     students: Student[];
     setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
+    userRole?: "admin" | "superadmin";
 }
 
-export default function StudentsPanel({ students, setStudents }: StudentsPanelProps) {
+export default function StudentsPanel({ students, setStudents, userRole = "admin" }: StudentsPanelProps) {
     // Filtros y búsqueda
     const [searchTerm, setSearchTerm] = useState("");
     const [filterLevel, setFilterLevel] = useState<string>("all");
@@ -738,12 +739,13 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                                 </div>
 
                                 {/* Esquema de Pago */}
-                                <div>
+                                <div className="relative">
                                     <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Esquema de Pago</label>
                                     <select
                                         value={editFormData.paymentScheme}
                                         onChange={(e) => setEditFormData({ ...editFormData, paymentScheme: e.target.value as EditStudentForm["paymentScheme"] })}
-                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                        disabled={userRole !== "superadmin"}
+                                        className={`w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${userRole !== "superadmin" ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                                         style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
                                     >
                                         <option value="monthly_28" style={{ background: '#1f2937', color: '#ffffff' }}>Cada 28 días</option>
@@ -751,15 +753,19 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                                         <option value="weekly" style={{ background: '#1f2937', color: '#ffffff' }}>Semanal</option>
                                         <option value="daily" style={{ background: '#1f2937', color: '#ffffff' }}>Diario</option>
                                     </select>
+                                    {userRole !== "superadmin" && (
+                                        <p className="mt-1 text-xs text-orange-400">Solo el superadmin puede modificar esto</p>
+                                    )}
                                 </div>
 
                                 {/* Mensualidad */}
-                                <div>
+                                <div className="relative">
                                     <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Mensualidad</label>
                                     <select
                                         value={editFormData.priceOption}
                                         onChange={(e) => setEditFormData({ ...editFormData, priceOption: e.target.value, customPrice: "" })}
-                                        className="w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                        disabled={userRole !== "superadmin"}
+                                        className={`w-full px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${userRole !== "superadmin" ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                                         style={{ background: '#1f2937', border: '1px solid var(--input-border)', color: '#ffffff' }}
                                     >
                                         {PRICE_OPTIONS.map((option) => (
@@ -768,6 +774,9 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                                             </option>
                                         ))}
                                     </select>
+                                    {userRole !== "superadmin" && (
+                                        <p className="mt-1 text-xs text-orange-400">Solo el superadmin puede modificar esto</p>
+                                    )}
                                 </div>
 
                                 {/* Precio personalizado */}
@@ -784,8 +793,9 @@ export default function StudentsPanel({ students, setStudents }: StudentsPanelPr
                                                 min="0"
                                                 value={editFormData.customPrice}
                                                 onChange={(e) => setEditFormData({ ...editFormData, customPrice: e.target.value })}
+                                                disabled={userRole !== "superadmin"}
                                                 placeholder="0.00"
-                                                className="w-full pl-8 pr-4 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                className={`w-full pl-8 pr-4 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${userRole !== "superadmin" ? 'cursor-not-allowed opacity-60' : ''}`}
                                                 style={{ background: 'var(--input-bg)', border: `1px solid ${editFormErrors.customPrice ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
                                             />
                                         </div>
