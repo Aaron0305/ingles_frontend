@@ -517,9 +517,13 @@ export default function StudentsPanel({ students, setStudents, userRole = "admin
                                                 <Pencil className="w-4 h-4" strokeWidth={2} />
                                             </button>
                                             <button
-                                                onClick={() => handleDeleteStudent(student)}
-                                                className="p-1.5 text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors"
-                                                title="Eliminar Estudiante"
+                                                onClick={() => userRole === "superadmin" && handleDeleteStudent(student)}
+                                                disabled={userRole !== "superadmin"}
+                                                className={`p-1.5 rounded-lg transition-colors ${userRole === "superadmin"
+                                                    ? "text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 cursor-pointer"
+                                                    : "text-gray-400 bg-gray-500/10 cursor-not-allowed opacity-50"
+                                                }`}
+                                                title={userRole === "superadmin" ? "Eliminar Estudiante" : "No tienes permiso para eliminar"}
                                             >
                                                 <Trash2 className="w-4 h-4" strokeWidth={2} />
                                             </button>
