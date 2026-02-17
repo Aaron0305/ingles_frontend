@@ -419,21 +419,12 @@ export default function StudentsPanel({ students, setStudents, userRole = "admin
                     <option value="Advanced 1" className="bg-gray-800 text-white">Advanced 1</option>
                     <option value="Advanced 2" className="bg-gray-800 text-white">Advanced 2</option>
                 </select>
-                <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-white font-medium cursor-pointer"
-                    style={{ background: '#014287', border: 'none' }}
-                >
-                    <option value="all" className="bg-gray-800 text-white">Todos los estados</option>
-                    <option value="active" className="bg-gray-800 text-white">Activos</option>
-                    <option value="inactive" className="bg-gray-800 text-white">Inactivos</option>
-                </select>
+
                 <button
                     onClick={() => {
                         setSearchTerm("");
                         setFilterLevel("all");
-                        setFilterStatus("all");
+
                     }}
                     className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                     style={{ background: '#ea242e', color: 'white' }}
@@ -474,9 +465,7 @@ export default function StudentsPanel({ students, setStudents, userRole = "admin
                                 <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                                     Días de Clase
                                 </th>
-                                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                                    Estado
-                                </th>
+
                                 <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                                     Acciones
                                 </th>
@@ -517,19 +506,7 @@ export default function StudentsPanel({ students, setStudents, userRole = "admin
                                             <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Sin asignar</span>
                                         )}
                                     </td>
-                                    <td className="px-3 py-3 whitespace-nowrap">
-                                        <button
-                                            onClick={() => handleToggleStatusClick(student)}
-                                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium cursor-pointer transition-all hover:scale-105 ${student.status === "active"
-                                                ? "bg-green-500/20 text-green-500 hover:bg-green-500/30"
-                                                : "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
-                                                }`}
-                                            title={student.status === "active" ? "Clic para desactivar" : "Clic para activar"}
-                                        >
-                                            <span className={`w-1.5 h-1.5 rounded-full ${student.status === "active" ? "bg-green-500" : "bg-gray-500"}`} />
-                                            {student.status === "active" ? "Activo" : "Inactivo"}
-                                        </button>
-                                    </td>
+
                                     <td className="px-3 py-3 whitespace-nowrap">
                                         <div className="flex items-center gap-1">
                                             <button
@@ -834,31 +811,36 @@ export default function StudentsPanel({ students, setStudents, userRole = "admin
                                             { id: 4, label: "Jueves" },
                                             { id: 5, label: "Viernes" },
                                             { id: 6, label: "Sábado" },
-                                            { id: 0, label: "Domingo" },
-                                        ].map((day) => (
+                                        ].map((day) => {
+                                            const currentDays = editFormData.classDays || [];
+                                            const isSelected = currentDays.includes(day.id);
+                                            const isMaxReached = currentDays.length >= 6 && !isSelected;
+                                            return (
                                             <button
                                                 key={day.id}
                                                 type="button"
+                                                disabled={isMaxReached}
                                                 onClick={() => {
-                                                    const currentDays = editFormData.classDays || [];
-                                                    const isSelected = currentDays.includes(day.id);
                                                     if (isSelected) {
                                                         setEditFormData({ ...editFormData, classDays: currentDays.filter(d => d !== day.id) });
-                                                    } else {
+                                                    } else if (currentDays.length < 6) {
                                                         setEditFormData({ ...editFormData, classDays: [...currentDays, day.id] });
                                                     }
                                                 }}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${editFormData.classDays?.includes(day.id)
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isSelected
                                                     ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
-                                                    : "bg-gray-700/50 text-gray-400 hover:bg-gray-600/50"
+                                                    : isMaxReached
+                                                        ? "bg-gray-800/30 text-gray-600 cursor-not-allowed"
+                                                        : "bg-gray-700/50 text-gray-400 hover:bg-gray-600/50"
                                                     }`}
                                             >
                                                 {day.label}
                                             </button>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                     <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                        Selecciona los días que el estudiante asiste a clase
+                                        Selecciona de 1 a 6 días de clase (Lunes a Sábado)
                                     </p>
                                 </div>
                             </div>
@@ -888,47 +870,7 @@ export default function StudentsPanel({ students, setStudents, userRole = "admin
                 </div>
             )}
 
-            {/* Modal de Status toggle */}
-            {showStatusModal && studentToToggle && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                                {studentToToggle.status === "active" ? "Desactivar Estudiante" : "Activar Estudiante"}
-                            </h3>
-                            <button
-                                onClick={() => setShowStatusModal(false)}
-                                className="hover:opacity-70 transition-opacity"
-                                style={{ color: 'var(--text-secondary)' }}
-                            >
-                                <X className="w-5 h-5" strokeWidth={2} />
-                            </button>
-                        </div>
-                        <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                            ¿Estás seguro de {studentToToggle.status === "active" ? "desactivar" : "activar"} a{' '}
-                            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-                                {studentToToggle.name}
-                            </span>
-                            ?
-                        </p>
-                        <div className="flex justify-end gap-3">
-                            <button
-                                onClick={() => setShowStatusModal(false)}
-                                className="px-4 py-2 rounded-lg font-medium transition-colors"
-                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleConfirmToggleStatus}
-                                className={`px-4 py-2 text-white rounded-lg font-medium transition-colors ${studentToToggle.status === "active" ? "bg-amber-600 hover:bg-amber-700" : "bg-green-600 hover:bg-green-700"}`}
-                            >
-                                {studentToToggle.status === "active" ? "Desactivar" : "Activar"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+
             {/* Modal: Ver Motivo de Baja */}
             {showReasonModal && studentToToggle && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">

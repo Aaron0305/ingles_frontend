@@ -1208,35 +1208,39 @@ export default function SuperAdminDashboard() {
                                                     { id: 4, label: "Jueves" },
                                                     { id: 5, label: "Viernes" },
                                                     { id: 6, label: "Sábado" },
-                                                    { id: 0, label: "Domingo" },
-                                                ].map((day) => (
+                                                ].map((day) => {
+                                                    const currentDays = formData.classDays || [];
+                                                    const isSelected = currentDays.includes(day.id);
+                                                    const isMaxReached = currentDays.length >= 6 && !isSelected;
+                                                    return (
                                                     <button
                                                         key={day.id}
                                                         type="button"
+                                                        disabled={isMaxReached}
                                                         onClick={() => {
-                                                            const currentDays = formData.classDays || [];
-                                                            const isSelected = currentDays.includes(day.id);
-
                                                             if (isSelected) {
                                                                 setFormData({ ...formData, classDays: currentDays.filter(d => d !== day.id) });
-                                                            } else {
+                                                            } else if (currentDays.length < 6) {
                                                                 setFormData({ ...formData, classDays: [...currentDays, day.id] });
                                                             }
                                                         }}
-                                                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${formData.classDays?.includes(day.id)
+                                                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${isSelected
                                                             ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
-                                                            : "bg-gray-700/50 text-gray-400 hover:bg-gray-600/50"
+                                                            : isMaxReached
+                                                                ? "bg-gray-800/30 text-gray-600 cursor-not-allowed"
+                                                                : "bg-gray-700/50 text-gray-400 hover:bg-gray-600/50"
                                                             }`}
                                                     >
                                                         {day.label}
                                                     </button>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                             {formErrors.classDays ? (
                                                 <p className="mt-1.5 text-xs text-red-500">{formErrors.classDays}</p>
                                             ) : (
                                                 <p className="mt-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                                    Selecciona los días que el estudiante asiste a clase
+                                                    Selecciona de 1 a 6 días de clase (Lunes a Sábado)
                                                 </p>
                                             )}
                                         </div>
