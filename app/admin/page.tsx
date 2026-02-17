@@ -820,6 +820,7 @@ export default function SuperAdminDashboard() {
                             <ReportsPanel
                                 students={students}
                                 payments={rawPayments}
+                                userRole={userRole}
                             />
                         ) : activeTab === "payments" ? (
                             <PaymentsPanel

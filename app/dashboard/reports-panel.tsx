@@ -45,9 +45,10 @@ export interface PaymentRecord {
 interface ReportsPanelProps {
     students: Student[];
     payments: PaymentRecord[];
+    userRole?: "admin" | "superadmin";
 }
 
-export default function ReportsPanel({ students, payments }: ReportsPanelProps) {
+export default function ReportsPanel({ students, payments, userRole = "superadmin" }: ReportsPanelProps) {
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [chartMonth, setChartMonth] = useState<Date>(new Date()); // Mes para la gráfica de ingresos
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -209,7 +210,8 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
 
     return (
         <div className="space-y-6 animate-fade-in">
-            {/* --- SECCIÓN DE GRÁFICAS SUPERIOR --- */}
+            {/* --- SECCIÓN DE GRÁFICAS SUPERIOR (Solo superadmin) --- */}
+            {userRole === "superadmin" && (
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
                 {/* 1. GRÁFICA RADIAL: Estudiantes por Nivel (1/4 del espacio) */}
@@ -350,6 +352,7 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
                     </CardFooter>
                 </Card>
             </div>
+            )}
 
 
 
@@ -366,22 +369,30 @@ export default function ReportsPanel({ students, payments }: ReportsPanelProps) 
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-700/50 rounded-xl p-1">
-                        <button onClick={handlePrevDay} className="p-2 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
-                            <ChevronLeft className="w-5 h-5" />
-                        </button>
-                        <div className="relative">
-                            <input
-                                type="date"
-                                value={selectedDate.toLocaleDateString('sv')} // YYYY-MM-DD
-                                onChange={handleDateChange}
-                                className="bg-transparent border-none text-center font-medium focus:ring-0 cursor-pointer text-sm w-36 text-gray-700 dark:text-gray-200"
-                            />
+                    {userRole === "superadmin" ? (
+                        <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-700/50 rounded-xl p-1">
+                            <button onClick={handlePrevDay} className="p-2 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
+                                <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <div className="relative">
+                                <input
+                                    type="date"
+                                    value={selectedDate.toLocaleDateString('sv')} // YYYY-MM-DD
+                                    onChange={handleDateChange}
+                                    className="bg-transparent border-none text-center font-medium focus:ring-0 cursor-pointer text-sm w-36 text-gray-700 dark:text-gray-200"
+                                />
+                            </div>
+                            <button onClick={handleNextDay} className="p-2 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
+                                <ChevronRight className="w-5 h-5" />
+                            </button>
                         </div>
-                        <button onClick={handleNextDay} className="p-2 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
-                            <ChevronRight className="w-5 h-5" />
-                        </button>
-                    </div>
+                    ) : (
+                        <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-700/50 rounded-xl px-4 py-2">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                Hoy: {new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            </span>
+                        </div>
+                    )}
 
                     <button
                         onClick={exportDailyPaymentsToExcel}
