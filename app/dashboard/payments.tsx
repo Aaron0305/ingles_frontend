@@ -295,18 +295,14 @@ const getNextClassDay = (date: Date, classDays: number[]): Date => {
 // ============================================
 // FUNCIÓN UNIFICADA: Calcular siguiente fecha de pago con compensación de festivos
 // ============================================
-// FUNCIÓN UNIFICADA: Calcular siguiente fecha de pago con compensación ENCADENADA
-// ============================================
-// Al caminar hacia adelante desde la fecha base compensando días perdidos,
-// si encontramos MÁS festivos en días de clase (fuera del período original),
-// esos también se compensan automáticamente.
+// Los festivos que caen en días de clase DENTRO del ciclo de 28 días extienden
+// el ciclo por N días de clase hábiles. Los festivos encontrados FUERA del ciclo
+// (durante la búsqueda de compensación) se SALTAN — se compensarán en el siguiente ciclo.
 //
-// Ejemplo: Alumno Lun+Mié, inscrito Feb 16. Base = Mar 16.
-//   Mar 16 (Lun, Natalicio) → 1 día perdido en período original.
-//   Caminando: Mar 18 (Mié, hábil) = reposición, cuenta 1→0.
-//   Mar 23 (Lun, festivo personalizado) → ¡MÁS compensación! cuenta 0→1.
-//   Mar 25 (Mié, hábil) = reposición, cuenta 1→0.
-//   Mar 30 (Lun, hábil) → cuenta=0, día de clase → PAGO = Mar 30. ✅
+// Ejemplo: Alumno Lun+Jue, inscrito Feb 16. Base = Mar 16.
+//   Mar 12 (Jue, personalizado) + Mar 16 (Lun, Natalicio) = 2 días perdidos.
+//   Caminando: Mar 19 (Jue, hábil) = reposición 1, cuenta 2→1.
+//   Mar 23 (Lun, hábil) = reposición 2, cuenta 1→0 → PAGO = Mar 23. ✅
 const calculateNextCycleDate = (pDate: Date, cycleDays: number, studentClassDays: number[]): Date => {
     const baseDate = new Date(pDate);
     baseDate.setDate(pDate.getDate() + cycleDays);
@@ -331,8 +327,8 @@ const calculateNextCycleDate = (pDate: Date, cycleDays: number, studentClassDays
         let compensationCount = holidaysInClassDays;
         const cursor = new Date(baseDate);
 
-        // Caminar día a día. Por cada día de clase:
-        //   - Si es festivo → compensationCount++ (más días perdidos)
+        // Caminar día a día buscando días de clase hábiles para compensar:
+        //   - Si es festivo → saltar (no se compensa aquí, se hará en el siguiente ciclo)
         //   - Si es hábil y compensationCount > 0 → compensationCount--
         //   - Cuando compensationCount llega a 0 → ESE DÍA es la fecha de pago
         while (true) {
@@ -342,20 +338,20 @@ const calculateNextCycleDate = (pDate: Date, cycleDays: number, studentClassDays
 
             if (!isClassDay) continue;
 
-            if (!isHoliday(cursor)) {
-                if (compensationCount > 0) {
-                    compensationCount--;
-                    if (compensationCount === 0) {
-                        // La compensación se completó: ESTE día es la nueva fecha de pago
-                        effectiveDate = new Date(cursor);
-                        break;
-                    }
-                } else {
+            // Saltar días festivos (no cuentan como compensación ni agregan más)
+            if (isHoliday(cursor)) continue;
+
+            // Día de clase hábil: cuenta como compensación
+            if (compensationCount > 0) {
+                compensationCount--;
+                if (compensationCount === 0) {
+                    // La compensación se completó: ESTE día es la nueva fecha de pago
                     effectiveDate = new Date(cursor);
                     break;
                 }
             } else {
-                compensationCount++;
+                effectiveDate = new Date(cursor);
+                break;
             }
         }
     }
