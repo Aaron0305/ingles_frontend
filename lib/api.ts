@@ -54,6 +54,7 @@ export interface Payment {
     paidAt?: string;
     confirmedBy?: string;
     createdAt?: string;
+    paymentMethod?: "efectivo" | "transferencia"; // Método de pago
 }
 
 export interface LoginResponse {
@@ -278,6 +279,7 @@ export const paymentsApi = {
         year: number;
         amount: number;
         amountExpected?: number;  // Para pagos parciales
+        paymentMethod?: "efectivo" | "transferencia"; // Método de pago
     }): Promise<Payment> {
         const response = await fetch(`${API_URL}/api/payments`, {
             method: "POST",
@@ -291,6 +293,7 @@ export const paymentsApi = {
     async createEnrollment(data: {
         studentId: string;
         amount: number;
+        paymentMethod?: "efectivo" | "transferencia";
     }): Promise<Payment> {
         const response = await fetch(`${API_URL}/api/payments`, {
             method: "POST",
@@ -331,6 +334,16 @@ export const paymentsApi = {
             console.error('❌ [API] Error en revoke:', error);
             throw error;
         }
+    },
+
+    async updatePaymentMethod(paymentId: string, paymentMethod: "efectivo" | "transferencia"): Promise<{ success: boolean; id: string; paymentMethod: string }> {
+        const response = await fetch(`${API_URL}/api/payments`, {
+            method: "PATCH",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ paymentId, paymentMethod }),
+        });
+
+        return handleResponse<{ success: boolean; id: string; paymentMethod: string }>(response);
     },
 };
 

@@ -6,7 +6,7 @@ import { Socket } from "socket.io-client";
 import { holidaysApi, CustomHoliday } from "@/lib/api";
 import {
     Calendar, Users, CheckCircle, XCircle, Search, Clock, DollarSign, AlertTriangle, Filter, Sparkles, IdCard,
-    CircleDollarSign, Check, QrCode, X, Loader2, ChevronDown, ShieldX
+    CircleDollarSign, Check, QrCode, X, Loader2, ChevronDown, ShieldX, Banknote, ArrowRightLeft
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -26,6 +26,7 @@ export interface PaymentRecord {
     status: "paid" | "pending" | "overdue";
     paidAt?: string;
     confirmedBy?: string;
+    paymentMethod?: "efectivo" | "transferencia"; // Método de pago
 }
 
 interface PaymentScanRequest {
@@ -42,7 +43,7 @@ interface PaymentConfirmModalProps {
     student: Student | null;
     periodIndex: number; // Antes month
     year: number;
-    onConfirm: (amountPaid: number) => void;  // Ahora recibe el monto pagado
+    onConfirm: (amountPaid: number, paymentMethod: "efectivo" | "transferencia") => void;  // Ahora recibe monto y método
     onCancel: () => void;
     onReject?: () => void;
     isFromScan?: boolean;
@@ -52,7 +53,7 @@ interface PaymentConfirmModalProps {
 interface PaymentsPanelProps {
     students: Student[];
     payments: PaymentRecord[];
-    onPaymentConfirm: (studentId: string, month: number, year: number, amountPaid?: number, amountExpected?: number) => void;
+    onPaymentConfirm: (studentId: string, month: number, year: number, amountPaid?: number, amountExpected?: number, paymentMethod?: "efectivo" | "transferencia") => void;
     onPaymentRevoke?: (studentId: string, month: number, year: number) => Promise<void>;
     userRole?: "admin" | "superadmin";
     socket?: Socket | null;
@@ -565,10 +566,12 @@ const getPaymentDescription = (student: Student, scheme: PaymentScheme, periodIn
 function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, onCancel, onReject, isFromScan, existingPayment }: PaymentConfirmModalProps) {
     const [isConfirming, setIsConfirming] = useState(false);
     const [amountPaid, setAmountPaid] = useState<string>("");
+    const [paymentMethod, setPaymentMethod] = useState<"efectivo" | "transferencia">("efectivo");
 
-    // Reset amount when modal opens
+    // Reset amount and payment method when modal opens
     useEffect(() => {
         if (isOpen && student) {
+            setPaymentMethod("efectivo"); // Reset al abrir
             // Si hay un pago parcial existente, mostrar solo lo que falta
             setTimeout(() => {
                 if (existingPayment && existingPayment.amountPending && existingPayment.amountPending > 0) {
@@ -602,22 +605,13 @@ function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, on
         if (newPaidAmount <= 0) return;
         setIsConfirming(true);
         await new Promise(resolve => setTimeout(resolve, 800));
-        onConfirm(newPaidAmount);
+        onConfirm(newPaidAmount, paymentMethod);
         setIsConfirming(false);
     };
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
             <div className="rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200" style={{ background: 'var(--modal-bg)' }}>
-                {/* Icono dinámico según tipo de pago */}
-                <div className="flex justify-center mb-4">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg ${isPartialPayment
-                        ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/30'
-                        : 'bg-gradient-to-br from-green-400 to-emerald-500 shadow-green-500/30'
-                        }`}>
-                        <CircleDollarSign className="w-8 h-8 text-white" strokeWidth={2} />
-                    </div>
-                </div>
 
                 {/* Título */}
                 <h3 className="text-xl font-bold text-center mb-2" style={{ color: 'var(--text-primary)' }}>
@@ -713,6 +707,37 @@ function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, on
                     <p className="text-xs text-gray-400 mt-2 text-center capitalize">
                         Esquema: {config.label}
                     </p>
+                </div>
+
+                {/* Selector de Método de Pago */}
+                <div className="mb-4">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 text-center uppercase tracking-wider">
+                        Método de Pago
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setPaymentMethod("efectivo")}
+                            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 border-2 ${paymentMethod === "efectivo"
+                                ? "bg-green-500/15 border-green-500 text-green-600 dark:text-green-400 shadow-sm shadow-green-500/10"
+                                : "bg-gray-100 dark:bg-slate-700/50 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500"
+                                }`}
+                        >
+                            <Banknote className={`w-4 h-4 ${paymentMethod === "efectivo" ? "text-green-500" : "text-gray-400"}`} strokeWidth={2} />
+                            Efectivo
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setPaymentMethod("transferencia")}
+                            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 border-2 ${paymentMethod === "transferencia"
+                                ? "bg-blue-500/15 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/10"
+                                : "bg-gray-100 dark:bg-slate-700/50 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500"
+                                }`}
+                        >
+                            <ArrowRightLeft className={`w-4 h-4 ${paymentMethod === "transferencia" ? "text-blue-500" : "text-gray-400"}`} strokeWidth={2} />
+                            Transferencia
+                        </button>
+                    </div>
                 </div>
 
                 {/* Indicador de escaneo QR */}
@@ -1822,25 +1847,13 @@ export default function PaymentsPanel({
         // No auto-opening modal anymore, user needs to click the specific period
     };
 
-    const handleConfirmPayment = (amountPaid: number) => {
-        console.log("💰 PaymentsPanel handleConfirmPayment", amountPaid);
+    const handleConfirmPayment = (amountPaid: number, paymentMethod: "efectivo" | "transferencia") => {
+        console.log("💰 PaymentsPanel handleConfirmPayment", amountPaid, "método:", paymentMethod);
         if (selectedStudent && selectedPeriod) {
-            // Pass valid expected amount from logic. Note: we need to recalculate or capture it from modal state if possible, 
-            // but simpler to just pass student fee if no existing payment, OR existing payment expected amount.
-            // Since we don't have existingPayment here easily without lookup, let's rely on student.monthlyFee for now as base, 
-            // OR better: The modal logic (PaymentConfirmModal) already did the math. 
-            // But handleConfirmPayment is inside PaymentsPanel.
-            // Let's pass the student.monthlyFee as a safe default expected amount if we don't have better context here,
-            // relying on the API to finalize. 
-            // ACTUALLY: The modal calls `onConfirm(newPaidAmount)`.
-            // Let's update PaymentConfirmModal to pass expectedAmount too?
-            // No, too many changes.
-            // Let's just use selectedStudent.monthlyFee here.
-            onPaymentConfirm(selectedStudent.id, selectedPeriod, selectedYear, Number(amountPaid), selectedStudent.monthlyFee);
+            onPaymentConfirm(selectedStudent.id, selectedPeriod, selectedYear, Number(amountPaid), selectedStudent.monthlyFee, paymentMethod);
             setShowConfirmModal(false);
             setShowSuccessModal(true);
             setScanRequest(null); // Clear scan request
-            // setPendingPaymentRequest(null); // Assuming this state setter exists in the parent or context
             onPaymentRequestHandled?.(); // Clear pending request from parent
 
             // Notificar al estudiante a través del socket (SOLO notificación, el pago ya se procesó via API)

@@ -15,7 +15,7 @@ import {
     ShieldCheck, Users, CheckCircle, CircleDollarSign,
     BarChart3, Plus, UserPlus, X, Trash2, Ban,
     Copy, AlertTriangle, Shield, LogOut, User, Phone,
-    GraduationCap, CreditCard, CalendarDays
+    GraduationCap, CreditCard, CalendarDays, Banknote, ArrowRightLeft
 } from "lucide-react";
 import Image from "next/image";
 
@@ -52,6 +52,7 @@ interface NewStudentForm {
     classDays: number[];
     enrollmentDate: string;
     enrollmentFee: string;
+    enrollmentPaymentMethod: "efectivo" | "transferencia";
 }
 
 interface EditStudentForm {
@@ -131,6 +132,7 @@ export default function SuperAdminDashboard() {
         classDays: [],
         enrollmentDate: new Date().toLocaleDateString('en-CA'),
         enrollmentFee: "0",
+        enrollmentPaymentMethod: "efectivo",
     });
     const [adminFormData, setAdminFormData] = useState<NewAdminForm>({
         name: "",
@@ -404,8 +406,9 @@ export default function SuperAdminDashboard() {
                 await paymentsApi.createEnrollment({
                     studentId: newStudent.id,
                     amount: enrollmentFeeAmount,
+                    paymentMethod: formData.enrollmentPaymentMethod,
                 });
-                console.log(`✅ Pago de inscripción registrado: $${enrollmentFeeAmount}`);
+                console.log(`✅ Pago de inscripción registrado: $${enrollmentFeeAmount} (${formData.enrollmentPaymentMethod})`);
             } catch (err) {
                 console.error("Error registrando pago de inscripción:", err);
             }
@@ -420,7 +423,7 @@ export default function SuperAdminDashboard() {
             setSelectedStudent(studentWithProgress);
             setShowCreateModal(false);
             setShowCredentialModal(true);
-            setFormData({ name: "", email: "", studentPhone: "", emergencyPhone: "", level: "Beginner 1", priceOption: "149.50", customPrice: "", paymentScheme: "monthly_28", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA'), enrollmentFee: "0" });
+            setFormData({ name: "", email: "", studentPhone: "", emergencyPhone: "", level: "Beginner 1", priceOption: "149.50", customPrice: "", paymentScheme: "monthly_28", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA'), enrollmentFee: "0", enrollmentPaymentMethod: "efectivo" });
         } catch (error) {
             console.error("Error creando estudiante:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
@@ -432,7 +435,7 @@ export default function SuperAdminDashboard() {
 
 
 
-    const handlePaymentConfirm = async (studentId: string, month: number, year: number, amountPaid?: number, amountExpected?: number) => {
+    const handlePaymentConfirm = async (studentId: string, month: number, year: number, amountPaid?: number, amountExpected?: number, paymentMethod?: "efectivo" | "transferencia") => {
         const student = students.find(s => s.id === studentId);
         if (!student) return;
 
@@ -448,7 +451,8 @@ export default function SuperAdminDashboard() {
                 month,
                 year,
                 amount: paymentAmount,
-                amountExpected: finalExpected
+                amountExpected: finalExpected,
+                paymentMethod: paymentMethod || "efectivo"
             });
 
             // Actualizar o agregar el pago
@@ -526,7 +530,7 @@ export default function SuperAdminDashboard() {
             setAdmins((prev) => [...prev, adminWithLastLogin]);
             setShowCreateAdminModal(false);
             setAdminFormData({ name: "", email: "", password: "", confirmPassword: "" });
-            setFormData({ name: "", email: "", studentPhone: "", emergencyPhone: "", level: "Beginner 1", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA'), enrollmentFee: "0" });
+            setFormData({ name: "", email: "", studentPhone: "", emergencyPhone: "", level: "Beginner 1", paymentScheme: "monthly_28", priceOption: "149.50", customPrice: "", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA'), enrollmentFee: "0", enrollmentPaymentMethod: "efectivo" });
         } catch (error) {
             console.error("Error creando admin:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
@@ -929,291 +933,291 @@ export default function SuperAdminDashboard() {
 
             {/* Modal: Crear Estudiante - Diseño Mejorado */}
             {showCreateModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                        <div
-                            className="modal-content rounded-2xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
-                            style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}
-                        >
-                            {/* Header del Modal */}
-                            <div className="sticky top-0 z-10 flex items-center justify-between p-5 border-b" style={{ background: 'var(--modal-bg)', borderColor: 'var(--border-color)' }}>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                                        <UserPlus className="w-5 h-5 text-white" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Estudiante</h3>
-                                        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Completa la información del alumno</p>
-                                    </div>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div
+                        className="modal-content rounded-2xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+                        style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}
+                    >
+                        {/* Header del Modal */}
+                        <div className="sticky top-0 z-10 flex items-center justify-between p-5 border-b" style={{ background: 'var(--modal-bg)', borderColor: 'var(--border-color)' }}>
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                                    <UserPlus className="w-5 h-5 text-white" />
                                 </div>
-                                <button
-                                    onClick={() => setShowCreateModal(false)}
-                                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                                    style={{ color: 'var(--text-secondary)' }}
-                                >
-                                    <X className="w-5 h-5" strokeWidth={2} />
-                                </button>
+                                <div>
+                                    <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Estudiante</h3>
+                                    <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Completa la información del alumno</p>
+                                </div>
                             </div>
+                            <button
+                                onClick={() => setShowCreateModal(false)}
+                                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                style={{ color: 'var(--text-secondary)' }}
+                            >
+                                <X className="w-5 h-5" strokeWidth={2} />
+                            </button>
+                        </div>
 
-                            <div className="p-5 space-y-6">
-                                {/* Sección: Información Personal */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
-                                        <User className="w-4 h-4 text-blue-500" />
-                                        <h4 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Información Personal</h4>
+                        <div className="p-5 space-y-6">
+                            {/* Sección: Información Personal */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                                    <User className="w-4 h-4 text-blue-500" />
+                                    <h4 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Información Personal</h4>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Nombre Completo */}
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                            Nombre Completo <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            placeholder="Juan Pérez García"
+                                            className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                            style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                        />
+                                        {formErrors.name && <p className="mt-1 text-xs text-red-500">{formErrors.name}</p>}
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {/* Nombre Completo */}
-                                        <div className="md:col-span-2">
-                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Nombre Completo <span className="text-red-500">*</span>
-                                            </label>
+                                    {/* Email */}
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                            Correo Electrónico <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="flex items-center">
                                             <input
                                                 type="text"
-                                                value={formData.name}
-                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                                placeholder="Juan Pérez García"
-                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                                style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                            />
-                                            {formErrors.name && <p className="mt-1 text-xs text-red-500">{formErrors.name}</p>}
-                                        </div>
-
-                                        {/* Email */}
-                                        <div className="md:col-span-2">
-                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Correo Electrónico <span className="text-red-500">*</span>
-                                            </label>
-                                            <div className="flex items-center">
-                                                <input
-                                                    type="text"
-                                                    value={formData.email.replace('@gmail.com', '')}
-                                                    onChange={(e) => setFormData({ ...formData, email: e.target.value.replace(/@.*/, '') + '@gmail.com' })}
-                                                    placeholder="usuario"
-                                                    className="w-full px-4 py-2.5 rounded-l-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                                    style={{
-                                                        background: 'var(--input-bg)',
-                                                        border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`,
-                                                        color: 'var(--text-primary)',
-                                                        borderRight: 'none'
-                                                    }}
-                                                />
-                                                <span
-                                                    className="px-4 py-2.5 rounded-r-xl text-sm font-medium whitespace-nowrap"
-                                                    style={{
-                                                        background: 'var(--surface)',
-                                                        borderColor: formErrors.email ? '#ef4444' : 'var(--input-border)',
-                                                        border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`,
-                                                        color: 'var(--text-tertiary)'
-                                                    }}
-                                                >
-                                                    @gmail.com
-                                                </span>
-                                            </div>
-                                            {formErrors.email && <p className="mt-1 text-xs text-red-500">{formErrors.email}</p>}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Sección: Información de Contacto */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
-                                        <Phone className="w-4 h-4 text-green-500" />
-                                        <h4 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Información de Contacto</h4>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {/* Teléfono del Estudiante */}
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Teléfono del Alumno <span className="text-red-500">*</span>
-                                            </label>
-                                            <input
-                                                type="tel"
-                                                value={formData.studentPhone}
-                                                onChange={(e) => {
-                                                    const value = e.target.value.replace(/\D/g, '');
-                                                    if (value.length <= 10) {
-                                                        setFormData({ ...formData, studentPhone: value });
-                                                    }
+                                                value={formData.email.replace('@gmail.com', '')}
+                                                onChange={(e) => setFormData({ ...formData, email: e.target.value.replace(/@.*/, '') + '@gmail.com' })}
+                                                placeholder="usuario"
+                                                className="w-full px-4 py-2.5 rounded-l-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                                style={{
+                                                    background: 'var(--input-bg)',
+                                                    border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`,
+                                                    color: 'var(--text-primary)',
+                                                    borderRight: 'none'
                                                 }}
-                                                placeholder="5512345678"
-                                                maxLength={10}
-                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                                style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.studentPhone ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
                                             />
-                                            {formErrors.studentPhone ? (
-                                                <p className="mt-1 text-xs text-red-500">{formErrors.studentPhone}</p>
-                                            ) : (
-                                                <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>10 dígitos — número personal del estudiante</p>
-                                            )}
-                                        </div>
-
-                                        {/* Teléfono de Emergencia */}
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Tel. Emergencia (Tutor) <span className="text-red-500">*</span>
-                                            </label>
-                                            <input
-                                                type="tel"
-                                                value={formData.emergencyPhone}
-                                                onChange={(e) => {
-                                                    const value = e.target.value.replace(/\D/g, '');
-                                                    if (value.length <= 10) {
-                                                        setFormData({ ...formData, emergencyPhone: value });
-                                                    }
+                                            <span
+                                                className="px-4 py-2.5 rounded-r-xl text-sm font-medium whitespace-nowrap"
+                                                style={{
+                                                    background: 'var(--surface)',
+                                                    borderColor: formErrors.email ? '#ef4444' : 'var(--input-border)',
+                                                    border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`,
+                                                    color: 'var(--text-tertiary)'
                                                 }}
-                                                placeholder="5587654321"
-                                                maxLength={10}
-                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                                style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.emergencyPhone ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                            />
-                                            {formErrors.emergencyPhone ? (
-                                                <p className="mt-1 text-xs text-red-500">{formErrors.emergencyPhone}</p>
-                                            ) : (
-                                                <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>10 dígitos — número del padre, madre o tutor</p>
-                                            )}
+                                            >
+                                                @gmail.com
+                                            </span>
                                         </div>
+                                        {formErrors.email && <p className="mt-1 text-xs text-red-500">{formErrors.email}</p>}
                                     </div>
                                 </div>
+                            </div>
 
-                                {/* Sección: Configuración Académica */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
-                                        <GraduationCap className="w-4 h-4 text-purple-500" />
-                                        <h4 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Configuración Académica</h4>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {/* Nivel */}
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Nivel <span className="text-red-500">*</span>
-                                            </label>
-                                            <select
-                                                value={formData.level}
-                                                onChange={(e) => setFormData({ ...formData, level: e.target.value as NewStudentForm["level"] })}
-                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
-                                                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
-                                            >
-                                                <optgroup label="Beginner">
-                                                    <option value="Beginner 1">Beginner 1</option>
-                                                    <option value="Beginner 2">Beginner 2</option>
-                                                </optgroup>
-                                                <optgroup label="Intermediate">
-                                                    <option value="Intermediate 1">Intermediate 1</option>
-                                                    <option value="Intermediate 2">Intermediate 2</option>
-                                                </optgroup>
-                                                <optgroup label="Advanced">
-                                                    <option value="Advanced 1">Advanced 1</option>
-                                                    <option value="Advanced 2">Advanced 2</option>
-                                                </optgroup>
-                                            </select>
-                                        </div>
-
-                                        {/* Fecha de Inscripción */}
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Día de Inicio <span className="text-red-500">*</span>
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={formData.enrollmentDate}
-                                                onChange={(e) => setFormData({ ...formData, enrollmentDate: e.target.value })}
-                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                                style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.enrollmentDate ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)', colorScheme: 'dark' }}
-                                            />
-                                            {formErrors.enrollmentDate && <p className="mt-1 text-xs text-red-500">{formErrors.enrollmentDate}</p>}
-                                        </div>
-                                    </div>
+                            {/* Sección: Información de Contacto */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                                    <Phone className="w-4 h-4 text-green-500" />
+                                    <h4 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Información de Contacto</h4>
                                 </div>
 
-                                {/* Sección: Configuración de Pago */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
-                                        <CreditCard className="w-4 h-4 text-amber-500" />
-                                        <h4 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Configuración de Pago</h4>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {/* Esquema de Pago */}
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Esquema de Pago
-                                            </label>
-                                            <select
-                                                value={formData.paymentScheme}
-                                                onChange={(e) => setFormData({ ...formData, paymentScheme: e.target.value as any })}
-                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
-                                                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
-                                            >
-                                                <option value="monthly_28">Cada 28 días</option>
-                                                <option value="biweekly">Catorcenal (14 días)</option>
-                                                <option value="weekly">Semanal</option>
-                                                <option value="daily">Diario</option>
-                                            </select>
-                                        </div>
-
-                                        {/* Mensualidad */}
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Mensualidad
-                                            </label>
-                                            <select
-                                                value={formData.priceOption}
-                                                onChange={(e) => setFormData({ ...formData, priceOption: e.target.value, customPrice: "" })}
-                                                className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
-                                                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
-                                            >
-                                                {PRICE_OPTIONS.map((option) => (
-                                                    <option key={option.value} value={option.value}>
-                                                        {option.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        {/* Campo de precio personalizado */}
-                                        {formData.priceOption === "custom" && (
-                                            <div className="md:col-span-2">
-                                                <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                    Precio Personalizado <span className="text-red-500">*</span>
-                                                </label>
-                                                <div className="relative">
-                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
-                                                    <input
-                                                        type="number"
-                                                        step="0.01"
-                                                        min="0"
-                                                        value={formData.customPrice}
-                                                        onChange={(e) => setFormData({ ...formData, customPrice: e.target.value })}
-                                                        placeholder="0.00"
-                                                        className="w-full pl-8 pr-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                                        style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.customPrice ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                                    />
-                                                </div>
-                                                {formErrors.customPrice && <p className="mt-1 text-xs text-red-500">{formErrors.customPrice}</p>}
-                                            </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Teléfono del Estudiante */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                            Teléfono del Alumno <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            value={formData.studentPhone}
+                                            onChange={(e) => {
+                                                const value = e.target.value.replace(/\D/g, '');
+                                                if (value.length <= 10) {
+                                                    setFormData({ ...formData, studentPhone: value });
+                                                }
+                                            }}
+                                            placeholder="5512345678"
+                                            maxLength={10}
+                                            className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                            style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.studentPhone ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                        />
+                                        {formErrors.studentPhone ? (
+                                            <p className="mt-1 text-xs text-red-500">{formErrors.studentPhone}</p>
+                                        ) : (
+                                            <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>10 dígitos — número personal del estudiante</p>
                                         )}
+                                    </div>
 
-                                        {/* Días de Clase */}
+                                    {/* Teléfono de Emergencia */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                            Tel. Emergencia (Tutor) <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            value={formData.emergencyPhone}
+                                            onChange={(e) => {
+                                                const value = e.target.value.replace(/\D/g, '');
+                                                if (value.length <= 10) {
+                                                    setFormData({ ...formData, emergencyPhone: value });
+                                                }
+                                            }}
+                                            placeholder="5587654321"
+                                            maxLength={10}
+                                            className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                            style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.emergencyPhone ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                        />
+                                        {formErrors.emergencyPhone ? (
+                                            <p className="mt-1 text-xs text-red-500">{formErrors.emergencyPhone}</p>
+                                        ) : (
+                                            <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>10 dígitos — número del padre, madre o tutor</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Sección: Configuración Académica */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                                    <GraduationCap className="w-4 h-4 text-purple-500" />
+                                    <h4 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Configuración Académica</h4>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Nivel */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                            Nivel <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            value={formData.level}
+                                            onChange={(e) => setFormData({ ...formData, level: e.target.value as NewStudentForm["level"] })}
+                                            className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
+                                            style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                        >
+                                            <optgroup label="Beginner">
+                                                <option value="Beginner 1">Beginner 1</option>
+                                                <option value="Beginner 2">Beginner 2</option>
+                                            </optgroup>
+                                            <optgroup label="Intermediate">
+                                                <option value="Intermediate 1">Intermediate 1</option>
+                                                <option value="Intermediate 2">Intermediate 2</option>
+                                            </optgroup>
+                                            <optgroup label="Advanced">
+                                                <option value="Advanced 1">Advanced 1</option>
+                                                <option value="Advanced 2">Advanced 2</option>
+                                            </optgroup>
+                                        </select>
+                                    </div>
+
+                                    {/* Fecha de Inscripción */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                            Día de Inicio <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={formData.enrollmentDate}
+                                            onChange={(e) => setFormData({ ...formData, enrollmentDate: e.target.value })}
+                                            className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                            style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.enrollmentDate ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)', colorScheme: 'dark' }}
+                                        />
+                                        {formErrors.enrollmentDate && <p className="mt-1 text-xs text-red-500">{formErrors.enrollmentDate}</p>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Sección: Configuración de Pago */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                                    <CreditCard className="w-4 h-4 text-amber-500" />
+                                    <h4 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Configuración de Pago</h4>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Esquema de Pago */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                            Esquema de Pago
+                                        </label>
+                                        <select
+                                            value={formData.paymentScheme}
+                                            onChange={(e) => setFormData({ ...formData, paymentScheme: e.target.value as any })}
+                                            className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
+                                            style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                        >
+                                            <option value="monthly_28">Cada 28 días</option>
+                                            <option value="biweekly">Catorcenal (14 días)</option>
+                                            <option value="weekly">Semanal</option>
+                                            <option value="daily">Diario</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Mensualidad */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                            Mensualidad
+                                        </label>
+                                        <select
+                                            value={formData.priceOption}
+                                            onChange={(e) => setFormData({ ...formData, priceOption: e.target.value, customPrice: "" })}
+                                            className="w-full px-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
+                                            style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}
+                                        >
+                                            {PRICE_OPTIONS.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Campo de precio personalizado */}
+                                    {formData.priceOption === "custom" && (
                                         <div className="md:col-span-2">
-                                            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
-                                                Días de Clase <span className="text-red-500">*</span>
+                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                                Precio Personalizado <span className="text-red-500">*</span>
                                             </label>
-                                            <div className={`flex flex-wrap gap-2 p-2 rounded-xl ${formErrors.classDays ? 'ring-1 ring-red-500' : ''}`}>
-                                                {[
-                                                    { id: 1, label: "Lunes" },
-                                                    { id: 2, label: "Martes" },
-                                                    { id: 3, label: "Miércoles" },
-                                                    { id: 4, label: "Jueves" },
-                                                    { id: 5, label: "Viernes" },
-                                                    { id: 6, label: "Sábado" },
-                                                ].map((day) => {
-                                                    const currentDays = formData.classDays || [];
-                                                    const isSelected = currentDays.includes(day.id);
-                                                    const isMaxReached = currentDays.length >= 6 && !isSelected;
-                                                    return (
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    value={formData.customPrice}
+                                                    onChange={(e) => setFormData({ ...formData, customPrice: e.target.value })}
+                                                    placeholder="0.00"
+                                                    className="w-full pl-8 pr-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                                    style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.customPrice ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                                />
+                                            </div>
+                                            {formErrors.customPrice && <p className="mt-1 text-xs text-red-500">{formErrors.customPrice}</p>}
+                                        </div>
+                                    )}
+
+                                    {/* Días de Clase */}
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                                            Días de Clase <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className={`flex flex-wrap gap-2 p-2 rounded-xl ${formErrors.classDays ? 'ring-1 ring-red-500' : ''}`}>
+                                            {[
+                                                { id: 1, label: "Lunes" },
+                                                { id: 2, label: "Martes" },
+                                                { id: 3, label: "Miércoles" },
+                                                { id: 4, label: "Jueves" },
+                                                { id: 5, label: "Viernes" },
+                                                { id: 6, label: "Sábado" },
+                                            ].map((day) => {
+                                                const currentDays = formData.classDays || [];
+                                                const isSelected = currentDays.includes(day.id);
+                                                const isMaxReached = currentDays.length >= 6 && !isSelected;
+                                                return (
                                                     <button
                                                         key={day.id}
                                                         type="button"
@@ -1234,337 +1238,368 @@ export default function SuperAdminDashboard() {
                                                     >
                                                         {day.label}
                                                     </button>
-                                                    );
-                                                })}
-                                            </div>
-                                            {formErrors.classDays ? (
-                                                <p className="mt-1.5 text-xs text-red-500">{formErrors.classDays}</p>
-                                            ) : (
-                                                <p className="mt-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                                    Selecciona de 1 a 6 días de clase (Lunes a Sábado)
-                                                </p>
-                                            )}
+                                                );
+                                            })}
                                         </div>
+                                        {formErrors.classDays ? (
+                                            <p className="mt-1.5 text-xs text-red-500">{formErrors.classDays}</p>
+                                        ) : (
+                                            <p className="mt-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                                Selecciona de 1 a 6 días de clase (Lunes a Sábado)
+                                            </p>
+                                        )}
+                                    </div>
 
-                                        {/* Pago de Inscripción */}
-                                        <div className="md:col-span-2">
-                                            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Pago de Inscripción <span className="text-red-500">*</span>
-                                            </label>
-                                            <div className="relative">
-                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
-                                                <input
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    value={formData.enrollmentFee}
-                                                    onChange={(e) => setFormData({ ...formData, enrollmentFee: e.target.value })}
-                                                    placeholder="0"
-                                                    className="w-full pl-8 pr-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                                    style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.enrollmentFee ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                                />
-                                            </div>
-                                            {formErrors.enrollmentFee ? (
-                                                <p className="mt-1 text-xs text-red-500">{formErrors.enrollmentFee}</p>
-                                            ) : (
-                                                <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                                    Cobro por inscripción. Puede ser $0 si no se cobra. Se registra en los reportes de pagos diarios.
-                                                </p>
-                                            )}
+                                    {/* Pago de Inscripción */}
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                            Pago de Inscripción <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={formData.enrollmentFee}
+                                                onChange={(e) => setFormData({ ...formData, enrollmentFee: e.target.value })}
+                                                placeholder="0"
+                                                className="w-full pl-8 pr-4 py-2.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                                style={{ background: 'var(--input-bg)', border: `1px solid ${formErrors.enrollmentFee ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                            />
+                                        </div>
+                                        {formErrors.enrollmentFee ? (
+                                            <p className="mt-1 text-xs text-red-500">{formErrors.enrollmentFee}</p>
+                                        ) : (
+                                            <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                                Cobro por inscripción. Puede ser $0 si no se cobra.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Método de Pago de Inscripción */}
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                            Método de Pago (Inscripción)
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, enrollmentPaymentMethod: "efectivo" })}
+                                                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 border-2 ${formData.enrollmentPaymentMethod === "efectivo"
+                                                        ? "bg-green-500/15 border-green-500 text-green-600 dark:text-green-400 shadow-sm shadow-green-500/10"
+                                                        : "bg-gray-100 dark:bg-slate-700/50 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500"
+                                                    }`}
+                                            >
+                                                <Banknote className={`w-4 h-4 ${formData.enrollmentPaymentMethod === "efectivo" ? "text-green-500" : "text-gray-400"}`} strokeWidth={2} />
+                                                Efectivo
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, enrollmentPaymentMethod: "transferencia" })}
+                                                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 border-2 ${formData.enrollmentPaymentMethod === "transferencia"
+                                                        ? "bg-blue-500/15 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/10"
+                                                        : "bg-gray-100 dark:bg-slate-700/50 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500"
+                                                    }`}
+                                            >
+                                                <ArrowRightLeft className={`w-4 h-4 ${formData.enrollmentPaymentMethod === "transferencia" ? "text-blue-500" : "text-gray-400"}`} strokeWidth={2} />
+                                                Transferencia
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            {/* Resumen de errores */}
-                            {Object.keys(formErrors).length > 0 && (
-                                <div className="mx-5 mb-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <AlertTriangle className="w-4 h-4 text-red-400" />
-                                        <p className="text-sm font-semibold text-red-400">Corrige los siguientes campos:</p>
-                                    </div>
-                                    <ul className="list-disc list-inside text-xs text-red-400/80 space-y-0.5">
-                                        {Object.values(formErrors).map((err, i) => (
-                                            <li key={i}>{err}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-
-                            {/* Footer del Modal */}
-                            <div className="sticky bottom-0 flex gap-3 p-5 border-t" style={{ background: 'var(--modal-bg)', borderColor: 'var(--border-color)' }}>
-                                <button
-                                    onClick={handleCreateStudent}
-                                    disabled={isCreating}
-                                    className="flex-1 px-6 py-3 text-white font-semibold rounded-xl transition-all disabled:opacity-50 hover:opacity-90 flex items-center justify-center gap-2"
-                                    style={{ background: 'linear-gradient(135deg, #014287 0%, #0369a1 100%)' }}
-                                >
-                                    {isCreating ? (
-                                        <>
-                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                            Creando...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <UserPlus className="w-5 h-5" />
-                                            Crear y Generar Credencial
-                                        </>
-                                    )}
-                                </button>
-                                <button
-                                    onClick={() => setShowCreateModal(false)}
-                                    className="px-6 py-3 font-semibold rounded-xl transition-colors hover:opacity-80"
-                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
-                                >
-                                    Cancelar
-                                </button>
                             </div>
                         </div>
+
+                        {/* Resumen de errores */}
+                        {Object.keys(formErrors).length > 0 && (
+                            <div className="mx-5 mb-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                                    <p className="text-sm font-semibold text-red-400">Corrige los siguientes campos:</p>
+                                </div>
+                                <ul className="list-disc list-inside text-xs text-red-400/80 space-y-0.5">
+                                    {Object.values(formErrors).map((err, i) => (
+                                        <li key={i}>{err}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* Footer del Modal */}
+                        <div className="sticky bottom-0 flex gap-3 p-5 border-t" style={{ background: 'var(--modal-bg)', borderColor: 'var(--border-color)' }}>
+                            <button
+                                onClick={handleCreateStudent}
+                                disabled={isCreating}
+                                className="flex-1 px-6 py-3 text-white font-semibold rounded-xl transition-all disabled:opacity-50 hover:opacity-90 flex items-center justify-center gap-2"
+                                style={{ background: 'linear-gradient(135deg, #014287 0%, #0369a1 100%)' }}
+                            >
+                                {isCreating ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Creando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <UserPlus className="w-5 h-5" />
+                                        Crear y Generar Credencial
+                                    </>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => setShowCreateModal(false)}
+                                className="px-6 py-3 font-semibold rounded-xl transition-colors hover:opacity-80"
+                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                            >
+                                Cancelar
+                            </button>
+                        </div>
                     </div>
-                )}
+                </div>
+            )}
             {/* Modal: Crear Admin */}
             {showCreateAdminModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                        <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
-                                        <UserPlus className="w-5 h-5 text-white" strokeWidth={2} />
-                                    </div>
-                                    <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Administrador</h3>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
+                                    <UserPlus className="w-5 h-5 text-white" strokeWidth={2} />
                                 </div>
-                                <button onClick={() => setShowCreateAdminModal(false)} style={{ color: 'var(--text-secondary)' }}>
-                                    <X className="w-5 h-5" strokeWidth={2} />
-                                </button>
+                                <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Administrador</h3>
+                            </div>
+                            <button onClick={() => setShowCreateAdminModal(false)} style={{ color: 'var(--text-secondary)' }}>
+                                <X className="w-5 h-5" strokeWidth={2} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
+                                <input
+                                    type="text"
+                                    value={adminFormData.name}
+                                    onChange={(e) => setAdminFormData({ ...adminFormData, name: e.target.value })}
+                                    placeholder="Carlos Administrador"
+                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                />
+                                {adminFormErrors.name && <p className="mt-1 text-sm text-red-500">{adminFormErrors.name}</p>}
                             </div>
 
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Nombre Completo</label>
-                                    <input
-                                        type="text"
-                                        value={adminFormData.name}
-                                        onChange={(e) => setAdminFormData({ ...adminFormData, name: e.target.value })}
-                                        placeholder="Carlos Administrador"
-                                        className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.name ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                    />
-                                    {adminFormErrors.name && <p className="mt-1 text-sm text-red-500">{adminFormErrors.name}</p>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Email</label>
-                                    <input
-                                        type="email"
-                                        value={adminFormData.email}
-                                        onChange={(e) => setAdminFormData({ ...adminFormData, email: e.target.value })}
-                                        placeholder="admin@academia.com"
-                                        className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                    />
-                                    {adminFormErrors.email && <p className="mt-1 text-sm text-red-500">{adminFormErrors.email}</p>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Contraseña</label>
-                                    <input
-                                        type="password"
-                                        value={adminFormData.password}
-                                        onChange={(e) => setAdminFormData({ ...adminFormData, password: e.target.value })}
-                                        placeholder="••••••••"
-                                        className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.password ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                    />
-                                    {adminFormErrors.password && <p className="mt-1 text-sm text-red-500">{adminFormErrors.password}</p>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Confirmar Contraseña</label>
-                                    <input
-                                        type="password"
-                                        value={adminFormData.confirmPassword}
-                                        onChange={(e) => setAdminFormData({ ...adminFormData, confirmPassword: e.target.value })}
-                                        placeholder="••••••••"
-                                        className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.confirmPassword ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
-                                    />
-                                    {adminFormErrors.confirmPassword && <p className="mt-1 text-sm text-red-500">{adminFormErrors.confirmPassword}</p>}
-                                </div>
-
-                                <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-                                    <p className="text-sm text-blue-500">
-                                        <span className="font-medium">Permisos:</span> Este administrador podrá gestionar estudiantes, credenciales y pagos.
-                                    </p>
-                                </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Email</label>
+                                <input
+                                    type="email"
+                                    value={adminFormData.email}
+                                    onChange={(e) => setAdminFormData({ ...adminFormData, email: e.target.value })}
+                                    placeholder="admin@academia.com"
+                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.email ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                />
+                                {adminFormErrors.email && <p className="mt-1 text-sm text-red-500">{adminFormErrors.email}</p>}
                             </div>
 
-                            <div className="flex gap-3 mt-6">
-                                <button
-                                    onClick={handleCreateAdmin}
-                                    disabled={isCreating}
-                                    className="flex-1 px-4 py-3 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90"
-                                    style={{ background: '#014287' }}
-                                >
-                                    {isCreating ? "Creando..." : "Crear Administrador"}
-                                </button>
-                                <button
-                                    onClick={() => setShowCreateAdminModal(false)}
-                                    className="px-4 py-3 font-medium rounded-lg transition-colors"
-                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
-                                >
-                                    Cancelar
-                                </button>
+                            <div>
+                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Contraseña</label>
+                                <input
+                                    type="password"
+                                    value={adminFormData.password}
+                                    onChange={(e) => setAdminFormData({ ...adminFormData, password: e.target.value })}
+                                    placeholder="••••••••"
+                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.password ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                />
+                                {adminFormErrors.password && <p className="mt-1 text-sm text-red-500">{adminFormErrors.password}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Confirmar Contraseña</label>
+                                <input
+                                    type="password"
+                                    value={adminFormData.confirmPassword}
+                                    onChange={(e) => setAdminFormData({ ...adminFormData, confirmPassword: e.target.value })}
+                                    placeholder="••••••••"
+                                    className="w-full px-4 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    style={{ background: 'var(--input-bg)', border: `1px solid ${adminFormErrors.confirmPassword ? '#ef4444' : 'var(--input-border)'}`, color: 'var(--text-primary)' }}
+                                />
+                                {adminFormErrors.confirmPassword && <p className="mt-1 text-sm text-red-500">{adminFormErrors.confirmPassword}</p>}
+                            </div>
+
+                            <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                                <p className="text-sm text-blue-500">
+                                    <span className="font-medium">Permisos:</span> Este administrador podrá gestionar estudiantes, credenciales y pagos.
+                                </p>
                             </div>
                         </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={handleCreateAdmin}
+                                disabled={isCreating}
+                                className="flex-1 px-4 py-3 text-white font-medium rounded-lg transition-all disabled:opacity-50 hover:opacity-90"
+                                style={{ background: '#014287' }}
+                            >
+                                {isCreating ? "Creando..." : "Crear Administrador"}
+                            </button>
+                            <button
+                                onClick={() => setShowCreateAdminModal(false)}
+                                className="px-4 py-3 font-medium rounded-lg transition-colors"
+                                style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}
+                            >
+                                Cancelar
+                            </button>
+                        </div>
                     </div>
-                )}
+                </div>
+            )}
 
             {/* Modal: Ver Credencial */}
             {selectedStudent && (
-                    <CredentialModal
-                        student={selectedStudent}
-                        isOpen={showCredentialModal}
-                        onClose={() => setShowCredentialModal(false)}
-                    />
-                )
+                <CredentialModal
+                    student={selectedStudent}
+                    isOpen={showCredentialModal}
+                    onClose={() => setShowCredentialModal(false)}
+                />
+            )
             }
 
             {/* Modal: Confirmar Eliminación de Administrador */}
             {showDeleteAdminModal && adminToDelete && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                        <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                            {/* Header con icono de advertencia */}
-                            <div className="flex flex-col items-center text-center mb-6">
-                                <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
-                                    <AlertTriangle className="w-8 h-8 text-red-500" strokeWidth={2} />
-                                </div>
-                                <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-                                    Eliminar Administrador
-                                </h3>
-                                <p style={{ color: 'var(--text-secondary)' }}>
-                                    ¿Estás seguro de eliminar a <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{adminToDelete.name}</span>?
-                                </p>
-                                <p className="text-sm mt-2" style={{ color: 'var(--text-tertiary)' }}>
-                                    Este administrador perderá acceso al sistema. Esta acción no se puede deshacer.
-                                </p>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                        {/* Header con icono de advertencia */}
+                        <div className="flex flex-col items-center text-center mb-6">
+                            <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+                                <AlertTriangle className="w-8 h-8 text-red-500" strokeWidth={2} />
                             </div>
+                            <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+                                Eliminar Administrador
+                            </h3>
+                            <p style={{ color: 'var(--text-secondary)' }}>
+                                ¿Estás seguro de eliminar a <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{adminToDelete.name}</span>?
+                            </p>
+                            <p className="text-sm mt-2" style={{ color: 'var(--text-tertiary)' }}>
+                                Este administrador perderá acceso al sistema. Esta acción no se puede deshacer.
+                            </p>
+                        </div>
 
-                            {/* Info del administrador a eliminar */}
-                            <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold">
-                                        {adminToDelete.name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div>
-                                        <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{adminToDelete.name}</p>
-                                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{adminToDelete.email}</p>
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-500 mt-1">
-                                            <ShieldCheck className="w-3 h-3" strokeWidth={2} />
-                                            {adminToDelete.role === "admin" ? "Administrador" : "Super Admin"}
-                                        </span>
-                                    </div>
+                        {/* Info del administrador a eliminar */}
+                        <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold">
+                                    {adminToDelete.name.charAt(0).toUpperCase()}
                                 </div>
-                            </div>
-
-                            {/* Botones */}
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => {
-                                        setShowDeleteAdminModal(false);
-                                        setAdminToDelete(null);
-                                    }}
-                                    className="flex-1 px-4 py-3 font-medium rounded-lg transition-colors"
-                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={confirmDeleteAdmin}
-                                    className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg transition-all"
-                                >
-                                    Sí, Eliminar
-                                </button>
+                                <div>
+                                    <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{adminToDelete.name}</p>
+                                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{adminToDelete.email}</p>
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-500 mt-1">
+                                        <ShieldCheck className="w-3 h-3" strokeWidth={2} />
+                                        {adminToDelete.role === "admin" ? "Administrador" : "Super Admin"}
+                                    </span>
+                                </div>
                             </div>
                         </div>
+
+                        {/* Botones */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowDeleteAdminModal(false);
+                                    setAdminToDelete(null);
+                                }}
+                                className="flex-1 px-4 py-3 font-medium rounded-lg transition-colors"
+                                style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmDeleteAdmin}
+                                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg transition-all"
+                            >
+                                Sí, Eliminar
+                            </button>
+                        </div>
                     </div>
-                )}
+                </div>
+            )}
 
             {/* Modal: QR de Pago */}
             {showQRModal && selectedStudent && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                        <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
-                            {/* Header */}
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                                    QR de Pago
-                                </h3>
-                                <button
-                                    onClick={() => setShowQRModal(false)}
-                                    className="p-2 rounded-lg hover:bg-gray-500/20 transition-colors"
-                                    style={{ color: 'var(--text-secondary)' }}
-                                >
-                                    <X className="w-5 h-5" strokeWidth={2} />
-                                </button>
-                            </div>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="modal-content rounded-xl p-6 max-w-md w-full shadow-2xl" style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-color)' }}>
+                        {/* Header */}
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                                QR de Pago
+                            </h3>
+                            <button
+                                onClick={() => setShowQRModal(false)}
+                                className="p-2 rounded-lg hover:bg-gray-500/20 transition-colors"
+                                style={{ color: 'var(--text-secondary)' }}
+                            >
+                                <X className="w-5 h-5" strokeWidth={2} />
+                            </button>
+                        </div>
 
-                            {/* Info del estudiante */}
-                            <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg">
-                                        {selectedStudent.name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div>
-                                        <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{selectedStudent.name}</p>
-                                        <p className="text-sm font-mono text-cyan-500">#{selectedStudent.studentNumber}</p>
-                                    </div>
+                        {/* Info del estudiante */}
+                        <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg">
+                                    {selectedStudent.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{selectedStudent.name}</p>
+                                    <p className="text-sm font-mono text-cyan-500">#{selectedStudent.studentNumber}</p>
                                 </div>
                             </div>
+                        </div>
 
-                            {/* QR Code */}
-                            <div className="flex flex-col items-center p-6 bg-white rounded-xl mb-6">
-                                <QRCodeSVG
-                                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/pay/scan/${selectedStudent.id}`}
-                                    size={200}
-                                    level="H"
-                                    includeMargin={true}
-                                />
-                                <p className="text-xs text-gray-500 mt-3 text-center">
-                                    Escanea este código para registrar el pago
-                                </p>
-                            </div>
+                        {/* QR Code */}
+                        <div className="flex flex-col items-center p-6 bg-white rounded-xl mb-6">
+                            <QRCodeSVG
+                                value={`${typeof window !== 'undefined' ? window.location.origin : ''}/pay/scan/${selectedStudent.id}`}
+                                size={200}
+                                level="H"
+                                includeMargin={true}
+                            />
+                            <p className="text-xs text-gray-500 mt-3 text-center">
+                                Escanea este código para registrar el pago
+                            </p>
+                        </div>
 
-                            {/* URL de pago */}
-                            <div className="p-3 rounded-lg mb-6 overflow-hidden" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
-                                <p className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>URL de pago:</p>
-                                <p className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
-                                    {typeof window !== 'undefined' ? `${window.location.origin}/pay/scan/${selectedStudent.id}` : ''}
-                                </p>
-                            </div>
+                        {/* URL de pago */}
+                        <div className="p-3 rounded-lg mb-6 overflow-hidden" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}>
+                            <p className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>URL de pago:</p>
+                            <p className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
+                                {typeof window !== 'undefined' ? `${window.location.origin}/pay/scan/${selectedStudent.id}` : ''}
+                            </p>
+                        </div>
 
-                            {/* Botones */}
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => {
-                                        const url = `${window.location.origin}/pay/scan/${selectedStudent.id}`;
-                                        navigator.clipboard.writeText(url);
-                                        alert('URL copiada al portapapeles');
-                                    }}
-                                    className="flex-1 px-4 py-3 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-                                    style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
-                                >
-                                    <Copy className="w-4 h-4" strokeWidth={2} />
-                                    Copiar URL
-                                </button>
-                                <button
-                                    onClick={() => setShowQRModal(false)}
-                                    className="flex-1 px-4 py-3 text-white font-medium rounded-lg transition-all hover:opacity-90"
-                                    style={{ background: '#014287' }}
-                                >
-                                    Cerrar
-                                </button>
-                            </div>
+                        {/* Botones */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    const url = `${window.location.origin}/pay/scan/${selectedStudent.id}`;
+                                    navigator.clipboard.writeText(url);
+                                    alert('URL copiada al portapapeles');
+                                }}
+                                className="flex-1 px-4 py-3 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                                style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
+                            >
+                                <Copy className="w-4 h-4" strokeWidth={2} />
+                                Copiar URL
+                            </button>
+                            <button
+                                onClick={() => setShowQRModal(false)}
+                                className="flex-1 px-4 py-3 text-white font-medium rounded-lg transition-all hover:opacity-90"
+                                style={{ background: '#014287' }}
+                            >
+                                Cerrar
+                            </button>
                         </div>
                     </div>
+                </div>
             )}
 
         </div>

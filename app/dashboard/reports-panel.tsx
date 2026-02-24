@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Download, ChevronLeft, ChevronRight, TrendingUp, BarChart3, CircleDollarSign, Users, Search } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Student } from "./credential";
+import { paymentsApi } from "@/lib/api";
 import {
     LabelList,
     RadialBar,
@@ -40,6 +41,7 @@ export interface PaymentRecord {
     paidAt?: string;
     confirmedBy?: string;
     createdAt?: string;
+    paymentMethod?: "efectivo" | "transferencia";
 }
 
 interface ReportsPanelProps {
@@ -52,6 +54,26 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [chartMonth, setChartMonth] = useState<Date>(new Date()); // Mes para la gráfica de ingresos
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [paymentMethodOverrides, setPaymentMethodOverrides] = useState<Record<string, "efectivo" | "transferencia">>({});
+    const [updatingPaymentId, setUpdatingPaymentId] = useState<string | null>(null);
+
+    // Función para cambiar el método de pago
+    const handleTogglePaymentMethod = async (paymentId: string, currentMethod: "efectivo" | "transferencia") => {
+        const newMethod = currentMethod === "efectivo" ? "transferencia" : "efectivo";
+        setUpdatingPaymentId(paymentId);
+        try {
+            await paymentsApi.updatePaymentMethod(paymentId, newMethod);
+            setPaymentMethodOverrides(prev => ({ ...prev, [paymentId]: newMethod }));
+            setSaveMessage({ type: 'success', text: `Método cambiado a ${newMethod === 'efectivo' ? 'Efectivo' : 'Transferencia'}` });
+            setTimeout(() => setSaveMessage(null), 2000);
+        } catch (err) {
+            console.error("Error actualizando método de pago:", err);
+            setSaveMessage({ type: 'error', text: 'Error al actualizar método de pago' });
+            setTimeout(() => setSaveMessage(null), 3000);
+        } finally {
+            setUpdatingPaymentId(null);
+        }
+    };
 
     // Navegación de meses para la gráfica
     const handlePrevMonth = () => {
@@ -117,6 +139,7 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                 "Nivel": student?.level || "N/A",
                 "Concepto": payment.month === 0 ? "Inscripción" : "Mensualidad",
                 "Monto": `$${payment.amount.toFixed(2)}`,
+                "Método de Pago": payment.paymentMethod === "transferencia" ? "Transferencia" : "Efectivo",
                 "Hora de Pago": (payment.createdAt ? new Date(payment.createdAt) : (paidAt || null))?.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) || "N/A",
                 "Confirmado Por": payment.confirmedBy || "Sistema",
                 "Email": student?.email || "N/A",
@@ -126,12 +149,12 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
         const totalAmount = dailyPayments.reduce((acc, p) => acc + p.amount, 0);
         excelData.push({
             "No. Estudiante": "", "Nombre": "TOTAL", "Nivel": "", "Concepto": "",
-            "Monto": `$${totalAmount.toFixed(2)}`, "Hora de Pago": "",
+            "Monto": `$${totalAmount.toFixed(2)}`, "Método de Pago": "", "Hora de Pago": "",
             "Confirmado Por": "", "Email": ""
         });
 
         const ws = XLSX.utils.json_to_sheet(excelData);
-        ws['!cols'] = [{ wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 30 }];
+        ws['!cols'] = [{ wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 15 }, { wch: 20 }, { wch: 30 }];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Pagos");
         XLSX.writeFile(wb, `Reporte_Pagos_${dateStr}.xlsx`);
@@ -212,146 +235,146 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
         <div className="space-y-6 animate-fade-in">
             {/* --- SECCIÓN DE GRÁFICAS SUPERIOR (Solo superadmin) --- */}
             {userRole === "superadmin" && (
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
-                {/* 1. GRÁFICA RADIAL: Estudiantes por Nivel (1/4 del espacio) */}
-                <Card className="flex flex-col bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 lg:col-span-1">
-                    <CardHeader className="items-center pb-2">
-                        <CardTitle className="text-sm font-semibold">Estudiantes por Nivel</CardTitle>
-                        <CardDescription className="text-xs">Alumnos activos</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 flex items-center justify-center py-2">
-                        <ChartContainer
-                            config={radialChartConfig}
-                            className="mx-auto w-full max-w-[200px] aspect-square"
-                        >
-                            <RadialBarChart
-                                data={radialChartData}
-                                startAngle={-90}
-                                endAngle={380}
-                                innerRadius={25}
-                                outerRadius={80}
+                    {/* 1. GRÁFICA RADIAL: Estudiantes por Nivel (1/4 del espacio) */}
+                    <Card className="flex flex-col bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 lg:col-span-1">
+                        <CardHeader className="items-center pb-2">
+                            <CardTitle className="text-sm font-semibold">Estudiantes por Nivel</CardTitle>
+                            <CardDescription className="text-xs">Alumnos activos</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-1 flex items-center justify-center py-2">
+                            <ChartContainer
+                                config={radialChartConfig}
+                                className="mx-auto w-full max-w-[200px] aspect-square"
                             >
-                                <ChartTooltip
-                                    cursor={false}
-                                    content={<ChartTooltipContent hideLabel nameKey="level" />}
-                                />
-                                <RadialBar dataKey="students" background>
-                                    <LabelList
-                                        position="insideStart"
-                                        dataKey="level"
-                                        className="fill-white capitalize mix-blend-luminosity"
+                                <RadialBarChart
+                                    data={radialChartData}
+                                    startAngle={-90}
+                                    endAngle={380}
+                                    innerRadius={25}
+                                    outerRadius={80}
+                                >
+                                    <ChartTooltip
+                                        cursor={false}
+                                        content={<ChartTooltipContent hideLabel nameKey="level" />}
+                                    />
+                                    <RadialBar dataKey="students" background>
+                                        <LabelList
+                                            position="insideStart"
+                                            dataKey="level"
+                                            className="fill-white capitalize mix-blend-luminosity"
+                                            fontSize={9}
+                                        />
+                                    </RadialBar>
+                                </RadialBarChart>
+                            </ChartContainer>
+                        </CardContent>
+                        <CardFooter className="pt-0 pb-3">
+                            <div className="w-full flex flex-col gap-1 text-xs">
+                                {radialChartData.map((item) => (
+                                    <div key={item.level} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
+                                            <span className="capitalize text-gray-600 dark:text-gray-400">{item.level}</span>
+                                        </div>
+                                        <span className="font-semibold text-gray-900 dark:text-gray-100">{item.students}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardFooter>
+                    </Card>
+
+                    {/* 2. GRÁFICA DE ÁREA: Ingresos Diarios del Mes (3/4 del espacio) */}
+                    <Card className="flex flex-col bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 lg:col-span-3">
+                        <CardHeader>
+                            <div className="flex items-center justify-between flex-wrap gap-4">
+                                <div>
+                                    <CardTitle className="text-base font-semibold text-gray-900 dark:text-white">Ingresos del mes</CardTitle>
+                                    <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
+                                        {chartMonth.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
+                                    </CardDescription>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={handlePrevMonth}
+                                        className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400"
+                                    >
+                                        <ChevronLeft className="w-5 h-5" />
+                                    </button>
+                                    <span className="px-4 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg font-medium text-sm min-w-[120px] text-center">
+                                        {chartMonth.toLocaleDateString('es-MX', { month: 'short', year: 'numeric' }).toUpperCase()}
+                                    </span>
+                                    <button
+                                        onClick={handleNextMonth}
+                                        className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400"
+                                    >
+                                        <ChevronRight className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pb-2">
+                            <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                                <AreaChart
+                                    accessibilityLayer
+                                    data={chartData}
+                                    margin={{
+                                        left: 0,
+                                        right: 0,
+                                        top: 10,
+                                        bottom: 0,
+                                    }}
+                                >
+                                    <CartesianGrid vertical={false} />
+                                    <XAxis
+                                        dataKey="day"
+                                        tickLine={false}
+                                        tickMargin={4}
+                                        axisLine={false}
+                                        interval={0}
                                         fontSize={9}
                                     />
-                                </RadialBar>
-                            </RadialBarChart>
-                        </ChartContainer>
-                    </CardContent>
-                    <CardFooter className="pt-0 pb-3">
-                        <div className="w-full flex flex-col gap-1 text-xs">
-                            {radialChartData.map((item) => (
-                                <div key={item.level} className="flex items-center justify-between">
-                                    <div className="flex items-center gap-1.5">
-                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
-                                        <span className="capitalize text-gray-600 dark:text-gray-400">{item.level}</span>
-                                    </div>
-                                    <span className="font-semibold text-gray-900 dark:text-gray-100">{item.students}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </CardFooter>
-                </Card>
-
-                {/* 2. GRÁFICA DE ÁREA: Ingresos Diarios del Mes (3/4 del espacio) */}
-                <Card className="flex flex-col bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 lg:col-span-3">
-                    <CardHeader>
-                        <div className="flex items-center justify-between flex-wrap gap-4">
-                            <div>
-                                <CardTitle className="text-base font-semibold text-gray-900 dark:text-white">Ingresos del mes</CardTitle>
-                                <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
-                                    {chartMonth.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
-                                </CardDescription>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={handlePrevMonth}
-                                    className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400"
-                                >
-                                    <ChevronLeft className="w-5 h-5" />
-                                </button>
-                                <span className="px-4 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg font-medium text-sm min-w-[120px] text-center">
-                                    {chartMonth.toLocaleDateString('es-MX', { month: 'short', year: 'numeric' }).toUpperCase()}
+                                    <ChartTooltip
+                                        cursor={false}
+                                        content={<ChartTooltipContent hideLabel />}
+                                    />
+                                    <defs>
+                                        <linearGradient id="fillIncome" x1="0" y1="0" x2="0" y2="1">
+                                            <stop
+                                                offset="5%"
+                                                stopColor="var(--color-total)"
+                                                stopOpacity={0.8}
+                                            />
+                                            <stop
+                                                offset="95%"
+                                                stopColor="var(--color-total)"
+                                                stopOpacity={0.1}
+                                            />
+                                        </linearGradient>
+                                    </defs>
+                                    <Area
+                                        dataKey="total"
+                                        type="natural"
+                                        fill="url(#fillIncome)"
+                                        fillOpacity={0.4}
+                                        stroke="var(--color-total)"
+                                        stackId="a"
+                                    />
+                                </AreaChart>
+                            </ChartContainer>
+                        </CardContent>
+                        <CardFooter className="flex-col gap-2 text-sm text-center">
+                            <div className="flex items-center gap-2 font-medium leading-none">
+                                <span className="text-emerald-600 dark:text-emerald-400 font-bold text-lg">
+                                    ${monthlyTotal.toLocaleString()}
                                 </span>
-                                <button
-                                    onClick={handleNextMonth}
-                                    className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400"
-                                >
-                                    <ChevronRight className="w-5 h-5" />
-                                </button>
+                                <span className="text-gray-500">total del mes</span>
+                                <TrendingUp className="h-4 w-4 text-emerald-500" />
                             </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pb-2">
-                        <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                            <AreaChart
-                                accessibilityLayer
-                                data={chartData}
-                                margin={{
-                                    left: 0,
-                                    right: 0,
-                                    top: 10,
-                                    bottom: 0,
-                                }}
-                            >
-                                <CartesianGrid vertical={false} />
-                                <XAxis
-                                    dataKey="day"
-                                    tickLine={false}
-                                    tickMargin={4}
-                                    axisLine={false}
-                                    interval={0}
-                                    fontSize={9}
-                                />
-                                <ChartTooltip
-                                    cursor={false}
-                                    content={<ChartTooltipContent hideLabel />}
-                                />
-                                <defs>
-                                    <linearGradient id="fillIncome" x1="0" y1="0" x2="0" y2="1">
-                                        <stop
-                                            offset="5%"
-                                            stopColor="var(--color-total)"
-                                            stopOpacity={0.8}
-                                        />
-                                        <stop
-                                            offset="95%"
-                                            stopColor="var(--color-total)"
-                                            stopOpacity={0.1}
-                                        />
-                                    </linearGradient>
-                                </defs>
-                                <Area
-                                    dataKey="total"
-                                    type="natural"
-                                    fill="url(#fillIncome)"
-                                    fillOpacity={0.4}
-                                    stroke="var(--color-total)"
-                                    stackId="a"
-                                />
-                            </AreaChart>
-                        </ChartContainer>
-                    </CardContent>
-                    <CardFooter className="flex-col gap-2 text-sm text-center">
-                        <div className="flex items-center gap-2 font-medium leading-none">
-                            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-lg">
-                                ${monthlyTotal.toLocaleString()}
-                            </span>
-                            <span className="text-gray-500">total del mes</span>
-                            <TrendingUp className="h-4 w-4 text-emerald-500" />
-                        </div>
-                    </CardFooter>
-                </Card>
-            </div>
+                        </CardFooter>
+                    </Card>
+                </div>
             )}
 
 
@@ -455,6 +478,7 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Estudiante</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Concepto</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Monto</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Método</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Confirmado por</th>
                                 </tr>
                             </thead>
@@ -497,6 +521,31 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                                                 </td>
                                                 <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400">
                                                     ${payment.amount.toFixed(2)}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {(() => {
+                                                        const method = paymentMethodOverrides[payment.id] || payment.paymentMethod || "efectivo";
+                                                        const isUpdating = updatingPaymentId === payment.id;
+                                                        return method === "transferencia" ? (
+                                                            <button
+                                                                onClick={() => handleTogglePaymentMethod(payment.id, method)}
+                                                                disabled={isUpdating}
+                                                                className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-100 dark:border-blue-800 font-medium cursor-pointer hover:opacity-70 transition-opacity disabled:opacity-50"
+                                                                title="Click para cambiar a Efectivo"
+                                                            >
+                                                                {isUpdating ? "..." : "Transferencia"}
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => handleTogglePaymentMethod(payment.id, method)}
+                                                                disabled={isUpdating}
+                                                                className="text-xs px-2 py-1 rounded-full bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 border border-green-100 dark:border-green-800 font-medium cursor-pointer hover:opacity-70 transition-opacity disabled:opacity-50"
+                                                                title="Click para cambiar a Transferencia"
+                                                            >
+                                                                {isUpdating ? "..." : "Efectivo"}
+                                                            </button>
+                                                        );
+                                                    })()}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-100 dark:border-blue-800">
