@@ -77,6 +77,14 @@ const PRICE_OPTIONS = [
     { value: "custom", label: "Otro (personalizado)" },
 ] as const;
 
+const EMAIL_DOMAINS = [
+    { value: "gmail.com", label: "@gmail.com" },
+    { value: "hotmail.com", label: "@hotmail.com" },
+    { value: "outlook.com", label: "@outlook.com" },
+    { value: "yahoo.com", label: "@yahoo.com" },
+] as const;
+
+
 // ============================================
 // COMPONENTE PRINCIPAL
 // ============================================
@@ -140,6 +148,7 @@ export default function SuperAdminDashboard() {
         password: "",
         confirmPassword: "",
     });
+    const [emailDomain, setEmailDomain] = useState("gmail.com");
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [adminFormErrors, setAdminFormErrors] = useState<Partial<NewAdminForm & { confirmPassword?: string }>>({});
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -424,6 +433,7 @@ export default function SuperAdminDashboard() {
             setShowCreateModal(false);
             setShowCredentialModal(true);
             setFormData({ name: "", email: "", studentPhone: "", emergencyPhone: "", level: "Beginner 1", priceOption: "149.50", customPrice: "", paymentScheme: "monthly_28", classDays: [], enrollmentDate: new Date().toLocaleDateString('en-CA'), enrollmentFee: "0", enrollmentPaymentMethod: "efectivo" });
+            setEmailDomain("gmail.com");
         } catch (error) {
             console.error("Error creando estudiante:", error);
             const message = error instanceof Error ? error.message : "Error al crear";
@@ -991,8 +1001,8 @@ export default function SuperAdminDashboard() {
                                         <div className="flex items-center">
                                             <input
                                                 type="text"
-                                                value={formData.email.replace('@gmail.com', '')}
-                                                onChange={(e) => setFormData({ ...formData, email: e.target.value.replace(/@.*/, '') + '@gmail.com' })}
+                                                value={formData.email.replace(/@.*$/, '')}
+                                                onChange={(e) => setFormData({ ...formData, email: e.target.value.replace(/@.*/, '') + '@' + emailDomain })}
                                                 placeholder="usuario"
                                                 className="w-full px-4 py-2.5 rounded-l-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                                 style={{
@@ -1002,17 +1012,31 @@ export default function SuperAdminDashboard() {
                                                     borderRight: 'none'
                                                 }}
                                             />
-                                            <span
-                                                className="px-4 py-2.5 rounded-r-xl text-sm font-medium whitespace-nowrap"
+                                            <select
+                                                value={emailDomain}
+                                                onChange={(e) => {
+                                                    const newDomain = e.target.value;
+                                                    setEmailDomain(newDomain);
+                                                    const username = formData.email.replace(/@.*$/, '');
+                                                    if (username) {
+                                                        setFormData({ ...formData, email: username + '@' + newDomain });
+                                                    }
+                                                }}
+                                                className="px-3 py-2.5 rounded-r-xl text-sm font-medium whitespace-nowrap cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                                 style={{
                                                     background: 'var(--surface)',
-                                                    borderColor: formErrors.email ? '#ef4444' : 'var(--input-border)',
                                                     border: `1px solid ${formErrors.email ? '#ef4444' : 'var(--input-border)'}`,
-                                                    color: 'var(--text-tertiary)'
+                                                    color: 'var(--text-tertiary)',
+                                                    borderLeft: 'none',
+                                                    minWidth: '140px'
                                                 }}
                                             >
-                                                @gmail.com
-                                            </span>
+                                                {EMAIL_DOMAINS.map((domain) => (
+                                                    <option key={domain.value} value={domain.value}>
+                                                        {domain.label}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         </div>
                                         {formErrors.email && <p className="mt-1 text-xs text-red-500">{formErrors.email}</p>}
                                     </div>
@@ -1287,8 +1311,8 @@ export default function SuperAdminDashboard() {
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, enrollmentPaymentMethod: "efectivo" })}
                                                 className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 border-2 ${formData.enrollmentPaymentMethod === "efectivo"
-                                                        ? "bg-green-500/15 border-green-500 text-green-600 dark:text-green-400 shadow-sm shadow-green-500/10"
-                                                        : "bg-gray-100 dark:bg-slate-700/50 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500"
+                                                    ? "bg-green-500/15 border-green-500 text-green-600 dark:text-green-400 shadow-sm shadow-green-500/10"
+                                                    : "bg-gray-100 dark:bg-slate-700/50 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500"
                                                     }`}
                                             >
                                                 <Banknote className={`w-4 h-4 ${formData.enrollmentPaymentMethod === "efectivo" ? "text-green-500" : "text-gray-400"}`} strokeWidth={2} />
@@ -1298,8 +1322,8 @@ export default function SuperAdminDashboard() {
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, enrollmentPaymentMethod: "transferencia" })}
                                                 className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 border-2 ${formData.enrollmentPaymentMethod === "transferencia"
-                                                        ? "bg-blue-500/15 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/10"
-                                                        : "bg-gray-100 dark:bg-slate-700/50 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500"
+                                                    ? "bg-blue-500/15 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/10"
+                                                    : "bg-gray-100 dark:bg-slate-700/50 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500"
                                                     }`}
                                             >
                                                 <ArrowRightLeft className={`w-4 h-4 ${formData.enrollmentPaymentMethod === "transferencia" ? "text-blue-500" : "text-gray-400"}`} strokeWidth={2} />
