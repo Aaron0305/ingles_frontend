@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Student } from "./credential";
 import CredentialModal from "./credential";
-import { Search, QrCode, Shield, Filter, IdCard, Sparkles, ArrowRight, Repeat2 } from "lucide-react";
+import { Search, Shield, Filter, IdCard, Sparkles, ArrowRight, Repeat2, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const CARDS_PER_PAGE = 10;
 
 interface CredentialsPanelProps {
     students: Student[];
@@ -104,7 +106,7 @@ function StudentCardFlip({ student, index, onViewCredential }: StudentCardFlipPr
     return (
         <div
             className="card-animate group relative h-[320px] w-full [perspective:2000px]"
-            style={{ animationDelay: `${index * 0.06}s` }}
+            style={{ animationDelay: `${(index % CARDS_PER_PAGE) * 0.06}s` }}
             onMouseEnter={() => setIsFlipped(true)}
             onMouseLeave={() => setIsFlipped(false)}
         >
@@ -136,10 +138,10 @@ function StudentCardFlip({ student, index, onViewCredential }: StudentCardFlipPr
                         "relative h-full overflow-hidden bg-gradient-to-b",
                         tunnel.gradient
                     )}>
-                        {/* Tunnel / Ripple Animation */}
+                        {/* Tunnel / Ripple Animation — reduced from 10 to 4 for performance */}
                         <div className="absolute inset-0 flex items-start justify-center pt-16">
                             <div className="relative flex h-[100px] w-[200px] items-center justify-center">
-                                {[...Array(10)].map((_, i) => (
+                                {[...Array(4)].map((_, i) => (
                                     <div
                                         className={cn(
                                             "absolute h-[50px] w-[50px]",
@@ -150,7 +152,7 @@ function StudentCardFlip({ student, index, onViewCredential }: StudentCardFlipPr
                                         )}
                                         key={i}
                                         style={{
-                                            animationDelay: `${i * 0.3}s`,
+                                            animationDelay: `${i * 0.75}s`,
                                             boxShadow: `0 0 50px ${tunnel.shadow}`,
                                         }}
                                     />
@@ -316,35 +318,89 @@ function StudentCardFlip({ student, index, onViewCredential }: StudentCardFlipPr
 
 export default function CredentialsPanel({ students }: CredentialsPanelProps) {
     const [searchTerm, setSearchTerm] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [filterLevel, setFilterLevel] = useState<string>("all");
     const [filterStatus, setFilterStatus] = useState<string>("all");
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [showCredentialModal, setShowCredentialModal] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-    // Filtrar estudiantes
-    const filteredStudents = students.filter(student => {
-        const search = searchTerm.toLowerCase().trim();
-        const isNumeric = /^\d+$/.test(search);
+    // Debounce search input — wait 300ms after user stops typing
+    const handleSearchChange = useCallback((value: string) => {
+        setSearchTerm(value);
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => {
+            setDebouncedSearch(value);
+            setCurrentPage(1);
+        }, 300);
+    }, []);
 
-        const matchesSearch = search === "" || (
-            isNumeric
-                ? student.studentNumber.toString().includes(search)
-                : (
-                    student.studentNumber.toLowerCase().includes(search) ||
-                    student.name.toLowerCase().includes(search)
-                )
-        );
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        };
+    }, []);
 
-        const matchesLevel = filterLevel === "all" || student.level === filterLevel;
-        const matchesStatus = filterStatus === "all" || student.status === filterStatus;
+    // Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterLevel, filterStatus]);
 
-        return matchesSearch && matchesLevel && matchesStatus;
-    });
+    // Filtrar estudiantes con búsqueda debounced
+    const filteredStudents = useMemo(() => {
+        return students.filter(student => {
+            const search = debouncedSearch.toLowerCase().trim();
+            const isNumeric = /^\d+$/.test(search);
 
-    const handleViewCredential = (student: Student) => {
+            const matchesSearch = search === "" || (
+                isNumeric
+                    ? student.studentNumber.toString().includes(search)
+                    : (
+                        student.studentNumber.toLowerCase().includes(search) ||
+                        student.name.toLowerCase().includes(search)
+                    )
+            );
+
+            const matchesLevel = filterLevel === "all" || student.level === filterLevel;
+            const matchesStatus = filterStatus === "all" || student.status === filterStatus;
+
+            return matchesSearch && matchesLevel && matchesStatus;
+        });
+    }, [students, debouncedSearch, filterLevel, filterStatus]);
+
+    // Page-based pagination
+    const totalPages = Math.max(1, Math.ceil(filteredStudents.length / CARDS_PER_PAGE));
+    const safeCurrentPage = Math.min(currentPage, totalPages);
+    const startIndex = (safeCurrentPage - 1) * CARDS_PER_PAGE;
+    const endIndex = startIndex + CARDS_PER_PAGE;
+
+    const visibleStudents = useMemo(() => {
+        return filteredStudents.slice(startIndex, endIndex);
+    }, [filteredStudents, startIndex, endIndex]);
+
+    // Generate page numbers with ellipsis
+    const getPageNumbers = useCallback(() => {
+        const pages: (number | '...')[] = [];
+        if (totalPages <= 7) {
+            for (let i = 1; i <= totalPages; i++) pages.push(i);
+        } else {
+            pages.push(1);
+            if (safeCurrentPage > 3) pages.push('...');
+            const start = Math.max(2, safeCurrentPage - 1);
+            const end = Math.min(totalPages - 1, safeCurrentPage + 1);
+            for (let i = start; i <= end; i++) pages.push(i);
+            if (safeCurrentPage < totalPages - 2) pages.push('...');
+            pages.push(totalPages);
+        }
+        return pages;
+    }, [totalPages, safeCurrentPage]);
+
+    const handleViewCredential = useCallback((student: Student) => {
         setSelectedStudent(student);
         setShowCredentialModal(true);
-    };
+    }, []);
 
     return (
         <div className="space-y-6">
@@ -408,7 +464,7 @@ export default function CredentialsPanel({ students }: CredentialsPanelProps) {
                             type="text"
                             placeholder="Buscar por nombre o matrícula..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => handleSearchChange(e.target.value)}
                             className="block w-full pl-10 pr-24 py-3 rounded-xl border border-gray-200 dark:border-gray-700/50 bg-gray-50/50 dark:bg-slate-900/50 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
                         />
                         <div className="absolute inset-y-0 right-0 flex items-center pr-2">
@@ -461,11 +517,22 @@ export default function CredentialsPanel({ students }: CredentialsPanelProps) {
                         </div>
                     </div>
                 </div>
+
+                {/* Counter info */}
+                <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>
+                        Mostrando <span className="font-semibold text-gray-700 dark:text-gray-200">{Math.min(startIndex + 1, filteredStudents.length)}-{Math.min(endIndex, filteredStudents.length)}</span> de{" "}
+                        <span className="font-semibold text-gray-700 dark:text-gray-200">{filteredStudents.length}</span> estudiantes
+                    </span>
+                    {filteredStudents.length !== students.length && (
+                        <span className="text-blue-500 font-medium">Filtro activo</span>
+                    )}
+                </div>
             </div>
 
             {/* Grid de Cards Flip */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredStudents.length === 0 ? (
+                {visibleStudents.length === 0 ? (
                     <div className="col-span-full py-16 text-center animate-fade-in">
                         <div className="w-20 h-20 bg-gray-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Shield className="w-10 h-10 text-gray-300" strokeWidth={1.5} />
@@ -474,7 +541,7 @@ export default function CredentialsPanel({ students }: CredentialsPanelProps) {
                         <p className="text-gray-500 text-sm">Intenta ajustar los filtros de búsqueda</p>
                     </div>
                 ) : (
-                    filteredStudents.map((student, index) => (
+                    visibleStudents.map((student, index) => (
                         <StudentCardFlip
                             key={student.id}
                             student={student}
@@ -484,6 +551,69 @@ export default function CredentialsPanel({ students }: CredentialsPanelProps) {
                     ))
                 )}
             </div>
+
+            {/* Paginación */}
+            {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 pb-4">
+                    <div className="flex items-center gap-1.5">
+                        {/* Anterior */}
+                        <button
+                            onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            disabled={safeCurrentPage === 1}
+                            className={cn(
+                                "flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer",
+                                "border border-zinc-200 dark:border-zinc-700",
+                                safeCurrentPage === 1
+                                    ? "opacity-40 cursor-not-allowed bg-zinc-50 dark:bg-zinc-900 text-zinc-400"
+                                    : "bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm"
+                            )}
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            <span className="hidden sm:inline">Anterior</span>
+                        </button>
+
+                        {/* Números de página */}
+                        {getPageNumbers().map((page, i) =>
+                            page === '...' ? (
+                                <span key={`ellipsis-${i}`} className="px-2 py-2 text-sm text-zinc-400 dark:text-zinc-500 select-none">...</span>
+                            ) : (
+                                <button
+                                    key={page}
+                                    onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                    className={cn(
+                                        "min-w-[36px] h-9 px-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer",
+                                        page === safeCurrentPage
+                                            ? "bg-blue-500 text-white shadow-md shadow-blue-500/25 scale-105 border border-blue-500"
+                                            : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-700"
+                                    )}
+                                >
+                                    {page}
+                                </button>
+                            )
+                        )}
+
+                        {/* Siguiente */}
+                        <button
+                            onClick={() => { setCurrentPage(p => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            disabled={safeCurrentPage === totalPages}
+                            className={cn(
+                                "flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer",
+                                "border border-zinc-200 dark:border-zinc-700",
+                                safeCurrentPage === totalPages
+                                    ? "opacity-40 cursor-not-allowed bg-zinc-50 dark:bg-zinc-900 text-zinc-400"
+                                    : "bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm"
+                            )}
+                        >
+                            <span className="hidden sm:inline">Siguiente</span>
+                            <ChevronRight className="h-4 w-4" />
+                        </button>
+                    </div>
+
+                    <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                        Página {safeCurrentPage} de {totalPages}
+                    </span>
+                </div>
+            )}
 
             {/* Modal de Credencial */}
             {selectedStudent && (
