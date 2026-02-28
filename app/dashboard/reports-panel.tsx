@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Download, ChevronLeft, ChevronRight, TrendingUp, BarChart3, CircleDollarSign, Users, Search } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Student } from "./credential";
-import { paymentsApi } from "@/lib/api";
 import {
     LabelList,
     RadialBar,
@@ -54,26 +53,6 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [chartMonth, setChartMonth] = useState<Date>(new Date()); // Mes para la gráfica de ingresos
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const [paymentMethodOverrides, setPaymentMethodOverrides] = useState<Record<string, "efectivo" | "transferencia">>({});
-    const [updatingPaymentId, setUpdatingPaymentId] = useState<string | null>(null);
-
-    // Función para cambiar el método de pago
-    const handleTogglePaymentMethod = async (paymentId: string, currentMethod: "efectivo" | "transferencia") => {
-        const newMethod = currentMethod === "efectivo" ? "transferencia" : "efectivo";
-        setUpdatingPaymentId(paymentId);
-        try {
-            await paymentsApi.updatePaymentMethod(paymentId, newMethod);
-            setPaymentMethodOverrides(prev => ({ ...prev, [paymentId]: newMethod }));
-            setSaveMessage({ type: 'success', text: `Método cambiado a ${newMethod === 'efectivo' ? 'Efectivo' : 'Transferencia'}` });
-            setTimeout(() => setSaveMessage(null), 2000);
-        } catch (err) {
-            console.error("Error actualizando método de pago:", err);
-            setSaveMessage({ type: 'error', text: 'Error al actualizar método de pago' });
-            setTimeout(() => setSaveMessage(null), 3000);
-        } finally {
-            setUpdatingPaymentId(null);
-        }
-    };
 
     // Navegación de meses para la gráfica
     const handlePrevMonth = () => {
@@ -524,26 +503,15 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     {(() => {
-                                                        const method = paymentMethodOverrides[payment.id] || payment.paymentMethod || "efectivo";
-                                                        const isUpdating = updatingPaymentId === payment.id;
+                                                        const method = payment.paymentMethod || "efectivo";
                                                         return method === "transferencia" ? (
-                                                            <button
-                                                                onClick={() => handleTogglePaymentMethod(payment.id, method)}
-                                                                disabled={isUpdating}
-                                                                className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-100 dark:border-blue-800 font-medium cursor-pointer hover:opacity-70 transition-opacity disabled:opacity-50"
-                                                                title="Click para cambiar a Efectivo"
-                                                            >
-                                                                {isUpdating ? "..." : "Transferencia"}
-                                                            </button>
+                                                            <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-100 dark:border-blue-800 font-medium">
+                                                                Transferencia
+                                                            </span>
                                                         ) : (
-                                                            <button
-                                                                onClick={() => handleTogglePaymentMethod(payment.id, method)}
-                                                                disabled={isUpdating}
-                                                                className="text-xs px-2 py-1 rounded-full bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 border border-green-100 dark:border-green-800 font-medium cursor-pointer hover:opacity-70 transition-opacity disabled:opacity-50"
-                                                                title="Click para cambiar a Transferencia"
-                                                            >
-                                                                {isUpdating ? "..." : "Efectivo"}
-                                                            </button>
+                                                            <span className="text-xs px-2 py-1 rounded-full bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 border border-green-100 dark:border-green-800 font-medium">
+                                                                Efectivo
+                                                            </span>
                                                         );
                                                     })()}
                                                 </td>
