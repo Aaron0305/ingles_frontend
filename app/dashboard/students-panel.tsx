@@ -522,7 +522,7 @@ export default function StudentsPanel({ students, setStudents, userRole = "admin
                                                 className={`p-1.5 rounded-lg transition-colors ${userRole === "superadmin"
                                                     ? "text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 cursor-pointer"
                                                     : "text-gray-400 bg-gray-500/10 cursor-not-allowed opacity-50"
-                                                }`}
+                                                    }`}
                                                 title={userRole === "superadmin" ? "Eliminar Estudiante" : "No tienes permiso para eliminar"}
                                             >
                                                 <Trash2 className="w-4 h-4" strokeWidth={2} />
@@ -820,26 +820,31 @@ export default function StudentsPanel({ students, setStudents, userRole = "admin
                                             const isSelected = currentDays.includes(day.id);
                                             const isMaxReached = currentDays.length >= 6 && !isSelected;
                                             return (
-                                            <button
-                                                key={day.id}
-                                                type="button"
-                                                disabled={isMaxReached}
-                                                onClick={() => {
-                                                    if (isSelected) {
-                                                        setEditFormData({ ...editFormData, classDays: currentDays.filter(d => d !== day.id) });
-                                                    } else if (currentDays.length < 6) {
-                                                        setEditFormData({ ...editFormData, classDays: [...currentDays, day.id] });
-                                                    }
-                                                }}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isSelected
-                                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
-                                                    : isMaxReached
-                                                        ? "bg-gray-800/30 text-gray-600 cursor-not-allowed"
-                                                        : "bg-gray-700/50 text-gray-400 hover:bg-gray-600/50"
-                                                    }`}
-                                            >
-                                                {day.label}
-                                            </button>
+                                                <button
+                                                    key={day.id}
+                                                    type="button"
+                                                    disabled={isMaxReached}
+                                                    onClick={() => {
+                                                        if (isSelected) {
+                                                            setEditFormData({ ...editFormData, classDays: currentDays.filter(d => d !== day.id) });
+                                                        } else if (currentDays.length < 6) {
+                                                            setEditFormData({ ...editFormData, classDays: [...currentDays, day.id] });
+                                                        }
+                                                    }}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isSelected
+                                                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                                                        : ""
+                                                        }`}
+                                                    style={!isSelected ? {
+                                                        background: isMaxReached ? 'var(--surface-alt)' : 'var(--input-bg)',
+                                                        color: isMaxReached ? 'var(--text-tertiary)' : 'var(--text-secondary)',
+                                                        border: '1px solid var(--border-color)',
+                                                        cursor: isMaxReached ? 'not-allowed' : 'pointer',
+                                                        opacity: isMaxReached ? 0.5 : 1,
+                                                    } : undefined}
+                                                >
+                                                    {day.label}
+                                                </button>
                                             );
                                         })}
                                     </div>

@@ -189,7 +189,7 @@ export default function SuperAdminDashboard() {
         const authenticateAndRegister = () => {
             const token = localStorage.getItem("token");
             if (token) {
-                console.log("🔄 Enviando autenticación (Super Admin)...");
+                console.log(" Enviando autenticación (Super Admin)...");
                 newSocket.emit("authenticate", { token });
             } else {
                 console.error("❌ No hay token para autenticar socket");
@@ -197,34 +197,34 @@ export default function SuperAdminDashboard() {
         };
 
         newSocket.on("connect", () => {
-            console.log("✅ Socket conectado (Super Admin) - ID:", newSocket.id);
+            console.log(" Socket conectado (Super Admin) - ID:", newSocket.id);
             authenticateAndRegister();
         });
 
         // Cuando se reconecta, volver a autenticar
         newSocket.on("reconnect", () => {
-            console.log("🔄 Socket reconectado - re-autenticando...");
+            console.log(" Socket reconectado - re-autenticando...");
             authenticateAndRegister();
         });
 
         // Cuando la autenticación es exitosa, registrarse como admin
         newSocket.on("auth-success", (data) => {
-            console.log("🔐 Socket autenticado:", data.user?.name);
+            console.log(" Socket autenticado:", data.user?.name);
             newSocket.emit("register-admin");
-            console.log("📝 Solicitando registro como admin...");
+            console.log(" Solicitando registro como admin...");
         });
 
         newSocket.on("registered", (data) => {
-            console.log("✅ Registrado como admin correctamente:", data);
+            console.log(" Registrado como admin correctamente:", data);
         });
 
         newSocket.on("auth-failed", (data) => {
-            console.error("❌ Autenticación de socket fallida:", data.message);
+            console.error(" Autenticación de socket fallida:", data.message);
         });
 
         // Escuchar solicitudes de pago (QR)
         newSocket.on("payment-request", (data: any) => {
-            console.log("📱 Solicitud de pago recibida (Super Admin):", data);
+            console.log(" Solicitud de pago recibida (Super Admin):", data);
             setPendingPaymentRequest(data);
             setActiveTab("payments");
 
@@ -238,7 +238,7 @@ export default function SuperAdminDashboard() {
         });
 
         newSocket.on("disconnect", (reason) => {
-            console.log("❌ Socket desconectado. Razón:", reason);
+            console.log(" Socket desconectado. Razón:", reason);
         });
 
         newSocket.on("connect_error", (error) => {
@@ -1255,10 +1255,15 @@ export default function SuperAdminDashboard() {
                                                         }}
                                                         className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${isSelected
                                                             ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
-                                                            : isMaxReached
-                                                                ? "bg-gray-800/30 text-gray-600 cursor-not-allowed"
-                                                                : "bg-gray-700/50 text-gray-400 hover:bg-gray-600/50"
+                                                            : ""
                                                             }`}
+                                                        style={!isSelected ? {
+                                                            background: isMaxReached ? 'var(--surface-alt)' : 'var(--input-bg)',
+                                                            color: isMaxReached ? 'var(--text-tertiary)' : 'var(--text-secondary)',
+                                                            border: '1px solid var(--border-color)',
+                                                            cursor: isMaxReached ? 'not-allowed' : 'pointer',
+                                                            opacity: isMaxReached ? 0.5 : 1,
+                                                        } : undefined}
                                                     >
                                                         {day.label}
                                                     </button>
