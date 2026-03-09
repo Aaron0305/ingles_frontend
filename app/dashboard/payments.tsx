@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, useTransition } from "react";
 import { Student } from "./credential";
 import { Socket } from "socket.io-client";
 import { holidaysApi, CustomHoliday } from "@/lib/api";
@@ -1764,6 +1764,13 @@ export default function PaymentsPanel({
     const [currentPage, setCurrentPage] = useState(1);
     const PAGE_SIZE = 10;
 
+    // Estado para el modal de filtro de días vencidos
+    const [showOverdueDaysModal, setShowOverdueDaysModal] = useState(false);
+    const [overdueFilterDays, setOverdueFilterDays] = useState<number[]>([]); // días seleccionados para filtrar vencidos
+
+    // useTransition para que los cambios de filtro no bloqueen la UI
+    const [isFilterPending, startFilterTransition] = useTransition();
+
     // Estado para el escaneo QR en tiempo real
     const [scanRequest, setScanRequest] = useState<PaymentScanRequest | null>(null);
     const [showScanNotification, setShowScanNotification] = useState(false);
@@ -1985,33 +1992,72 @@ export default function PaymentsPanel({
         return false;
     };
 
-    const filteredStudents = students.filter(student => {
-        const search = searchTerm.toLowerCase();
-        const matchesSearch = (
-            search === "" || !isNaN(Number(search))
-                ? student.studentNumber.toString().includes(search)
-                : (
-                    student.name.toLowerCase().includes(search) ||
-                    student.studentNumber.toLowerCase().includes(search)
-                )
-        );
+    // Cache de búsqueda en lowercase para no recalcular en cada estudiante
+    const searchLower = useMemo(() => searchTerm.toLowerCase(), [searchTerm]);
+    const searchIsNumber = useMemo(() => searchLower !== '' && !isNaN(Number(searchLower)), [searchLower]);
 
-        const matchesPaymentStatus = (() => {
+    // Pre-calcular estados costosos SOLO cuando el filtro lo necesita
+    const overdueCache = useMemo(() => {
+        if (filterPaymentStatus !== 'overdue') return new Map<string, boolean>();
+        const cache = new Map<string, boolean>();
+        for (const student of students) {
+            if (student.status === 'baja') continue;
+            cache.set(student.id, isStudentOverdue(student, payments));
+        }
+        return cache;
+    }, [filterPaymentStatus, students, payments]);
+
+    const pendingCache = useMemo(() => {
+        if (filterPaymentStatus !== 'pending') return new Map<string, boolean>();
+        const cache = new Map<string, boolean>();
+        for (const student of students) {
+            if (student.status === 'baja') continue;
+            cache.set(student.id, hasPendingPayments(student, payments));
+        }
+        return cache;
+    }, [filterPaymentStatus, students, payments]);
+
+    const filteredStudents = useMemo(() => {
+        return students.filter(student => {
+            // Excluir bajas primero (más rápido)
+            if (student.status === 'baja') return false;
+
+            // Búsqueda por nombre/matrícula
+            const matchesSearch = (
+                searchLower === '' || searchIsNumber
+                    ? student.studentNumber.toString().includes(searchLower)
+                    : (
+                        student.name.toLowerCase().includes(searchLower) ||
+                        student.studentNumber.toLowerCase().includes(searchLower)
+                    )
+            );
+            if (!matchesSearch) return false;
+
+            // Filtro de estado de pago
             if (filterPaymentStatus === 'all') return true;
 
-            const hasOverdue = isStudentOverdue(student, payments);
-            const hasPending = hasPendingPayments(student, payments);
-            const hasPartial = payments.some(p => p.studentId === student.id && p.year === selectedYear && p.status === 'paid' && p.paymentPercentage !== undefined && p.paymentPercentage < 100);
+            if (filterPaymentStatus === 'overdue') {
+                const hasOverdue = overdueCache.get(student.id) ?? false;
+                if (!hasOverdue) return false;
+                if (overdueFilterDays.length > 0) {
+                    const studentDays = student.classDays && student.classDays.length > 0 ? student.classDays : [];
+                    if (studentDays.length === 0) return true;
+                    return studentDays.some(d => overdueFilterDays.includes(d));
+                }
+                return true;
+            }
 
-            if (filterPaymentStatus === 'overdue') return hasOverdue;
-            if (filterPaymentStatus === 'pending') return hasPending;
-            if (filterPaymentStatus === 'partial') return hasPartial;
+            if (filterPaymentStatus === 'pending') {
+                return pendingCache.get(student.id) ?? false;
+            }
+
+            if (filterPaymentStatus === 'partial') {
+                return payments.some(p => p.studentId === student.id && p.year === selectedYear && p.status === 'paid' && p.paymentPercentage !== undefined && p.paymentPercentage < 100);
+            }
 
             return true;
-        })();
-
-        return matchesSearch && matchesPaymentStatus && student.status !== 'baja';
-    });
+        });
+    }, [students, payments, searchLower, searchIsNumber, filterPaymentStatus, overdueCache, pendingCache, overdueFilterDays, selectedYear]);
 
     const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
     const safePage = Math.min(currentPage, totalPages);
@@ -2047,7 +2093,7 @@ export default function PaymentsPanel({
                     {/* Filtros de Estado de Pago */}
                     <div className="flex bg-gray-100 dark:bg-slate-700/50 p-1 rounded-xl">
                         <button
-                            onClick={() => setFilterPaymentStatus('all')}
+                            onClick={() => startFilterTransition(() => setFilterPaymentStatus('all'))}
                             className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${filterPaymentStatus === 'all'
                                 ? 'bg-white dark:bg-slate-600 text-blue-600 shadow-sm'
                                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
@@ -2056,7 +2102,7 @@ export default function PaymentsPanel({
                             Todos
                         </button>
                         <button
-                            onClick={() => setFilterPaymentStatus('pending')}
+                            onClick={() => startFilterTransition(() => setFilterPaymentStatus('pending'))}
                             className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${filterPaymentStatus === 'pending'
                                 ? 'bg-white dark:bg-slate-600 text-amber-600 shadow-sm'
                                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
@@ -2065,7 +2111,7 @@ export default function PaymentsPanel({
                             Pendientes
                         </button>
                         <button
-                            onClick={() => setFilterPaymentStatus('partial')}
+                            onClick={() => startFilterTransition(() => setFilterPaymentStatus('partial'))}
                             className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${filterPaymentStatus === 'partial'
                                 ? 'bg-white dark:bg-slate-600 text-amber-500 shadow-sm'
                                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
@@ -2074,7 +2120,7 @@ export default function PaymentsPanel({
                             Parciales
                         </button>
                         <button
-                            onClick={() => setFilterPaymentStatus('overdue')}
+                            onClick={() => { setOverdueFilterDays([]); setShowOverdueDaysModal(true); }}
                             className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${filterPaymentStatus === 'overdue'
                                 ? 'bg-white dark:bg-slate-600 text-red-600 shadow-sm'
                                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
@@ -2239,6 +2285,106 @@ export default function PaymentsPanel({
                 onCancel={() => setShowCancelModal(false)}
                 isProcessing={isProcessingCancel}
             />
+
+            {/* Modal de selección de días para filtro de vencidos */}
+            {showOverdueDaysModal && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                    <div className="rounded-2xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-150" style={{ background: 'var(--modal-bg, #1e293b)' }}>
+                        {/* Header */}
+                        <div className="relative flex justify-center mb-4">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center shadow-lg shadow-red-500/30">
+                                <Filter className="w-8 h-8 text-white" strokeWidth={2} />
+                            </div>
+                        </div>
+                        <h3 className="text-xl font-bold mb-2 text-center" style={{ color: 'var(--text-primary)' }}>
+                            Filtrar Pagos Vencidos
+                        </h3>
+                        <p className="text-sm mb-5 text-center" style={{ color: 'var(--text-secondary)' }}>
+                            Selecciona los días de clase para ver solo los alumnos vencidos de esos días
+                        </p>
+
+                        {/* Días de la semana */}
+                        <div className="grid grid-cols-4 gap-2 mb-6">
+                            {[
+                                { id: 1, label: 'Lunes', short: 'Lun' },
+                                { id: 2, label: 'Martes', short: 'Mar' },
+                                { id: 3, label: 'Miércoles', short: 'Mié' },
+                                { id: 4, label: 'Jueves', short: 'Jue' },
+                                { id: 5, label: 'Viernes', short: 'Vie' },
+                                { id: 6, label: 'Sábado', short: 'Sáb' },
+                            ].map(day => {
+                                const isSelected = overdueFilterDays.includes(day.id);
+                                return (
+                                    <button
+                                        key={day.id}
+                                        onClick={() => {
+                                            setOverdueFilterDays(prev =>
+                                                prev.includes(day.id)
+                                                    ? prev.filter(d => d !== day.id)
+                                                    : [...prev, day.id]
+                                            );
+                                        }}
+                                        className={`px-3 py-3 rounded-xl text-sm font-semibold transition-all border-2 ${isSelected
+                                            ? 'bg-red-500/20 border-red-500 text-red-400 shadow-sm shadow-red-500/20'
+                                            : 'border-gray-600/50 text-gray-400 hover:border-gray-500 hover:text-gray-300'
+                                            }`}
+                                    >
+                                        <span className="hidden sm:inline">{day.label}</span>
+                                        <span className="sm:hidden">{day.short}</span>
+                                        {isSelected && (
+                                            <Check className="w-3.5 h-3.5 inline ml-1" />
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Botones de acción */}
+                        <div className="flex flex-col gap-2">
+                            <button
+                                onClick={() => {
+                                    setShowOverdueDaysModal(false);
+                                    startFilterTransition(() => setFilterPaymentStatus('overdue'));
+                                }}
+                                disabled={overdueFilterDays.length === 0}
+                                className={`w-full py-3 font-semibold rounded-xl transition-all shadow-lg ${overdueFilterDays.length > 0
+                                    ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-red-500/25'
+                                    : 'bg-gray-600/50 text-gray-400 cursor-not-allowed shadow-none'
+                                    }`}
+                            >
+                                {overdueFilterDays.length > 0
+                                    ? `Filtrar por ${overdueFilterDays.map(d => ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][d]).join(', ')}`
+                                    : 'Selecciona al menos un día'
+                                }
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setOverdueFilterDays([]);
+                                    setShowOverdueDaysModal(false);
+                                    startFilterTransition(() => setFilterPaymentStatus('overdue'));
+                                }}
+                                className="w-full py-3 text-white font-semibold rounded-xl transition-all bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/25"
+                            >
+                                Ver todos los vencidos
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowOverdueDaysModal(false);
+                                    if (filterPaymentStatus === 'overdue') {
+                                        startFilterTransition(() => {
+                                            setFilterPaymentStatus('all');
+                                            setOverdueFilterDays([]);
+                                        });
+                                    }
+                                }}
+                                className="w-full py-3 font-semibold rounded-xl transition-all border-2 border-gray-600/50 text-gray-400 hover:border-gray-500 hover:text-gray-300"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }
