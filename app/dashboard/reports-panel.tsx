@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Download, ChevronLeft, ChevronRight, TrendingUp, BarChart3, CircleDollarSign, Users, Search } from "lucide-react";
+import { Download, ChevronLeft, ChevronRight, TrendingUp, BarChart3, CircleDollarSign, Users, Search, Printer, Receipt } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Student } from "./credential";
+import { printTicket, printDailySummary } from "@/lib/printer";
+import type { TicketData, DailySummaryData } from "@/lib/printer";
 import {
     LabelList,
     RadialBar,
@@ -36,11 +38,15 @@ export interface PaymentRecord {
     month: number;
     year: number;
     amount: number;
+    amountExpected?: number;
+    amountPending?: number;
+    paymentPercentage?: number;
     status: "paid" | "pending" | "overdue";
     paidAt?: string;
     confirmedBy?: string;
     createdAt?: string;
     paymentMethod?: "efectivo" | "transferencia";
+    ticketFolio?: number;
 }
 
 interface ReportsPanelProps {
@@ -407,6 +413,43 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                         <Download className="w-4 h-4" strokeWidth={2} />
                         Exportar Excel
                     </button>
+
+                    <button
+                        onClick={() => {
+                            if (dailyPayments.length === 0) return;
+                            const cashPayments = dailyPayments.filter(p => (p.paymentMethod || "efectivo") === "efectivo");
+                            const transferPayments = dailyPayments.filter(p => p.paymentMethod === "transferencia");
+                            const enrollmentPayments = dailyPayments.filter(p => p.month === 0);
+                            const tuitionPayments = dailyPayments.filter(p => p.month !== 0);
+                            const folios = dailyPayments.map(p => p.ticketFolio || 0).filter(f => f > 0);
+
+                            const summaryData: DailySummaryData = {
+                                date: selectedDate.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }),
+                                cashierName: dailyPayments[0]?.confirmedBy || 'Admin',
+                                folioStart: folios.length > 0 ? Math.min(...folios) : 0,
+                                folioEnd: folios.length > 0 ? Math.max(...folios) : 0,
+                                totalOperations: dailyPayments.length,
+                                cashTotal: cashPayments.reduce((s, p) => s + p.amount, 0),
+                                cashCount: cashPayments.length,
+                                transferTotal: transferPayments.reduce((s, p) => s + p.amount, 0),
+                                transferCount: transferPayments.length,
+                                enrollmentTotal: enrollmentPayments.reduce((s, p) => s + p.amount, 0),
+                                enrollmentCount: enrollmentPayments.length,
+                                tuitionTotal: tuitionPayments.reduce((s, p) => s + p.amount, 0),
+                                tuitionCount: tuitionPayments.length,
+                                grandTotal: totalAmount,
+                            };
+                            printDailySummary(summaryData);
+                        }}
+                        disabled={dailyPayments.length === 0}
+                        className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-white font-medium transition-all shadow-lg ${dailyPayments.length > 0
+                            ? 'bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 shadow-violet-500/25 hover:shadow-violet-500/40'
+                            : 'bg-gray-500/50 cursor-not-allowed text-gray-400 shadow-none'
+                            }`}
+                    >
+                        <Receipt className="w-4 h-4" strokeWidth={2} />
+                        Corte de Caja
+                    </button>
                 </div>
 
                 {/* Métricas Resumen del Día */}
@@ -453,12 +496,14 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-gray-50 dark:bg-slate-700/50 border-b border-gray-200 dark:border-gray-700">
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Folio</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Hora</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Estudiante</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Concepto</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Monto</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Método</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Confirmado por</th>
+                                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -473,6 +518,9 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                                         const isEnrollment = payment.month === 0;
                                         return (
                                             <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
+                                                <td className="px-4 py-3 text-sm font-mono text-gray-500 dark:text-gray-400">
+                                                    {payment.ticketFolio ? `#${String(payment.ticketFolio).padStart(3, '0')}` : '-'}
+                                                </td>
                                                 <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-200">
                                                     {(payment.createdAt ? new Date(payment.createdAt) : (payment.paidAt ? new Date(payment.paidAt) : null))?.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) || 'N/A'}
                                                 </td>
@@ -519,6 +567,36 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                                                     <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-100 dark:border-blue-800">
                                                         {payment.confirmedBy || 'Sistema'}
                                                     </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <button
+                                                        onClick={() => {
+                                                            const monthNames = ["Inscripci\u00f3n", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+                                                            const concept = isEnrollment ? "Inscripci\u00f3n" : `Mensualidad ${monthNames[payment.month]} ${payment.year}`;
+                                                            const expectedAmt = payment.amountExpected || payment.amount;
+                                                            const pendingAmt = payment.amountPending || 0;
+                                                            const prevBalance = Math.max(expectedAmt - payment.amount - pendingAmt, 0);
+                                                            const ticketData: TicketData = {
+                                                                folio: payment.ticketFolio || 0,
+                                                                date: payment.paidAt || payment.createdAt || new Date().toISOString(),
+                                                                studentName: student?.name || 'Desconocido',
+                                                                studentNumber: student?.studentNumber || 'N/A',
+                                                                studentLevel: student?.level || 'N/A',
+                                                                concept,
+                                                                amountPaid: payment.amount,
+                                                                amountExpected: expectedAmt,
+                                                                amountPending: pendingAmt,
+                                                                previousBalance: prevBalance,
+                                                                paymentMethod: (payment.paymentMethod || "efectivo") as "efectivo" | "transferencia",
+                                                                confirmedBy: payment.confirmedBy || 'Admin',
+                                                            };
+                                                            printTicket(ticketData);
+                                                        }}
+                                                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                                        title="Reimprimir ticket"
+                                                    >
+                                                        <Printer className="w-4 h-4" />
+                                                    </button>
                                                 </td>
                                             </tr>
                                         );

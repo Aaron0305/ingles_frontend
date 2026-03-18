@@ -55,6 +55,7 @@ export interface Payment {
     confirmedBy?: string;
     createdAt?: string;
     paymentMethod?: "efectivo" | "transferencia"; // Método de pago
+    ticketFolio?: number; // Folio de ticket para impresión
 }
 
 export interface LoginResponse {

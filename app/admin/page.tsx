@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import CredentialModal, { Student } from "../dashboard/credential";
-import PaymentsPanel, { PaymentRecord } from "../dashboard/payments";
+import PaymentsPanel, { PaymentRecord, getPaymentDescription, getStudentScheme } from "../dashboard/payments";
 import CredentialsPanel from "../dashboard/credentials-panel";
 import ReportsPanel from "../dashboard/reports-panel";
 import StudentsPanel from "../dashboard/students-panel"; // Importado
 import CalendarPanel from "../dashboard/calendar";
 import { studentsApi, adminsApi, paymentsApi, authApi } from "@/lib/api";
+import { printTicket } from "@/lib/printer";
+import type { TicketData } from "@/lib/printer";
 import { QRCodeSVG } from "qrcode.react";
 import {
     ShieldCheck, Users, CheckCircle, CircleDollarSign,
@@ -465,16 +467,62 @@ export default function SuperAdminDashboard() {
                 paymentMethod: paymentMethod || "efectivo"
             });
 
-            // Actualizar o agregar el pago
+            // Calcular montos acumulados LOCALMENTE (no depender del servidor)
+            const existingPayment = payments.find(p => p.studentId === studentId && p.month === month && p.year === year);
+            const previousBalance = existingPayment?.amount || 0;
+            const totalPaid = previousBalance + paymentAmount;
+            const pendingAfterThis = Math.max(finalExpected - totalPaid, 0);
+            const percentageAfterThis = Math.min(Math.round((totalPaid / finalExpected) * 100), 100);
+
+            // Imprimir tickets (2 copias: estudiante + caja)
+            if (newPayment.ticketFolio) {
+                // Usar la descripción completa con fechas reales del ciclo de pago
+                const scheme = getStudentScheme(student);
+                const concept = month === 0
+                    ? "Inscripción"
+                    : getPaymentDescription(student, scheme, month, year);
+
+                const ticketData: TicketData = {
+                    folio: newPayment.ticketFolio,
+                    date: new Date().toISOString(),
+                    studentName: student.name,
+                    studentNumber: student.studentNumber,
+                    studentLevel: student.level,
+                    concept,
+                    amountPaid: paymentAmount,
+                    amountExpected: finalExpected,
+                    amountPending: pendingAfterThis,
+                    previousBalance,
+                    paymentMethod: paymentMethod || "efectivo",
+                    confirmedBy: newPayment.confirmedBy || "Admin",
+                };
+
+                // Esperar un momento para que el modal de éxito se muestre primero
+                setTimeout(() => {
+                    printTicket(ticketData).catch(err =>
+                        console.error("Error imprimiendo ticket:", err)
+                    );
+                }, 2000);
+            }
+
+            // Actualizar estado local con acumulados calculados correctamente
             setPayments(prev => {
                 const existingIndex = prev.findIndex(p => p.studentId === studentId && p.month === month && p.year === year);
                 if (existingIndex >= 0) {
                     const updated = [...prev];
-                    updated[existingIndex] = newPayment;
+                    updated[existingIndex] = {
+                        ...newPayment,
+                        amount: totalPaid,
+                        amountPending: pendingAfterThis,
+                        paymentPercentage: percentageAfterThis,
+                    };
                     return updated;
                 }
                 return [...prev, newPayment];
             });
+
+            // También agregar el pago individual a rawPayments (para reportes diarios)
+            setRawPayments(prev => [...prev, newPayment]);
         } catch (error) {
             console.error("Error registrando pago:", error);
         }

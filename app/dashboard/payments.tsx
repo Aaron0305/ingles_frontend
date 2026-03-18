@@ -411,7 +411,7 @@ const SCHEME_CONFIGS: Record<PaymentScheme, SchemeConfig> = {
     }
 };
 
-const getStudentScheme = (student: Student): PaymentScheme => {
+export const getStudentScheme = (student: Student): PaymentScheme => {
     return student.paymentScheme || "monthly_28";
 };
 
@@ -503,7 +503,7 @@ const isStudentOverdue = (student: Student, allPayments: PaymentRecord[]): boole
 };
 
 // Helper para descripción de pagos
-const getPaymentDescription = (student: Student, scheme: PaymentScheme, periodIndex: number, year: number) => {
+export const getPaymentDescription = (student: Student, scheme: PaymentScheme, periodIndex: number, year: number) => {
     const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
     const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
@@ -801,7 +801,7 @@ function PaymentConfirmModal({ isOpen, student, periodIndex, year, onConfirm, on
 function PaymentSuccessModal({ isOpen, student, periodIndex, onClose }: { isOpen: boolean; student: Student | null; periodIndex: number; onClose: () => void }) {
     useEffect(() => {
         if (isOpen) {
-            const timer = setTimeout(onClose, 1500);
+            const timer = setTimeout(onClose, 3000);
             return () => clearTimeout(timer);
         }
     }, [isOpen, onClose]);
@@ -812,8 +812,8 @@ function PaymentSuccessModal({ isOpen, student, periodIndex, onClose }: { isOpen
     const config = SCHEME_CONFIGS[scheme];
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="rounded-2xl p-6 max-w-xs w-full shadow-2xl animate-in fade-in zoom-in duration-150 text-center" style={{ background: 'var(--modal-bg)' }}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
+            <div className="rounded-2xl p-6 max-w-xs w-full shadow-2xl animate-in fade-in zoom-in duration-150 text-center" style={{ background: 'var(--modal-bg)' }} onClick={e => e.stopPropagation()}>
                 {/* Animación de éxito */}
                 <div className="relative flex justify-center mb-4">
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/30">
@@ -833,6 +833,14 @@ function PaymentSuccessModal({ isOpen, student, periodIndex, onClose }: { isOpen
                     <Check className="w-3.5 h-3.5" strokeWidth={2} />
                     Guardado correctamente
                 </div>
+
+                <button
+                    onClick={onClose}
+                    className="mt-4 px-4 py-2 text-sm rounded-lg transition-colors hover:bg-white/10"
+                    style={{ color: 'var(--text-secondary)' }}
+                >
+                    Cerrar
+                </button>
             </div>
         </div>
     );
