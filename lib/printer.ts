@@ -19,44 +19,42 @@ export async function connectPrinter(): Promise<boolean> {
     }
 
     try {
-        // QZ Tray firma sus propias conexiones locales
-        qz.security.setCertificatePromise(() =>
-            Promise.resolve(
-                "-----BEGIN CERTIFICATE-----\n" +
-                "MIIECzCCAvOgAwIBAgIJANj3kZ/3cRMQMA0GCSqGSIb3DQEBCwUAMIGfMQswCQYD\n" +
-                "VQQGEwJVUzELMAkGA1UECAwCTlkxETAPBgNVBAcMCE5ldyBZb3JrMRswGQYDVQQK\n" +
-                "DBJURVNUSU5HIFBVUlBPU0VTMR0wGwYDVQQLDBRRWiBJbmR1c3RyaWVzLCBMTEMx\n" +
-                "GDAWBgNVBAMMD3F6LXRyYXktdGVzdGluZzEgMB4GCSqGSIb3DQEJARYRc3VwcG9y\n" +
-                "dEBxei5pbzAeFw0xNTAzMTkwMjM4NDVaFw0yNTAzMTYwMjM4NDVaMIGfMQswCQYD\n" +
-                "VQQGEwJVUzELMAkGA1UECAwCTlkxETAPBgNVBAcMCE5ldyBZb3JrMRswGQYDVQQK\n" +
-                "DBJURVNUSU5HIFBVUlBPU0VTMR0wGwYDVQQLDBRRWiBJbmR1c3RyaWVzLCBMTEMx\n" +
-                "GDAWBgNVBAMMD3F6LXRyYXktdGVzdGluZzEgMB4GCSqGSIb3DQEJARYRc3VwcG9y\n" +
-                "dEBxei5pbzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALYxMmjbbfGM\n" +
-                "pw2eCwvyFiMRR5fGOsaI+5JvC6ByOhmGGDTWl9jCBOGQ0ed29MqrJ2gVOAWVOFDb\n" +
-                "q5H/LFWM4W/wWBSGSBKt69AcsVSNPYQW0PDDM+/CVxYRRWj6FEN+TGFDMOsmSPV\n" +
-                "IA2HLJKH6h//EDYOagcnEGiSQlTjjl76LPM6MBGnIEMa5gfoFcFxJFnwlM/N0tMO\n" +
-                "MLSbV0VRS+N0Mm9fYHlGEMmGT72qv0JLVLLZdkZMkk6fYEBVb7gm5KbPZ7HBMUL\n" +
-                "Z4GkROy69stvPLvNbXa5gKOGLH1JDM7M/GGMfGOqBKWBRfc4JL5R/HoLdKSPej/n\n" +
-                "HPMd1COJUcsCAwEAAaNQME4wHQYDVR0OBBYEFPNG7S+PJWfbRSB7WI5ihSBj1W5Y\n" +
-                "MB8GA1UdIwQYMBaAFPNG7S+PJWfbRSB7WI5ihSBj1W5YMAwGA1UdEwQFMAMBAf8w\n" +
-                "DQYJKoZIhvcNAQELBQADggEBAKbz+OXWP4LGMax9Kzf6a3R6mSN4LmaY5VB1sJDh\n" +
-                "Jape0pEC7gYN0x6sNdYJHMplV/DVlBCFjFrg/B7TKH8+RsIIEYPHFxfFABTBIFmz\n" +
-                "2ue/0vA6/eV2MlqAuYIG3fPMPVPC3Nw3RhF1p2bRgaIxrfCvhKiV2E0I6hJZHHdR\n" +
-                "K8VDIiV7fBegXgVtCMY9LvTku3YNsGpPOUc0rFTHi7lxP0FRwB4LiAW1YL3WpFMy\n" +
-                "KLbVOxBjOcW5t4i2pH7YhuPR1nKT6gRFAGJxeFL5KzhRTPJaIVYfzMgxGRmolRAf\n" +
-                "czj7sNpAZhEdGiGJf2Lj1fDAuF7lBP1BzU7bPEe1VIYxzk=\n" +
-                "-----END CERTIFICATE-----"
-            )
-        );
-
-        // Para desarrollo/testing, no validar firma
+        // Modo local sin certificado fijo para evitar fallos por certificados expirados.
+        qz.security.setCertificatePromise(() => Promise.resolve(""));
         qz.security.setSignatureAlgorithm("SHA512");
         qz.security.setSignaturePromise(() => Promise.resolve(""));
 
-        await qz.websocket.connect();
-        isConnected = true;
-        console.log("🖨️ Conectado a QZ Tray");
-        return true;
+        const attempts: Array<{ host: string; usingSecure: boolean }> = [
+            { host: "localhost", usingSecure: false },
+            { host: "127.0.0.1", usingSecure: false },
+            { host: "localhost", usingSecure: true },
+            { host: "127.0.0.1", usingSecure: true },
+        ];
+
+        for (const attempt of attempts) {
+            try {
+                await (qz.websocket.connect as unknown as (opts?: {
+                    host?: string;
+                    usingSecure?: boolean;
+                    retries?: number;
+                    delay?: number;
+                }) => Promise<void>)({
+                    host: attempt.host,
+                    usingSecure: attempt.usingSecure,
+                    retries: 1,
+                    delay: 0.5,
+                });
+                isConnected = true;
+                console.log(`🖨️ Conectado a QZ Tray en ${attempt.host} (${attempt.usingSecure ? "secure" : "insecure"})`);
+                return true;
+            } catch {
+                // Seguir con siguiente intento.
+            }
+        }
+
+        isConnected = false;
+        console.warn("⚠️ No se pudo conectar a QZ Tray en localhost/127.0.0.1");
+        return false;
     } catch (err) {
         console.warn("⚠️ No se pudo conectar a QZ Tray:", err);
         isConnected = false;
@@ -78,6 +76,7 @@ export async function disconnectPrinter(): Promise<void> {
 export async function getDefaultPrinter(): Promise<string | null> {
     try {
         const printer = await qz.printers.getDefault();
+        console.log("🖨️ Impresora predeterminada en QZ:", printer);
         return printer;
     } catch {
         console.warn("⚠️ No se encontró impresora predeterminada");
@@ -88,12 +87,20 @@ export async function getDefaultPrinter(): Promise<string | null> {
 export async function findThermalPrinter(): Promise<string | null> {
     try {
         const printers: string[] = await qz.printers.find();
+        console.log("🖨️ Impresoras detectadas por QZ:", printers);
         // Buscar impresoras térmicas comunes
         const thermalKeywords = ["thermal", "receipt", "pos", "xprinter", "epson tm", "star tsp", "58mm", "80mm"];
         const thermal = printers.find((p: string) =>
             thermalKeywords.some(kw => p.toLowerCase().includes(kw))
         );
-        return thermal || await getDefaultPrinter();
+        if (thermal) {
+            console.log("✅ Impresora térmica seleccionada:", thermal);
+            return thermal;
+        }
+
+        const defaultPrinter = await getDefaultPrinter();
+        console.log("ℹ️ Se usará impresora predeterminada:", defaultPrinter);
+        return defaultPrinter;
     } catch {
         return await getDefaultPrinter();
     }
@@ -227,12 +234,16 @@ function generateEscPosTicket(data: TicketData, copyLabel: string): object[] {
         { type: "raw", format: "plain", data: "\x1B\x40" },  // Init
         { type: "raw", format: "plain", data: "\x1B\x61\x01" }, // Center
         { type: "raw", format: "plain", data: "\x1B\x45\x01" }, // Bold ON
-        { type: "raw", format: "plain", data: "ESCUELA DE INGLES\n" },
+        { type: "raw", format: "plain", data: "WHAT TIME IS IT?\n" },
         { type: "raw", format: "plain", data: "\x1B\x45\x00" }, // Bold OFF
         { type: "raw", format: "plain", data: "================================\n" },
         { type: "raw", format: "plain", data: "\x1B\x61\x00" }, // Left align
         { type: "raw", format: "plain", data: `Folio: #${folioStr}\n` },
         { type: "raw", format: "plain", data: `Fecha: ${dateStr}  ${timeStr}\n` },
+        { type: "raw", format: "plain", data: "RFC: _________________________\n" },
+        { type: "raw", format: "plain", data: "Direccion: ___________________\n" },
+        { type: "raw", format: "plain", data: "Correo: ______________________\n" },
+        { type: "raw", format: "plain", data: "Numero: ______________________\n" },
         { type: "raw", format: "plain", data: "--------------------------------\n" },
         { type: "raw", format: "plain", data: `Alumno: ${data.studentName}\n` },
         { type: "raw", format: "plain", data: `No:     #${data.studentNumber}\n` },

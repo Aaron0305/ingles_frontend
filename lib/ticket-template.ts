@@ -67,6 +67,114 @@ const STYLES = `
             margin: 2px 0 1px;
         }
 
+        .brand-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .brand-logo {
+            width: 18px;
+            height: 18px;
+            object-fit: contain;
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            line-height: 1.45;
+        }
+
+        .meta-item {
+            line-height: 1.35;
+            margin-top: 1px;
+        }
+
+        .ticket-block-title {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+
+        .section-title {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin: 2px 0 3px;
+        }
+
+        .field-block {
+            margin-top: 2px;
+        }
+
+        .billing-center {
+            text-align: center;
+        }
+
+        .field-label {
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .field-value {
+            line-height: 1.35;
+            margin-top: 1px;
+            word-break: normal;
+            overflow-wrap: break-word;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            min-height: 16px;
+            line-height: 1.2;
+            margin-top: 2px;
+        }
+
+        .input-label {
+            white-space: nowrap;
+            font-weight: 700;
+            font-size: 11px;
+        }
+
+        .input-line {
+            flex: 1;
+            border-bottom: 1px solid #777;
+            height: 12px;
+        }
+
+        .ticket-subtle {
+            font-size: 10px;
+            color: #555;
+            margin-top: 1px;
+        }
+
+        .info-line {
+            display: flex;
+            align-items: flex-start;
+            gap: 4px;
+            line-height: 1.35;
+            margin-top: 2px;
+        }
+
+        .info-label {
+            min-width: 58px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .info-value {
+            flex: 1;
+            word-break: normal;
+            overflow-wrap: break-word;
+        }
+
         .cut-line {
             display: flex;
             align-items: center;
@@ -139,13 +247,41 @@ export function generateTicketHTML(data: TicketData, copyLabel: string): string 
         timeZone: "America/Mexico_City"
     });
     const folioStr = String(data.folio).padStart(3, "0");
+    const logoSrc = "/image/logo_mensaje.png";
+    const contactEmail = "whatimeisitixtla18@gmail.com";
+    const contactEmailFormatted = contactEmail.replace("@", "@<wbr>").replace(/\./g, ".<wbr>");
 
     return `
     <div class="ticket">
-        <div class="center bold"><h2>What time is it?</h2></div>
+        <div class="center bold brand-header">
+            <h2>What time is it?</h2>
+            <img src="${logoSrc}" alt="Logo What Time Is It" class="brand-logo" onerror="this.style.display='none'" />
+        </div>
+        <div class="center ticket-block-title">Recibo de pago</div>
         <div class="double-separator"></div>
-        <div>Folio: #${folioStr}</div>
-        <div>Fecha: ${dateStr}  ${timeStr}</div>
+        <div class="meta-item">Folio: #${folioStr}</div>
+        <div class="meta-item">Fecha: ${dateStr}</div>
+        <div class="meta-item">Hora: ${timeStr}</div>
+
+        <div class="separator"></div>
+        <div class="section-title">Datos de facturacion</div>
+        <div class="ticket-block-title">Mendieta Esparza Roberto</div>
+        <div class="field-block billing-center">
+            <div class="field-label">RFC</div>
+            <div class="field-value">MEER690415IY1</div>
+        </div>
+        <div class="field-block billing-center">
+            <div class="field-label">Direccion</div>
+            <div class="field-value">Av. Gustavo Baz Prada, esquina con Calle de la Mujer, Ixtlahuaca, Mex.</div>
+        </div>
+        <div class="field-block billing-center">
+            <div class="field-label">Correo</div>
+            <div class="field-value">${contactEmailFormatted}</div>
+        </div>
+        <div class="field-block billing-center">
+            <div class="field-label">Numero</div>
+            <div class="field-value">7221200733</div>
+        </div>
         <div class="separator"></div>
         <div>Alumno: ${data.studentName}</div>
         <div>No:     #${data.studentNumber}</div>
