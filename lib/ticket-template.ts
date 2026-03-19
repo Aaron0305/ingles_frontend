@@ -262,7 +262,7 @@ export function generateTicketHTML(data: TicketData, copyLabel: string): string 
     return `
     <div class="ticket">
         <div class="center bold brand-header">
-            <h2>What time is it?</h2>
+            <h2>What time is it? **</h2>
             <img src="${logoSrc}" alt="Logo What Time Is It" class="brand-logo" onerror="this.style.display='none'" />
         </div>
         <div class="center ticket-block-title">Recibo de pago</div>
@@ -309,7 +309,7 @@ export function generateTicketHTML(data: TicketData, copyLabel: string): string 
         <div class="separator"></div>
         <div>Atendio: ${data.confirmedBy || "Admin"}</div>
         <div class="double-separator"></div>
-        <div class="center bold">*** ${copyLabel} ***</div>
+        <div class="center bold">* ${copyLabel} *</div>
     </div>`;
 }
 

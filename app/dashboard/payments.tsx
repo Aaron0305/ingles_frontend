@@ -542,7 +542,7 @@ export const getPaymentDescription = (student: Student, scheme: PaymentScheme, p
         const d2 = nextDate.getDate();
         const m2 = months[nextDate.getMonth()];
 
-        return `Pago ${typeLabel} del ${d1} de ${m1} al ${d2} de ${m2}. Próximo pago el ${d2} de ${m2}.`;
+        return `Pago ${typeLabel} del ${d1} de ${m1} al ${d2} de ${m2}. Proximo pago el ${d2} de ${m2}.`;
     }
 
     if (scheme === "daily") {
