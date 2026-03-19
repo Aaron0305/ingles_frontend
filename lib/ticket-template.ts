@@ -245,15 +245,21 @@ const STYLES = `
 export function generateTicketHTML(data: TicketData, copyLabel: string): string {
     void copyLabel;
     const parsedDate = new Date(data.date);
+    // Si la fecha no tiene zona horaria (ej: "2026-03-19T16:51:00"),
+    // new Date() la interpreta como local sin problemas.
+    // Si tiene "Z" o "-06:00", new Date() la convierte automáticamente a local.
+    // Usamos toLocaleString con timeZone explícito para garantizar hora de México.
     const dateObj = Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
     const dateStr = dateObj.toLocaleDateString("es-MX", {
-        day: "2-digit", month: "short", year: "numeric"
+        day: "2-digit", month: "short", year: "numeric",
+        timeZone: "America/Mexico_City"
     });
     const timeStr = dateObj.toLocaleTimeString("es-MX", {
         hour: "2-digit",
         minute: "2-digit",
-        hour12: true
-    }).replace("a. m.", "AM").replace("p. m.", "PM");
+        hour12: true,
+        timeZone: "America/Mexico_City"
+    }).replace("a. m.", "a.m.").replace("p. m.", "p.m.");
     const folioStr = String(data.folio).padStart(3, "0");
     const logoSrc = "/image/logo_mensaje.png";
     const contactEmail = "whatimeisitixtla18@gmail.com";

@@ -486,9 +486,14 @@ export default function SuperAdminDashboard() {
                     ? undefined
                     : (nextPaymentMatch?.[1]?.trim() || undefined);
 
+                // Usar la fecha/hora LOCAL del navegador para el ticket
+                // (las fechas del servidor pueden llegar en UTC desde Supabase y mostrarse incorrectas)
+                const nowLocal = new Date();
+                const localISO = `${nowLocal.getFullYear()}-${String(nowLocal.getMonth() + 1).padStart(2, '0')}-${String(nowLocal.getDate()).padStart(2, '0')}T${String(nowLocal.getHours()).padStart(2, '0')}:${String(nowLocal.getMinutes()).padStart(2, '0')}:${String(nowLocal.getSeconds()).padStart(2, '0')}`;
+
                 const ticketData: TicketData = {
                     folio: newPayment.ticketFolio,
-                    date: newPayment.createdAt || newPayment.paidAt || new Date().toISOString(),
+                    date: localISO,
                     studentName: student.name,
                     studentNumber: student.studentNumber,
                     studentLevel: student.level,
