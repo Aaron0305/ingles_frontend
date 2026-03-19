@@ -19,17 +19,28 @@ export async function connectPrinter(): Promise<boolean> {
     }
 
     try {
+        const isHttpsPage = typeof window !== "undefined" && window.location.protocol === "https:";
+
         // Modo local sin certificado fijo para evitar fallos por certificados expirados.
         qz.security.setCertificatePromise(() => Promise.resolve(""));
         qz.security.setSignatureAlgorithm("SHA512");
         qz.security.setSignaturePromise(() => Promise.resolve(""));
 
-        const attempts: Array<{ host: string; usingSecure: boolean }> = [
-            { host: "localhost", usingSecure: false },
-            { host: "127.0.0.1", usingSecure: false },
-            { host: "localhost", usingSecure: true },
-            { host: "127.0.0.1", usingSecure: true },
-        ];
+        const attempts: Array<{ host: string; usingSecure: boolean }> = isHttpsPage
+            ? [
+                { host: "localhost", usingSecure: true },
+                { host: "127.0.0.1", usingSecure: true },
+              ]
+            : [
+                { host: "localhost", usingSecure: false },
+                { host: "127.0.0.1", usingSecure: false },
+                { host: "localhost", usingSecure: true },
+                { host: "127.0.0.1", usingSecure: true },
+              ];
+
+        console.log(
+            `🧭 Intentando conectar QZ desde ${isHttpsPage ? "HTTPS (solo secure)" : "HTTP (secure + insecure)"}`
+        );
 
         for (const attempt of attempts) {
             try {
