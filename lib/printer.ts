@@ -7,14 +7,12 @@
 import qz from "qz-tray";
 import { generateFullTicketPage, generateSummaryHTML } from "./ticket-template";
 
-let isConnected = false;
-
 // ============================================
 // CONEXIÓN
 // ============================================
 
 export async function connectPrinter(): Promise<boolean> {
-    if (isConnected && qz.websocket.isActive()) {
+    if (qz.websocket.isActive()) {
         return true;
     }
 
@@ -26,16 +24,18 @@ export async function connectPrinter(): Promise<boolean> {
         qz.security.setSignatureAlgorithm("SHA512");
         qz.security.setSignaturePromise(() => Promise.resolve(""));
 
-        const attempts: Array<{ host: string; usingSecure: boolean }> = isHttpsPage
+                const attempts: Array<{ host?: string; usingSecure?: boolean; label: string }> = isHttpsPage
             ? [
-                { host: "localhost", usingSecure: true },
-                { host: "127.0.0.1", usingSecure: true },
+                                { label: "default" },
+                                { host: "localhost", usingSecure: true, label: "localhost secure" },
+                                { host: "127.0.0.1", usingSecure: true, label: "127.0.0.1 secure" },
               ]
             : [
-                { host: "localhost", usingSecure: false },
-                { host: "127.0.0.1", usingSecure: false },
-                { host: "localhost", usingSecure: true },
-                { host: "127.0.0.1", usingSecure: true },
+                                { label: "default" },
+                                { host: "localhost", usingSecure: false, label: "localhost insecure" },
+                                { host: "127.0.0.1", usingSecure: false, label: "127.0.0.1 insecure" },
+                                { host: "localhost", usingSecure: true, label: "localhost secure" },
+                                { host: "127.0.0.1", usingSecure: true, label: "127.0.0.1 secure" },
               ];
 
         console.log(
@@ -44,31 +44,40 @@ export async function connectPrinter(): Promise<boolean> {
 
         for (const attempt of attempts) {
             try {
-                await (qz.websocket.connect as unknown as (opts?: {
+                const connectFn = qz.websocket.connect as unknown as (opts?: {
                     host?: string;
                     usingSecure?: boolean;
                     retries?: number;
                     delay?: number;
-                }) => Promise<void>)({
-                    host: attempt.host,
-                    usingSecure: attempt.usingSecure,
-                    retries: 1,
-                    delay: 0.5,
-                });
-                isConnected = true;
-                console.log(`🖨️ Conectado a QZ Tray en ${attempt.host} (${attempt.usingSecure ? "secure" : "insecure"})`);
+                }) => Promise<void>;
+
+                if (!attempt.host) {
+                    await connectFn();
+                } else {
+                    await connectFn({
+                        host: attempt.host,
+                        usingSecure: attempt.usingSecure,
+                        retries: 1,
+                        delay: 0.5,
+                    });
+                }
+
+                if (!qz.websocket.isActive()) {
+                    throw new Error("QZ devolvió éxito pero websocket no quedó activo");
+                }
+
+                console.log(`🖨️ Conectado a QZ Tray (${attempt.label})`);
                 return true;
-            } catch {
-                // Seguir con siguiente intento.
+            } catch (attemptErr) {
+                console.warn(`⚠️ Falló intento QZ (${attempt.label}):`, attemptErr);
+                // Seguir con el siguiente intento.
             }
         }
 
-        isConnected = false;
         console.warn("⚠️ No se pudo conectar a QZ Tray en localhost/127.0.0.1");
         return false;
     } catch (err) {
         console.warn("⚠️ No se pudo conectar a QZ Tray:", err);
-        isConnected = false;
         return false;
     }
 }
@@ -76,7 +85,6 @@ export async function connectPrinter(): Promise<boolean> {
 export async function disconnectPrinter(): Promise<void> {
     if (qz.websocket.isActive()) {
         await qz.websocket.disconnect();
-        isConnected = false;
     }
 }
 
