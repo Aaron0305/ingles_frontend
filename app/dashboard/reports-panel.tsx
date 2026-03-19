@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Download, ChevronLeft, ChevronRight, TrendingUp, BarChart3, CircleDollarSign, Users, Search, Printer, Receipt } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Student } from "./credential";
+import { getPaymentDescription, getStudentScheme } from "./payments";
 import { printTicket, printDailySummary } from "@/lib/printer";
 import type { TicketData, DailySummaryData } from "@/lib/printer";
 import {
@@ -571,14 +572,22 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                                                 <td className="px-4 py-3 text-center">
                                                     <button
                                                         onClick={() => {
-                                                            const monthNames = ["Inscripci\u00f3n", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-                                                            const concept = isEnrollment ? "Inscripci\u00f3n" : `Mensualidad ${monthNames[payment.month]} ${payment.year}`;
+                                                            const scheme = student ? getStudentScheme(student) : "monthly_28";
+                                                            const concept = isEnrollment
+                                                                ? "Inscripci\u00f3n"
+                                                                : (student
+                                                                    ? getPaymentDescription(student, scheme, payment.month, payment.year)
+                                                                    : `Pago #${payment.month} - ${payment.year}`);
+                                                            const nextPaymentMatch = concept.match(/Pr[oó]ximo pago el ([^.]+)\.?/i);
+                                                            const nextPaymentText = isEnrollment
+                                                                ? undefined
+                                                                : (nextPaymentMatch?.[1]?.trim() || undefined);
                                                             const expectedAmt = payment.amountExpected || payment.amount;
                                                             const pendingAmt = payment.amountPending || 0;
                                                             const prevBalance = Math.max(expectedAmt - payment.amount - pendingAmt, 0);
                                                             const ticketData: TicketData = {
                                                                 folio: payment.ticketFolio || 0,
-                                                                date: payment.paidAt || payment.createdAt || new Date().toISOString(),
+                                                                date: payment.createdAt || payment.paidAt || new Date().toISOString(),
                                                                 studentName: student?.name || 'Desconocido',
                                                                 studentNumber: student?.studentNumber || 'N/A',
                                                                 studentLevel: student?.level || 'N/A',
@@ -589,6 +598,9 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                                                                 previousBalance: prevBalance,
                                                                 paymentMethod: (payment.paymentMethod || "efectivo") as "efectivo" | "transferencia",
                                                                 confirmedBy: payment.confirmedBy || 'Admin',
+                                                                nextPaymentText,
+                                                                nextPaymentAmount: student?.monthlyFee,
+                                                                copies: 2,
                                                             };
                                                             printTicket(ticketData);
                                                         }}

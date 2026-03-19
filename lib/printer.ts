@@ -19,10 +19,19 @@ export async function connectPrinter(): Promise<boolean> {
     try {
         const isHttpsPage = typeof window !== "undefined" && window.location.protocol === "https:";
 
-        // Modo local sin certificado fijo para evitar fallos por certificados expirados.
-        qz.security.setCertificatePromise(() => Promise.resolve(""));
+        // QZ Tray internamente espera callbacks tipo resolver/reject, no Promise directo.
+        (qz.security.setCertificatePromise as unknown as (
+            callback: (resolve: (value: string) => void, reject: (error: unknown) => void) => void
+        ) => void)((resolve) => resolve(""));
+
         qz.security.setSignatureAlgorithm("SHA512");
-        qz.security.setSignaturePromise(() => Promise.resolve(""));
+
+        (qz.security.setSignaturePromise as unknown as (
+            callback: (toSign: string) => (resolve: (value: string) => void, reject: (error: unknown) => void) => void
+        ) => void)((toSign) => {
+            void toSign;
+            return (resolve) => resolve("");
+        });
 
                 const attempts: Array<{ host?: string; usingSecure?: boolean; label: string }> = isHttpsPage
             ? [
@@ -142,6 +151,9 @@ export interface TicketData {
     previousBalance: number;  // Lo que ya se había pagado antes
     paymentMethod: "efectivo" | "transferencia";
     confirmedBy: string;
+    nextPaymentText?: string;
+    nextPaymentAmount?: number;
+    copies?: 1 | 2;
 }
 
 export interface DailySummaryData {
@@ -163,41 +175,11 @@ export interface DailySummaryData {
 
 export async function printTicket(data: TicketData): Promise<boolean> {
     try {
-        const connected = await connectPrinter();
-        if (!connected) {
-            console.warn("⚠️ QZ Tray no disponible. Usando impresión por navegador.");
-            printViaWindow(data);
-            return true;
-        }
-
-        const printer = await findThermalPrinter();
-        if (!printer) {
-            console.warn("⚠️ No se encontró impresora. Usando impresión por navegador.");
-            printViaWindow(data);
-            return true;
-        }
-
-        const config = qz.configs.create(printer, {
-            margins: { top: 0, right: 0, bottom: 0, left: 0 },
-        });
-
-        // Imprimir COPIA ESTUDIANTE
-        const studentTicket = generateEscPosTicket(data, "COPIA ESTUDIANTE");
-        await qz.print(config, studentTicket);
-
-        // Pequeña pausa entre tickets
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Imprimir COPIA CAJA
-        const cashierTicket = generateEscPosTicket(data, "COPIA CAJA");
-        await qz.print(config, cashierTicket);
-
-        console.log("🖨️ 2 tickets impresos correctamente (Folio #" + data.folio + ")");
+        printViaWindow(data);
+        console.log("🖨️ Ticket enviado a impresión por navegador (Folio #" + data.folio + ")");
         return true;
     } catch (err) {
         console.error("❌ Error al imprimir ticket:", err);
-        // Fallback a impresión por navegador
-        printViaWindow(data);
         return false;
     }
 }
@@ -235,63 +217,6 @@ export async function printDailySummary(data: DailySummaryData): Promise<boolean
 // ============================================
 // GENERADOR ESC/POS (comandos para impresora térmica)
 // ============================================
-
-function generateEscPosTicket(data: TicketData, copyLabel: string): object[] {
-    const dateObj = new Date(data.date);
-    const dateStr = dateObj.toLocaleDateString("es-MX", {
-        day: "2-digit", month: "short", year: "numeric",
-        timeZone: "America/Mexico_City"
-    });
-    const timeStr = dateObj.toLocaleTimeString("es-MX", {
-        hour: "2-digit", minute: "2-digit",
-        timeZone: "America/Mexico_City"
-    });
-
-    const folioStr = String(data.folio).padStart(3, "0");
-
-    return [
-        { type: "raw", format: "plain", data: "\x1B\x40" },  // Init
-        { type: "raw", format: "plain", data: "\x1B\x61\x01" }, // Center
-        { type: "raw", format: "plain", data: "\x1B\x45\x01" }, // Bold ON
-        { type: "raw", format: "plain", data: "WHAT TIME IS IT?\n" },
-        { type: "raw", format: "plain", data: "\x1B\x45\x00" }, // Bold OFF
-        { type: "raw", format: "plain", data: "================================\n" },
-        { type: "raw", format: "plain", data: "\x1B\x61\x00" }, // Left align
-        { type: "raw", format: "plain", data: `Folio: #${folioStr}\n` },
-        { type: "raw", format: "plain", data: `Fecha: ${dateStr}  ${timeStr}\n` },
-        { type: "raw", format: "plain", data: "RFC: _________________________\n" },
-        { type: "raw", format: "plain", data: "Direccion: ___________________\n" },
-        { type: "raw", format: "plain", data: "Correo: ______________________\n" },
-        { type: "raw", format: "plain", data: "Numero: ______________________\n" },
-        { type: "raw", format: "plain", data: "--------------------------------\n" },
-        { type: "raw", format: "plain", data: `Alumno: ${data.studentName}\n` },
-        { type: "raw", format: "plain", data: `No:     #${data.studentNumber}\n` },
-        { type: "raw", format: "plain", data: `Nivel:  ${data.studentLevel}\n` },
-        { type: "raw", format: "plain", data: `Concepto: ${data.concept}\n` },
-        { type: "raw", format: "plain", data: "--------------------------------\n" },
-        { type: "raw", format: "plain", data: `Monto esperado:  $${data.amountExpected.toFixed(2)}\n` },
-        ...(data.previousBalance > 0
-            ? [
-                { type: "raw", format: "plain", data: `Abono anterior:  $${data.previousBalance.toFixed(2)}\n` },
-                { type: "raw", format: "plain", data: `Pago actual:     $${data.amountPaid.toFixed(2)}\n` },
-                { type: "raw", format: "plain", data: `Total pagado:    $${(data.previousBalance + data.amountPaid).toFixed(2)}\n` },
-              ]
-            : [{ type: "raw", format: "plain", data: `Monto pagado:    $${data.amountPaid.toFixed(2)}\n` }]),
-        ...(data.amountPending > 0
-            ? [{ type: "raw", format: "plain", data: `Saldo pendiente: $${data.amountPending.toFixed(2)}\n` }]
-            : []),
-        { type: "raw", format: "plain", data: `Metodo: ${data.paymentMethod === "efectivo" ? "Efectivo" : "Transferencia"}\n` },
-        { type: "raw", format: "plain", data: "--------------------------------\n" },
-        { type: "raw", format: "plain", data: `Atendio: ${data.confirmedBy || "Admin"}\n` },
-        { type: "raw", format: "plain", data: "================================\n" },
-        { type: "raw", format: "plain", data: "\x1B\x61\x01" }, // Center
-        { type: "raw", format: "plain", data: "\x1B\x45\x01" }, // Bold ON
-        { type: "raw", format: "plain", data: `*** ${copyLabel} ***\n` },
-        { type: "raw", format: "plain", data: "\x1B\x45\x00" }, // Bold OFF
-        { type: "raw", format: "plain", data: "\n\n\n" },
-        { type: "raw", format: "plain", data: "\x1D\x56\x01" }, // Partial cut
-    ];
-}
 
 function generateEscPosSummary(data: DailySummaryData): object[] {
     const folioStart = String(data.folioStart).padStart(3, "0");
@@ -368,7 +293,44 @@ function openPrintWindow(html: string): void {
     doc.write(html);
     doc.close();
 
-    setTimeout(() => {
-        iframe.contentWindow?.print();
-    }, 500);
+    const frameWindow = iframe.contentWindow;
+    if (!frameWindow) {
+        console.error("❌ No se pudo acceder a la ventana de impresión.");
+        return;
+    }
+
+    let printed = false;
+    const safePrint = () => {
+        if (printed) return;
+        printed = true;
+        frameWindow.focus();
+        frameWindow.print();
+    };
+
+    const frameImages = Array.from(doc.images || []);
+
+    if (frameImages.length === 0) {
+        setTimeout(safePrint, 250);
+        return;
+    }
+
+    let pending = frameImages.length;
+    const onImageDone = () => {
+        pending -= 1;
+        if (pending <= 0) {
+            setTimeout(safePrint, 120);
+        }
+    };
+
+    frameImages.forEach((img) => {
+        if (img.complete) {
+            onImageDone();
+        } else {
+            img.addEventListener("load", onImageDone, { once: true });
+            img.addEventListener("error", onImageDone, { once: true });
+        }
+    });
+
+    // Fallback para evitar bloquear impresión si alguna imagen no dispara eventos.
+    setTimeout(safePrint, 2000);
 }

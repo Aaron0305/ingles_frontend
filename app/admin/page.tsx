@@ -481,10 +481,14 @@ export default function SuperAdminDashboard() {
                 const concept = month === 0
                     ? "Inscripción"
                     : getPaymentDescription(student, scheme, month, year);
+                const nextPaymentMatch = concept.match(/Pr[oó]ximo pago el ([^.]+)\.?/i);
+                const nextPaymentText = month === 0
+                    ? undefined
+                    : (nextPaymentMatch?.[1]?.trim() || undefined);
 
                 const ticketData: TicketData = {
                     folio: newPayment.ticketFolio,
-                    date: new Date().toISOString(),
+                    date: newPayment.createdAt || newPayment.paidAt || new Date().toISOString(),
                     studentName: student.name,
                     studentNumber: student.studentNumber,
                     studentLevel: student.level,
@@ -495,6 +499,9 @@ export default function SuperAdminDashboard() {
                     previousBalance,
                     paymentMethod: paymentMethod || "efectivo",
                     confirmedBy: newPayment.confirmedBy || "Admin",
+                    nextPaymentText,
+                    nextPaymentAmount: month === 0 ? student.monthlyFee : finalExpected,
+                    copies: 2,
                 };
 
                 // Esperar un momento para que el modal de éxito se muestre primero

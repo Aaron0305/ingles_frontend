@@ -92,6 +92,12 @@ const STYLES = `
             margin-top: 1px;
         }
 
+            .meta-time {
+                font-size: 12px;
+                font-weight: 700;
+                letter-spacing: .01em;
+            }
+
         .ticket-block-title {
             font-size: 10px;
             font-weight: 700;
@@ -237,15 +243,17 @@ const STYLES = `
 `;
 
 export function generateTicketHTML(data: TicketData, copyLabel: string): string {
-    const dateObj = new Date(data.date);
+    void copyLabel;
+    const parsedDate = new Date(data.date);
+    const dateObj = Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
     const dateStr = dateObj.toLocaleDateString("es-MX", {
-        day: "2-digit", month: "short", year: "numeric",
-        timeZone: "America/Mexico_City"
+        day: "2-digit", month: "short", year: "numeric"
     });
     const timeStr = dateObj.toLocaleTimeString("es-MX", {
-        hour: "2-digit", minute: "2-digit",
-        timeZone: "America/Mexico_City"
-    });
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+    }).replace("a. m.", "AM").replace("p. m.", "PM");
     const folioStr = String(data.folio).padStart(3, "0");
     const logoSrc = "/image/logo_mensaje.png";
     const contactEmail = "whatimeisitixtla18@gmail.com";
@@ -261,7 +269,7 @@ export function generateTicketHTML(data: TicketData, copyLabel: string): string 
         <div class="double-separator"></div>
         <div class="meta-item">Folio: #${folioStr}</div>
         <div class="meta-item">Fecha: ${dateStr}</div>
-        <div class="meta-item">Hora: ${timeStr}</div>
+        <div class="meta-item meta-time">Hora: ${timeStr}</div>
 
         <div class="separator"></div>
         <div class="section-title">Datos de facturacion</div>
@@ -349,9 +357,7 @@ export function generateFullTicketPage(data: TicketData): string {
         <button onclick="window.print()">✦ Imprimir Tickets</button>
     </div>
     <div class="receipt-wrapper">
-    ${generateTicketHTML(data, "COPIA ESTUDIANTE")}
-    <div class="cut-line">✂ CORTAR AQUI ✂</div>
-    ${generateTicketHTML(data, "COPIA CAJA")}
+    ${generateTicketHTML(data, "")}
     </div>
     </body></html>`;
 }
