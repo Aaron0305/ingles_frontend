@@ -370,7 +370,7 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
             <div className="p-6 rounded-2xl shadow-sm border border-gray-200/60 dark:border-gray-700/50 bg-white dark:bg-slate-800/50 backdrop-blur-sm">
 
                 {/* Header: Selectores y Botón Exportar */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div className="flex flex-col gap-4 mb-8">
                     <div>
                         <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Reporte de Pagos Diarios</h3>
                         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -378,44 +378,46 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                         </p>
                     </div>
 
-                    {userRole === "superadmin" ? (
-                        <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-700/50 rounded-xl p-1">
-                            <button onClick={handlePrevDay} className="p-2 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
-                                <ChevronLeft className="w-5 h-5" />
-                            </button>
-                            <div className="relative">
-                                <input
-                                    type="date"
-                                    value={selectedDate.toLocaleDateString('sv')} // YYYY-MM-DD
-                                    onChange={handleDateChange}
-                                    className="bg-transparent border-none text-center font-medium focus:ring-0 cursor-pointer text-sm w-36 text-gray-700 dark:text-gray-200"
-                                />
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
+                        {userRole === "superadmin" ? (
+                            <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-700/50 rounded-xl p-1 self-start">
+                                <button onClick={handlePrevDay} className="p-2 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
+                                    <ChevronLeft className="w-5 h-5" />
+                                </button>
+                                <div className="relative">
+                                    <input
+                                        type="date"
+                                        value={selectedDate.toLocaleDateString('sv')}
+                                        onChange={handleDateChange}
+                                        className="bg-transparent border-none text-center font-medium focus:ring-0 cursor-pointer text-sm w-36 text-gray-700 dark:text-gray-200"
+                                    />
+                                </div>
+                                <button onClick={handleNextDay} className="p-2 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
+                                    <ChevronRight className="w-5 h-5" />
+                                </button>
                             </div>
-                            <button onClick={handleNextDay} className="p-2 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
-                                <ChevronRight className="w-5 h-5" />
+                        ) : (
+                            <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-700/50 rounded-xl px-4 py-2 self-start">
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                    Hoy: {new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                </span>
+                            </div>
+                        )}
+
+                        <div className="flex gap-2 flex-wrap">
+                            <button
+                                onClick={exportDailyPaymentsToExcel}
+                                disabled={dailyPayments.length === 0}
+                                className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-white text-sm font-medium transition-all shadow-lg ${dailyPayments.length > 0
+                                    ? 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-emerald-500/25 hover:shadow-emerald-500/40'
+                                    : 'bg-gray-500/50 cursor-not-allowed text-gray-400 shadow-none'
+                                    }`}
+                            >
+                                <Download className="w-4 h-4" strokeWidth={2} />
+                                Exportar Excel
                             </button>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-700/50 rounded-xl px-4 py-2">
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                                Hoy: {new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                            </span>
-                        </div>
-                    )}
 
-                    <button
-                        onClick={exportDailyPaymentsToExcel}
-                        disabled={dailyPayments.length === 0}
-                        className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-white font-medium transition-all shadow-lg ${dailyPayments.length > 0
-                            ? 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-emerald-500/25 hover:shadow-emerald-500/40'
-                            : 'bg-gray-500/50 cursor-not-allowed text-gray-400 shadow-none'
-                            }`}
-                    >
-                        <Download className="w-4 h-4" strokeWidth={2} />
-                        Exportar Excel
-                    </button>
-
-                    <button
+                            <button
                         onClick={() => {
                             if (dailyPayments.length === 0) return;
                             const cashPayments = dailyPayments.filter(p => (p.paymentMethod || "efectivo") === "efectivo");
@@ -443,7 +445,7 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                             printDailySummary(summaryData);
                         }}
                         disabled={dailyPayments.length === 0}
-                        className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-white font-medium transition-all shadow-lg ${dailyPayments.length > 0
+                        className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-white text-sm font-medium transition-all shadow-lg ${dailyPayments.length > 0
                             ? 'bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 shadow-violet-500/25 hover:shadow-violet-500/40'
                             : 'bg-gray-500/50 cursor-not-allowed text-gray-400 shadow-none'
                             }`}
@@ -451,6 +453,8 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                         <Receipt className="w-4 h-4" strokeWidth={2} />
                         Corte de Caja
                     </button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Métricas Resumen del Día */}

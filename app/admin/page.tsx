@@ -777,17 +777,17 @@ export default function SuperAdminDashboard() {
                                 <div className="absolute top-0 left-0 w-96 h-96 rounded-full blur-2xl -translate-y-1/3 -translate-x-1/4" style={{ background: 'radial-gradient(circle, rgba(193, 18, 31, 0.35) 0%, rgba(193, 18, 31, 0.15) 40%, rgba(193, 18, 31, 0) 70%)' }} />
                                 <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-500/15 to-cyan-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
-                                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">
                                     {/* Estudiantes - Principal */}
                                     <div className="flex items-center gap-4">
-                                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
-                                            <Users className="w-8 h-8 text-white" strokeWidth={2} />
+                                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25 flex-shrink-0">
+                                            <Users className="w-6 h-6 sm:w-8 sm:h-8 text-white" strokeWidth={2} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Total de Estudiantes</p>
+                                            <p className="text-xs sm:text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Total de Estudiantes</p>
                                             <div className="flex items-baseline gap-2">
-                                                <p className="text-4xl font-black" style={{ color: 'var(--text-primary)' }}>{students.length}</p>
-                                                <span className="text-sm font-medium px-2 py-0.5 rounded-full bg-green-500/20 text-green-500">
+                                                <p className="text-2xl sm:text-4xl font-black" style={{ color: 'var(--text-primary)' }}>{students.length}</p>
+                                                <span className="text-xs sm:text-sm font-medium px-2 py-0.5 rounded-full bg-green-500/20 text-green-500">
                                                     {students.filter(s => s.status === "active").length} activos
                                                 </span>
                                             </div>
@@ -802,12 +802,12 @@ export default function SuperAdminDashboard() {
                                     {/* Administradores */}
                                     {userRole === "superadmin" && (
                                         <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-                                                <ShieldCheck className="w-7 h-7 text-white" strokeWidth={2} />
+                                            <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25 flex-shrink-0">
+                                                <ShieldCheck className="w-5 h-5 sm:w-7 sm:h-7 text-white" strokeWidth={2} />
                                             </div>
                                             <div>
-                                                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Administradores</p>
-                                                <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{admins.length}</p>
+                                                <p className="text-xs sm:text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Administradores</p>
+                                                <p className="text-xl sm:text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{admins.length}</p>
                                             </div>
                                         </div>
                                     )}
@@ -816,18 +816,18 @@ export default function SuperAdminDashboard() {
                                     <div className="hidden lg:block w-px h-16 bg-gradient-to-b from-transparent via-gray-500/30 to-transparent" />
 
                                     {/* Distribución por nivel */}
-                                    <div className="flex gap-3">
-                                        <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
-                                            <p className="text-2xl font-bold text-blue-500">{students.filter(s => s.level.startsWith("Beginner")).length}</p>
-                                            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Beginner</p>
+                                    <div className="flex gap-2 sm:gap-3 flex-wrap">
+                                        <div className="text-center px-3 sm:px-4 py-2 rounded-xl flex-1 min-w-[70px]" style={{ background: 'var(--surface)' }}>
+                                            <p className="text-lg sm:text-2xl font-bold text-blue-500">{students.filter(s => s.level.startsWith("Beginner")).length}</p>
+                                            <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Beginner</p>
                                         </div>
-                                        <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
-                                            <p className="text-2xl font-bold text-amber-500">{students.filter(s => s.level.startsWith("Intermediate")).length}</p>
-                                            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Intermediate</p>
+                                        <div className="text-center px-3 sm:px-4 py-2 rounded-xl flex-1 min-w-[70px]" style={{ background: 'var(--surface)' }}>
+                                            <p className="text-lg sm:text-2xl font-bold text-amber-500">{students.filter(s => s.level.startsWith("Intermediate")).length}</p>
+                                            <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Intermediate</p>
                                         </div>
-                                        <div className="text-center px-4 py-2 rounded-xl" style={{ background: 'var(--surface)' }}>
-                                            <p className="text-2xl font-bold text-emerald-500">{students.filter(s => s.level.startsWith("Advanced")).length}</p>
-                                            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Advanced</p>
+                                        <div className="text-center px-3 sm:px-4 py-2 rounded-xl flex-1 min-w-[70px]" style={{ background: 'var(--surface)' }}>
+                                            <p className="text-lg sm:text-2xl font-bold text-emerald-500">{students.filter(s => s.level.startsWith("Advanced")).length}</p>
+                                            <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Advanced</p>
                                         </div>
                                     </div>
                                 </div>
@@ -962,17 +962,17 @@ export default function SuperAdminDashboard() {
                                     {admins.map((admin) => (
                                         <div
                                             key={admin.id}
-                                            className="flex items-center justify-between p-4 rounded-xl transition-colors"
+                                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl transition-colors"
                                             style={{ background: 'var(--surface-alt)', border: '1px solid var(--border-color)' }}
                                         >
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg">
+                                            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0">
                                                     {admin.name.charAt(0).toUpperCase()}
                                                 </div>
-                                                <div>
-                                                    <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>{admin.name}</h3>
-                                                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{admin.email}</p>
-                                                    <div className="flex items-center gap-3 mt-1">
+                                                <div className="min-w-0">
+                                                    <h3 className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{admin.name}</h3>
+                                                    <p className="text-sm truncate" style={{ color: 'var(--text-secondary)' }}>{admin.email}</p>
+                                                    <div className="flex items-center gap-3 mt-1 flex-wrap">
                                                         <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                                                             Creado: {new Date(admin.createdAt).toLocaleDateString()}
                                                         </span>
@@ -985,7 +985,7 @@ export default function SuperAdminDashboard() {
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-2 sm:gap-3 self-end sm:self-auto flex-shrink-0">
                                                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${admin.status === "active"
                                                     ? "bg-green-500/20 text-green-500"
                                                     : "bg-gray-500/20 text-gray-500"

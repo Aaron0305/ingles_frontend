@@ -564,8 +564,8 @@ export default function StudentsPanel({ students, setStudents, userRole = "admin
                 </div>
 
                 {/* Pagination */}
-                <div className="px-6 py-4 flex items-center justify-between border-t" style={{ borderColor: 'var(--border-color)' }}>
-                    <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                <div className="px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                    <div className="text-xs sm:text-sm text-center sm:text-left" style={{ color: 'var(--text-secondary)' }}>
                         Mostrando <span className="font-medium">{(currentPage - 1) * studentsPerPage + 1}</span> a <span className="font-medium">{Math.min(currentPage * studentsPerPage, filteredStudents.length)}</span> de <span className="font-medium">{filteredStudents.length}</span> estudiantes
                     </div>
                     <div className="flex gap-2">
