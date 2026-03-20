@@ -501,6 +501,7 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Hora</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Estudiante</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Concepto</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Período</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Monto</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Método</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Confirmado por</th>
@@ -546,6 +547,22 @@ export default function ReportsPanel({ students, payments, userRole = "superadmi
                                                             Mensualidad
                                                         </span>
                                                     )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {(() => {
+                                                        if (isEnrollment) return <span className="text-xs text-gray-400">—</span>;
+                                                        if (!student) return <span className="text-xs text-gray-400">N/A</span>;
+                                                        const scheme = getStudentScheme(student);
+                                                        const desc = getPaymentDescription(student, scheme, payment.month, payment.year);
+                                                        // Extraer solo la parte "del X de Mes al Y de Mes"
+                                                        const match = desc.match(/del (.+? al .+?)\./i);
+                                                        const periodText = match ? match[1] : desc;
+                                                        return (
+                                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                                                {periodText}
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400">
                                                     ${payment.amount.toFixed(2)}
