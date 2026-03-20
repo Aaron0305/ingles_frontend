@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import CredentialModal, { Student } from "../dashboard/credential";
@@ -93,7 +93,7 @@ const EMAIL_DOMAINS = [
 
 export default function SuperAdminDashboard() {
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<TabType>("students");
+    const [activeTab, setActiveTabInternal] = useState<TabType>("students");
     const [students, setStudents] = useState<Student[]>([]);
     const [admins, setAdmins] = useState<Admin[]>([]);
     const [payments, setPayments] = useState<PaymentRecord[]>([]); // Pagos consolidados por período
@@ -239,6 +239,22 @@ export default function SuperAdminDashboard() {
             }
         });
 
+        // Escuchar pagos confirmados por otros admins para refrescar reportes
+        newSocket.on("payment-updated", () => {
+            console.log("🔄 Pago actualizado por otro admin, refrescando datos...");
+            // Usar setTimeout para dar tiempo al servidor de persistir
+            setTimeout(() => {
+                Promise.all([
+                    paymentsApi.getAll(),
+                    paymentsApi.getAllRaw(),
+                ]).then(([paymentsData, rawPaymentsData]) => {
+                    setPayments(paymentsData);
+                    setRawPayments(rawPaymentsData);
+                    console.log("✅ Datos de pagos actualizados desde socket");
+                }).catch(err => console.error("Error refrescando pagos:", err));
+            }, 1000);
+        });
+
         newSocket.on("disconnect", (reason) => {
             console.log(" Socket desconectado. Razón:", reason);
         });
@@ -317,6 +333,29 @@ export default function SuperAdminDashboard() {
             setIsLoading(false);
         }
     };
+
+    // Refrescar solo los pagos (sin mostrar loading) - para auto-refresh de reportes
+    const refreshPayments = useCallback(async () => {
+        try {
+            const [paymentsData, rawPaymentsData] = await Promise.all([
+                paymentsApi.getAll(),
+                paymentsApi.getAllRaw(),
+            ]);
+            setPayments(paymentsData);
+            setRawPayments(rawPaymentsData);
+            console.log("🔄 Pagos actualizados automáticamente");
+        } catch (error) {
+            console.error("Error actualizando pagos:", error);
+        }
+    }, []);
+
+    // Wrapper para cambiar de pestaña y refrescar pagos al entrar a reportes
+    const setActiveTab = useCallback((tab: TabType) => {
+        setActiveTabInternal(tab);
+        if (tab === "reports") {
+            refreshPayments();
+        }
+    }, [refreshPayments]);
 
 
     // ============================================

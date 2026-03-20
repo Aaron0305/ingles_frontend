@@ -902,7 +902,7 @@ function PaymentCancelModal({
                             <div className="flex justify-between items-center mt-1">
                                 <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Fecha de pago:</span>
                                 <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                    {new Date(payment.paidAt).toLocaleDateString('es-MX')}
+                                    {new Date(payment.paidAt).toLocaleDateString('es-MX', { timeZone: 'America/Mexico_City' })}
                                 </span>
                             </div>
                         )}
