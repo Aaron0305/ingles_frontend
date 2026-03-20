@@ -902,7 +902,15 @@ function PaymentCancelModal({
                             <div className="flex justify-between items-center mt-1">
                                 <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Fecha de pago:</span>
                                 <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                    {new Date(payment.paidAt).toLocaleDateString('es-MX', { timeZone: 'America/Mexico_City' })}
+                                    {(() => {
+                                        // Extraer fecha directamente del string ISO para evitar desfases de timezone
+                                        // paidAt viene como "2026-03-19T16:11:00-06:00"
+                                        const match = payment.paidAt.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                                        if (match) {
+                                            return `${parseInt(match[3])}/${parseInt(match[2])}/${match[1]}`;
+                                        }
+                                        return payment.paidAt;
+                                    })()}
                                 </span>
                             </div>
                         )}
