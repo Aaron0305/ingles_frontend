@@ -57,6 +57,31 @@ const STYLES = `
             padding: 5mm 5mm 5mm;
             margin-bottom: 0;
             padding-bottom: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .watermark-single {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.60;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .watermark-icon {
+            width: 250px;
+            height: 250px;
+            object-fit: contain;
+            filter: saturate(2);
+        }
+
+        .ticket > :not(.watermark-single) {
+            position: relative;
+            z-index: 1;
         }
 
         h2 {
@@ -75,8 +100,8 @@ const STYLES = `
         }
 
         .brand-logo {
-            width: 18px;
-            height: 18px;
+            width: 24px;
+            height: 24px;
             object-fit: contain;
         }
 
@@ -245,31 +270,30 @@ const STYLES = `
 export function generateTicketHTML(data: TicketData, copyLabel: string): string {
     void copyLabel;
     const parsedDate = new Date(data.date);
-    // Si la fecha no tiene zona horaria (ej: "2026-03-19T16:51:00"),
-    // new Date() la interpreta como local sin problemas.
-    // Si tiene "Z" o "-06:00", new Date() la convierte automáticamente a local.
-    // Usamos toLocaleString con timeZone explícito para garantizar hora de México.
     const dateObj = Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
     const dateStr = dateObj.toLocaleDateString("es-MX", {
-        day: "2-digit", month: "short", year: "numeric",
-        timeZone: "America/Mexico_City"
+        day: "2-digit", month: "short", year: "numeric"
     });
     const timeStr = dateObj.toLocaleTimeString("es-MX", {
         hour: "2-digit",
         minute: "2-digit",
-        hour12: true,
-        timeZone: "America/Mexico_City"
-    }).replace("a. m.", "a.m.").replace("p. m.", "p.m.");
+        hour12: true
+    }).replace("a. m.", "AM").replace("p. m.", "PM");
     const folioStr = String(data.folio).padStart(3, "0");
     const logoSrc = "/image/logo_mensaje.png";
+    const mascotaSrc = "/image/mascota.png";
     const contactEmail = "whatimeisitixtla18@gmail.com";
     const contactEmailFormatted = contactEmail.replace("@", "@<wbr>").replace(/\./g, ".<wbr>");
 
     return `
     <div class="ticket">
+        <div class="watermark-single" aria-hidden="true">
+            <img src="${mascotaSrc}" alt="" class="watermark-icon" loading="eager" decoding="sync" />
+        </div>
         <div class="center bold brand-header">
-            <h2>What time is it? **</h2>
             <img src="${logoSrc}" alt="Logo What Time Is It" class="brand-logo" onerror="this.style.display='none'" />
+            <h2>What time is it?</h2>
+            <img src="${mascotaSrc}" alt="Mascota What Time Is It" class="brand-logo" onerror="this.style.display='none'" />
         </div>
         <div class="center ticket-block-title">Recibo de pago</div>
         <div class="double-separator"></div>
@@ -315,7 +339,6 @@ export function generateTicketHTML(data: TicketData, copyLabel: string): string 
         <div class="separator"></div>
         <div>Atendio: ${data.confirmedBy || "Admin"}</div>
         <div class="double-separator"></div>
-        <div class="center bold">* ${copyLabel} *</div>
     </div>`;
 }
 
@@ -360,7 +383,7 @@ export function generateFullTicketPage(data: TicketData): string {
     <!DOCTYPE html>
     <html><head><title>Ticket #${String(data.folio).padStart(3, "0")}</title>${STYLES}</head><body>
     <div class="print-bar">
-        <button onclick="window.print()">✦ Imprimir Tickets</button>
+        <button onclick="window.print()">Imprimir Tickets</button>
     </div>
     <div class="receipt-wrapper">
     ${generateTicketHTML(data, "")}
