@@ -9,6 +9,7 @@ import CredentialsPanel from "../dashboard/credentials-panel";
 import ReportsPanel from "../dashboard/reports-panel";
 import StudentsPanel from "../dashboard/students-panel"; // Importado
 import CalendarPanel from "../dashboard/calendar";
+import TeacherPanel from "../dashboard/teacher-panel";
 import { studentsApi, adminsApi, paymentsApi, authApi } from "@/lib/api";
 import { printTicket } from "@/lib/printer";
 import type { TicketData } from "@/lib/printer";
@@ -63,8 +64,7 @@ interface EditStudentForm {
     emergencyPhone: string;
     level: "Beginner 1" | "Beginner 2" | "Intermediate 1" | "Intermediate 2" | "Advanced 1" | "Advanced 2";
 }
-
-type TabType = "students" | "credentials" | "payments" | "admins" | "reports" | "calendar";
+type TabType = "students" | "credentials" | "payments" | "admins" | "reports" | "calendar" | "teachers";
 
 // ============================================
 // CONSTANTES
@@ -816,16 +816,28 @@ export default function SuperAdminDashboard() {
                                     Credenciales
                                 </button>
                                 {userRole === "superadmin" && (
-                                    <button
-                                        onClick={() => setActiveTab("admins")}
-                                        className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "admins" ? "text-white" : ""}`}
-                                        style={activeTab === "admins"
-                                            ? { background: '#014287', color: 'white' }
-                                            : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
-                                    >
-                                        <Users className="w-4 h-4" strokeWidth={2} />
-                                        Administradores
-                                    </button>
+                                    <>
+                                        <button
+                                            onClick={() => setActiveTab("teachers")}
+                                            className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "teachers" ? "text-white" : ""}`}
+                                            style={activeTab === "teachers"
+                                                ? { background: '#014287', color: 'white' }
+                                                : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
+                                        >
+                                            <GraduationCap className="w-4 h-4" strokeWidth={2} />
+                                            Teachers
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveTab("admins")}
+                                            className={`px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center gap-2 ${activeTab === "admins" ? "text-white" : ""}`}
+                                            style={activeTab === "admins"
+                                                ? { background: '#014287', color: 'white' }
+                                                : { background: 'var(--surface)', color: 'var(--text-secondary)' }}
+                                        >
+                                            <Users className="w-4 h-4" strokeWidth={2} />
+                                            Administradores
+                                        </button>
+                                    </>
                                 )}
                                 <button
                                     onClick={() => setActiveTab("reports")}
@@ -849,7 +861,7 @@ export default function SuperAdminDashboard() {
                                 </button>
                             </div>
 
-                            {activeTab !== "payments" && activeTab !== "admins" && activeTab !== "reports" && activeTab !== "calendar" && (
+                            {activeTab !== "payments" && activeTab !== "admins" && activeTab !== "teachers" && activeTab !== "reports" && activeTab !== "calendar" && (
                                 <button
                                     onClick={() => setShowCreateModal(true)}
                                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all hover:opacity-90"
@@ -895,6 +907,8 @@ export default function SuperAdminDashboard() {
                                 pendingPaymentRequest={pendingPaymentRequest}
                                 onPaymentRequestHandled={() => setPendingPaymentRequest(null)}
                             />
+                        ) : activeTab === "teachers" ? (
+                            <TeacherPanel userRole={userRole} />
                         ) : activeTab === "admins" ? (
                             /* Content - Admins Tab */
                             <div className="data-table rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border-color)' }}>

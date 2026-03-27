@@ -72,7 +72,12 @@ export default function LoginPage() {
                 localStorage.setItem("token", response.token);
                 localStorage.setItem("userType", response.user.role);
                 localStorage.setItem("userName", response.user.name);
-                router.push("/admin");
+                
+                if (response.user.role === "teacher") {
+                    router.push("/teacher");
+                } else {
+                    router.push("/admin");
+                }
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : "Error al conectar con el servidor";

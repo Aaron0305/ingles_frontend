@@ -41,6 +41,14 @@ export interface Admin {
     createdAt: string;
 }
 
+export interface Teacher {
+    id: string;
+    name: string;
+    email: string;
+    status: "active" | "inactive";
+    createdAt: string;
+}
+
 export interface Payment {
     id: string;
     studentId: string;
@@ -64,7 +72,7 @@ export interface LoginResponse {
         id: string;
         name: string;
         email: string;
-        role: "admin" | "superadmin";
+        role: "admin" | "superadmin" | "teacher";
     };
     token: string;
 }
@@ -241,6 +249,80 @@ export const adminsApi = {
 
         return handleResponse<{ success: boolean }>(response);
     },
+};
+
+// ============================================
+// TEACHERS API
+// ============================================
+
+export const teachersApi = {
+    async getAll(): Promise<Teacher[]> {
+        const response = await fetch(`${API_URL}/api/teachers`, {
+            headers: getAuthHeaders(),
+        });
+
+        return handleResponse<Teacher[]>(response);
+    },
+
+    async create(data: {
+        name: string;
+        email: string;
+        password: string;
+    }): Promise<Teacher> {
+        const response = await fetch(`${API_URL}/api/teachers`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify(data),
+        });
+
+        return handleResponse<Teacher>(response);
+    },
+
+    async update(id: string, data: Partial<Teacher>): Promise<Teacher> {
+        const response = await fetch(`${API_URL}/api/teachers/${id}`, {
+            method: "PUT",
+            headers: getAuthHeaders(),
+            body: JSON.stringify(data),
+        });
+
+        return handleResponse<Teacher>(response);
+    },
+
+    async toggleStatus(id: string, currentStatus: string): Promise<Teacher> {
+        const newStatus = currentStatus === "active" ? "inactive" : "active";
+        const response = await fetch(`${API_URL}/api/teachers/${id}`, {
+            method: "PUT",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ status: newStatus }),
+        });
+        return handleResponse<Teacher>(response);
+    },
+
+    async delete(id: string): Promise<{ success: boolean }> {
+        const response = await fetch(`${API_URL}/api/teachers/${id}`, {
+            method: "DELETE",
+            headers: getAuthHeaders(),
+        });
+
+        return handleResponse<{ success: boolean }>(response);
+    },
+};
+
+// ============================================
+// AI API (Asistente)
+// ============================================
+export const aiApi = {
+    sendMessage: async (message: string, historyContext: { role: "user" | "assistant", content: string }[] = []) => {
+        const response = await fetch(`${API_URL}/api/ai/chat`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ message, historyContext }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Error respondiendo mensaje");
+        return data;
+    }
 };
 
 // ============================================
