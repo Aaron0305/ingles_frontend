@@ -312,16 +312,70 @@ export const teachersApi = {
 // AI API (Asistente)
 // ============================================
 export const aiApi = {
-    sendMessage: async (message: string, historyContext: { role: "user" | "assistant", content: string }[] = []) => {
+    sendMessageStream: async (
+        message: string,
+        historyContext: { role: "user" | "assistant", content: string }[] = [],
+        teacherId?: string,
+        onChunk?: (text: string) => void
+    ): Promise<string> => {
         const response = await fetch(`${API_URL}/api/ai/chat`, {
             method: "POST",
             headers: getAuthHeaders(),
-            body: JSON.stringify({ message, historyContext }),
+            body: JSON.stringify({ message, historyContext, teacherId }),
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Error respondiendo mensaje");
+        }
+
+        // Leer el stream SSE
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No se pudo iniciar el stream");
+
+        const decoder = new TextDecoder();
+        let fullReply = "";
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const text = decoder.decode(value, { stream: true });
+            // Cada línea SSE es "data: {...}\n\n"
+            const lines = text.split("\n").filter(l => l.startsWith("data: "));
+
+            for (const line of lines) {
+                const payload = line.replace("data: ", "");
+                if (payload === "[DONE]") break;
+
+                try {
+                    const parsed = JSON.parse(payload);
+                    if (parsed.text) {
+                        fullReply += parsed.text;
+                        onChunk?.(parsed.text);
+                    }
+                    if (parsed.error) {
+                        throw new Error(parsed.error);
+                    }
+                } catch (e) {
+                    // Ignorar líneas malformadas
+                    if (e instanceof Error && e.message !== "Error durante la generación.") continue;
+                    throw e;
+                }
+            }
+        }
+
+        return fullReply;
+    },
+
+    getHistory: async (teacherId: string, limit: number = 50) => {
+        const response = await fetch(`${API_URL}/api/ai/chat?teacherId=${teacherId}&limit=${limit}`, {
+            headers: getAuthHeaders(),
         });
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Error respondiendo mensaje");
-        return data;
+        if (!response.ok) throw new Error(data.error || "Error cargando historial");
+        return data as { messages: { role: "user" | "assistant"; content: string; created_at: string }[] };
     }
 };
 

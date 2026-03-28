@@ -72,6 +72,7 @@ export default function LoginPage() {
                 localStorage.setItem("token", response.token);
                 localStorage.setItem("userType", response.user.role);
                 localStorage.setItem("userName", response.user.name);
+                localStorage.setItem("userId", response.user.id);
                 
                 if (response.user.role === "teacher") {
                     router.push("/teacher");
